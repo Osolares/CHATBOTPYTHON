@@ -27,7 +27,7 @@ def ordenar_por_fecha_y_hora(registros):
 
 @app.route('/')
 def index():
-    #obtener todos los registros ed la base de datos
+    #obtener todos los registros de la base de datos
     registros = Log.query.all()
     registros_ordenados = ordenar_por_fecha_y_hora(registros)
     return render_template('index.html',registros=registros_ordenados)
@@ -113,26 +113,212 @@ def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
 
     if "hola" in texto:
-        data={
+        data= {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
             "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "🚀 Hola, ¿Cómo estás? Bienvenido."
-            }
+            "type": "image",
+            "image": {
+                "link": "https://intermotores.com/wp-content/uploads/2024/09/Logo_Intermotores.webp",
+                "caption": "🙌*Hola bienvenid@ a Intermotores*, _es un placer atenderte_ 👨‍💻 "  # Texto con formato
+
+                }
         }
     elif "1" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum."
-            }
+        {
+            "version": "7.0",
+            "screens": [
+                {
+                    "id": "RECOMMEND",
+                    "title": "Feedback 1 of 2",
+                    "data": {},
+                    "layout": {
+                        "type": "SingleColumnLayout",
+                        "children": [
+                            {
+                                "type": "Form",
+                                "name": "form",
+                                "children": [
+                                    {
+                                        "type": "TextSubheading",
+                                        "text": "Would you recommend us to a friend?"
+                                    },
+                                    {
+                                        "type": "RadioButtonsGroup",
+                                        "label": "Choose one",
+                                        "name": "Choose_one",
+                                        "data-source": [
+                                            {
+                                                "id": "0_Yes",
+                                                "title": "Yes"
+                                            },
+                                            {
+                                                "id": "1_No",
+                                                "title": "No"
+                                            }
+                                        ],
+                                        "required": true
+                                    },
+                                    {
+                                        "type": "TextSubheading",
+                                        "text": "How could we do better?"
+                                    },
+                                    {
+                                        "type": "TextArea",
+                                        "label": "Leave a comment",
+                                        "required": false,
+                                        "name": "Leave_a_comment"
+                                    },
+                                    {
+                                        "type": "Footer",
+                                        "label": "Continue",
+                                        "on-click-action": {
+                                            "name": "navigate",
+                                            "next": {
+                                                "type": "screen",
+                                                "name": "RATE"
+                                            },
+                                            "payload": {
+                                                "screen_0_Choose_one_0": "${form.Choose_one}",
+                                                "screen_0_Leave_a_comment_1": "${form.Leave_a_comment}"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "RATE",
+                    "title": "Feedback 2 of 2",
+                    "data": {
+                        "screen_0_Choose_one_0": {
+                            "type": "string",
+                            "__example__": "Example"
+                        },
+                        "screen_0_Leave_a_comment_1": {
+                            "type": "string",
+                            "__example__": "Example"
+                        }
+                    },
+                    "terminal": true,
+                    "success": true,
+                    "layout": {
+                        "type": "SingleColumnLayout",
+                        "children": [
+                            {
+                                "type": "Form",
+                                "name": "form",
+                                "children": [
+                                    {
+                                        "type": "TextSubheading",
+                                        "text": "Rate the following: "
+                                    },
+                                    {
+                                        "type": "Dropdown",
+                                        "label": "Purchase experience",
+                                        "required": true,
+                                        "name": "Purchase_experience",
+                                        "data-source": [
+                                            {
+                                                "id": "0_Excellent",
+                                                "title": "★★★★★ • Excellent (5/5)"
+                                            },
+                                            {
+                                                "id": "1_Good",
+                                                "title": "★★★★☆ • Good (4/5)"
+                                            },
+                                            {
+                                                "id": "2_Average",
+                                                "title": "★★★☆☆ • Average (3/5)"
+                                            },
+                                            {
+                                                "id": "3_Poor",
+                                                "title": "★★☆☆☆ • Poor (2/5)"
+                                            },
+                                            {
+                                                "id": "4_Very_Poor",
+                                                "title": "★☆☆☆☆ • Very Poor (1/5)"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "Dropdown",
+                                        "label": "Delivery and setup",
+                                        "required": true,
+                                        "name": "Delivery_and_setup",
+                                        "data-source": [
+                                            {
+                                                "id": "0_Excellent",
+                                                "title": "★★★★★ • Excellent (5/5)"
+                                            },
+                                            {
+                                                "id": "1_Good",
+                                                "title": "★★★★☆ • Good (4/5)"
+                                            },
+                                            {
+                                                "id": "2_Average",
+                                                "title": "★★★☆☆ • Average (3/5)"
+                                            },
+                                            {
+                                                "id": "3_Poor",
+                                                "title": "★★☆☆☆ • Poor (2/5)"
+                                            },
+                                            {
+                                                "id": "4_Very_Poor",
+                                                "title": "★☆☆☆☆ • Very Poor (1/5)"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "Dropdown",
+                                        "label": "Customer service",
+                                        "required": true,
+                                        "name": "Customer_service",
+                                        "data-source": [
+                                            {
+                                                "id": "0_Excellent",
+                                                "title": "★★★★★ • Excellent (5/5)"
+                                            },
+                                            {
+                                                "id": "1_Good",
+                                                "title": "★★★★☆ • Good (4/5)"
+                                            },
+                                            {
+                                                "id": "2_Average",
+                                                "title": "★★★☆☆ • Average (3/5)"
+                                            },
+                                            {
+                                                "id": "3_Poor",
+                                                "title": "★★☆☆☆ • Poor (2/5)"
+                                            },
+                                            {
+                                                "id": "4_Very_Poor",
+                                                "title": "★☆☆☆☆ • Very Poor (1/5)"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "Footer",
+                                        "label": "Done",
+                                        "on-click-action": {
+                                            "name": "complete",
+                                            "payload": {
+                                                "screen_1_Purchase_experience_0": "${form.Purchase_experience}",
+                                                "screen_1_Delivery_and_setup_1": "${form.Delivery_and_setup}",
+                                                "screen_1_Customer_service_2": "${form.Customer_service}",
+                                                "screen_0_Choose_one_0": "${data.screen_0_Choose_one_0}",
+                                                "screen_0_Leave_a_comment_1": "${data.screen_0_Leave_a_comment_1}"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
         }
     elif "2" in texto:
         data = {
@@ -146,17 +332,21 @@ def enviar_mensajes_whatsapp(texto,number):
                 "address": "Cercado de Lima"
             }
         }
-    elif "3" in texto:
-        data={
+    elif "3" in texto:        
+        data = {
             "messaging_product": "whatsapp",
-            "recipient_type": "individual",
             "to": number,
-            "type": "document",
-            "document": {
-                    "link": "https://www.turnerlibros.com/wp-content/uploads/2021/02/ejemplo.pdf",
-                    "caption": "Temario del Curso #001"
-                }
+            "type": "location",
+            "location": {
+                "latitude": "14.564777",
+                "longitude": "-90.466011",
+                "name": "*Intermotores*",
+                "address": "_Importadora Internacional de Motores Japoneses, s.a_",
+                "caption": "\n\n📍 Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, Intermotores "  # Texto con formato
+
             }
+        }
+
     elif "4" in texto:
         data={
             "messaging_product": "whatsapp",
@@ -195,7 +385,7 @@ def enviar_mensajes_whatsapp(texto,number):
             "type": "text",
             "text": {
                 "preview_url": False,
-                "body": "📅 Horario de Atención : Lunes a Viernes. \n🕜 Horario : 9:00 am a 5:00 pm 🤓"
+                "body": "📅 *Horario de Atención:* \n\n Lunes a Viernes. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Sábado. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Domingo. Cerrado 🤓"
             }
         }
     elif "0" in texto:
@@ -206,7 +396,7 @@ def enviar_mensajes_whatsapp(texto,number):
             "type": "text",
             "text": {
                 "preview_url": False,
-                "body": "🚀 Hola, visita mi web anderson-bastidas.com para más información.\n \n📌Por favor, ingresa un número #️⃣ para recibir información.\n \n1️⃣. Información del Curso. ❔\n2️⃣. Ubicación del local. 📍\n3️⃣. Enviar temario en PDF. 📄\n4️⃣. Audio explicando curso. 🎧\n5️⃣. Video de Introducción. ⏯️\n6️⃣. Hablar con AnderCode. 🙋‍♂️\n7️⃣. Horario de Atención. 🕜 \n0️⃣. Regresar al Menú. 🕜"
+                "body": "🚀👋 Hola, visita mi web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. 🔩Cotizar Motores. ⚙\n2️⃣. 🛞Cotizar Repuestos. \n3️⃣. 📍Ubicación. . \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
             }
         }
     elif "boton" in texto:
@@ -229,13 +419,13 @@ def enviar_mensajes_whatsapp(texto,number):
                             "type": "reply",
                             "reply":{
                                 "id":"btnsi",
-                                "title":"Si"
+                                "title":"👋Si"
                             }
                         },{
                             "type": "reply",
                             "reply":{
                                 "id":"btnno",
-                                "title":"No"
+                                "title":"👋No"
                             }
                         },{
                             "type": "reply",
@@ -360,7 +550,7 @@ def enviar_mensajes_whatsapp(texto,number):
             "type": "text",
             "text": {
                 "preview_url": False,
-                "body": "🚀 Hola, visita mi web anderson-bastidas.com para más información.\n \n📌Por favor, ingresa un número #️⃣ para recibir información.\n \n1️⃣. Información del Curso. ❔\n2️⃣. Ubicación del local. 📍\n3️⃣. Enviar temario en PDF. 📄\n4️⃣. Audio explicando curso. 🎧\n5️⃣. Video de Introducción. ⏯️\n6️⃣. Hablar con AnderCode. 🙋‍♂️\n7️⃣. Horario de Atención. 🕜 \n0️⃣. Regresar al Menú. 🕜"
+                "body": "🚀👋 Hola, visita mi web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. 🔩Cotizar Motores. ⚙\n2️⃣. 🛞Cotizar Repuestos. \n3️⃣. 📍Ubicación. . \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
             }
         }
 
@@ -370,6 +560,7 @@ def enviar_mensajes_whatsapp(texto,number):
     headers = {
         "Content-Type" : "application/json",
         "Authorization" : "Bearer EAASuhuwPLvsBOyi4z4jqFSEjK6LluwqP7ZBUI5neqElC0PhJ5VVmTADzVlkjZCm9iCFjcztQG0ONSKpc1joEKlxM5oNEuNLXloY4fxu9jZCCJh4asEU4mwZAo9qZC5aoQAFXrb2ZC8fsIfcq5u1K90MTBrny375KAHHTG4SFMz7eXM1dbwRiBhqGhOxNtFBmVTwQZDZD"
+                                    
     }
 
     connection = http.client.HTTPSConnection("graph.facebook.com")
