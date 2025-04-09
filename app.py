@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import http.client
 import json
+import time
 
 app = Flask(__name__)
 
@@ -10,6 +11,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///metapython.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db =SQLAlchemy(app)
+
 
 #Modelo de la tabla log
 class Log(db.Model):
@@ -109,261 +111,99 @@ def recibir_mensajes(req):
     except Exception as e:
         return jsonify({'message':'EVENT_RECEIVED'})
 
+def bot_enviar_mensaje_whatsapp(data):
+    headers = {
+        "Content-Type" : "application/json",
+        "Authorization" : "Bearer EAASuhuwPLvsBOyi4z4jqFSEjK6LluwqP7ZBUI5neqElC0PhJ5VVmTADzVlkjZCm9iCFjcztQG0ONSKpc1joEKlxM5oNEuNLXloY4fxu9jZCCJh4asEU4mwZAo9qZC5aoQAFXrb2ZC8fsIfcq5u1K90MTBrny375KAHHTG4SFMz7eXM1dbwRiBhqGhOxNtFBmVTwQZDZD"
+    }
+    
+    connection = http.client.HTTPSConnection("graph.facebook.com")
+    try:
+        #Convertir el diccionaria a formato JSON
+        json_data = json.dumps(data)
+        connection.request("POST", "/v22.0/641730352352096/messages", json_data, headers)
+        response = connection.getresponse()
+        print(f"Estado: {response.status} - {response.reason}")
+        return response.read()
+    except Exception as e:
+        agregar_mensajes_log(json.dumps(e))
+        return None
+    finally:
+        connection.close()
+
+
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
 
     if "hola" in texto:
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2024/09/Logo_Intermotores.webp"
+                }
+            },
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "👋 Gracias por comunicarse con nostros, es un placer atenderle 👨‍💻"
+                }
+            },
+        ]
+    elif "1" in texto:
         data = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
-            "to": number, 
-            "type": "interactive",
-            "interactive": {
-                "type": "button",
-                "header": {
-                    "type": "image",
-                    "image": {
-                        "link": "https://intermotores.com/wp-content/uploads/2024/09/Logo_Intermotores.webp"  # URL válida HTTPS
-                    }
-                },
-                "body": {
-                    "text": "🙌 *Hola bienvenid@ a Intermotores*\n_Es un placer atenderte_ 👨‍💻"  # Texto con formato (negritas/cursivas)
-                },
-                "action": {
-                    "buttons": [
-                        {
-                            "type": "reply",
-                            "reply": {
-                                "id": "btn_1",
-                                "title": "Ver ubicación"  # Opcional: añade un botón de acción
-                            }
-                        }
-                    ]
-                }
+            "to": number,
+            "type": "text",
+            "text": {
+                "preview_url": False,
+                "body": "Estos son nuestros motores"
             }
-        }
-    elif "1" in texto:
-        data = {
-            "version": "7.0",
-            "screens": [
-                {
-                    "id": "RECOMMEND",
-                    "title": "Feedback 1 of 2",
-                    "data": {},
-                    "layout": {
-                        "type": "SingleColumnLayout",
-                        "children": [
-                            {
-                                "type": "Form",
-                                "name": "form",
-                                "children": [
-                                    {
-                                        "type": "TextSubheading",
-                                        "text": "Would you recommend us to a friend?"
-                                    },
-                                    {
-                                        "type": "RadioButtonsGroup",
-                                        "label": "Choose one",
-                                        "name": "Choose_one",
-                                        "data-source": [
-                                            {
-                                                "id": "0_Yes",
-                                                "title": "Yes"
-                                            },
-                                            {
-                                                "id": "1_No",
-                                                "title": "No"
-                                            }
-                                        ],
-                                        "required": true
-                                    },
-                                    {
-                                        "type": "TextSubheading",
-                                        "text": "How could we do better?"
-                                    },
-                                    {
-                                        "type": "TextArea",
-                                        "label": "Leave a comment",
-                                        "required": false,
-                                        "name": "Leave_a_comment"
-                                    },
-                                    {
-                                        "type": "Footer",
-                                        "label": "Continue",
-                                        "on-click-action": {
-                                            "name": "navigate",
-                                            "next": {
-                                                "type": "screen",
-                                                "name": "RATE"
-                                            },
-                                            "payload": {
-                                                "screen_0_Choose_one_0": "${form.Choose_one}",
-                                                "screen_0_Leave_a_comment_1": "${form.Leave_a_comment}"
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                },
-                {
-                    "id": "RATE",
-                    "title": "Feedback 2 of 2",
-                    "data": {
-                        "screen_0_Choose_one_0": {
-                            "type": "string",
-                            "__example__": "Example"
-                        },
-                        "screen_0_Leave_a_comment_1": {
-                            "type": "string",
-                            "__example__": "Example"
-                        }
-                    },
-                    "terminal": true,
-                    "success": true,
-                    "layout": {
-                        "type": "SingleColumnLayout",
-                        "children": [
-                            {
-                                "type": "Form",
-                                "name": "form",
-                                "children": [
-                                    {
-                                        "type": "TextSubheading",
-                                        "text": "Rate the following: "
-                                    },
-                                    {
-                                        "type": "Dropdown",
-                                        "label": "Purchase experience",
-                                        "required": true,
-                                        "name": "Purchase_experience",
-                                        "data-source": [
-                                            {
-                                                "id": "0_Excellent",
-                                                "title": "★★★★★ • Excellent (5/5)"
-                                            },
-                                            {
-                                                "id": "1_Good",
-                                                "title": "★★★★☆ • Good (4/5)"
-                                            },
-                                            {
-                                                "id": "2_Average",
-                                                "title": "★★★☆☆ • Average (3/5)"
-                                            },
-                                            {
-                                                "id": "3_Poor",
-                                                "title": "★★☆☆☆ • Poor (2/5)"
-                                            },
-                                            {
-                                                "id": "4_Very_Poor",
-                                                "title": "★☆☆☆☆ • Very Poor (1/5)"
-                                            }
-                                        ]
-                                    },
-                                    {
-                                        "type": "Dropdown",
-                                        "label": "Delivery and setup",
-                                        "required": true,
-                                        "name": "Delivery_and_setup",
-                                        "data-source": [
-                                            {
-                                                "id": "0_Excellent",
-                                                "title": "★★★★★ • Excellent (5/5)"
-                                            },
-                                            {
-                                                "id": "1_Good",
-                                                "title": "★★★★☆ • Good (4/5)"
-                                            },
-                                            {
-                                                "id": "2_Average",
-                                                "title": "★★★☆☆ • Average (3/5)"
-                                            },
-                                            {
-                                                "id": "3_Poor",
-                                                "title": "★★☆☆☆ • Poor (2/5)"
-                                            },
-                                            {
-                                                "id": "4_Very_Poor",
-                                                "title": "★☆☆☆☆ • Very Poor (1/5)"
-                                            }
-                                        ]
-                                    },
-                                    {
-                                        "type": "Dropdown",
-                                        "label": "Customer service",
-                                        "required": true,
-                                        "name": "Customer_service",
-                                        "data-source": [
-                                            {
-                                                "id": "0_Excellent",
-                                                "title": "★★★★★ • Excellent (5/5)"
-                                            },
-                                            {
-                                                "id": "1_Good",
-                                                "title": "★★★★☆ • Good (4/5)"
-                                            },
-                                            {
-                                                "id": "2_Average",
-                                                "title": "★★★☆☆ • Average (3/5)"
-                                            },
-                                            {
-                                                "id": "3_Poor",
-                                                "title": "★★☆☆☆ • Poor (2/5)"
-                                            },
-                                            {
-                                                "id": "4_Very_Poor",
-                                                "title": "★☆☆☆☆ • Very Poor (1/5)"
-                                            }
-                                        ]
-                                    },
-                                    {
-                                        "type": "Footer",
-                                        "label": "Done",
-                                        "on-click-action": {
-                                            "name": "complete",
-                                            "payload": {
-                                                "screen_1_Purchase_experience_0": "${form.Purchase_experience}",
-                                                "screen_1_Delivery_and_setup_1": "${form.Delivery_and_setup}",
-                                                "screen_1_Customer_service_2": "${form.Customer_service}",
-                                                "screen_0_Choose_one_0": "${data.screen_0_Choose_one_0}",
-                                                "screen_0_Leave_a_comment_1": "${data.screen_0_Leave_a_comment_1}"
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                }
-            ]
         }
     elif "2" in texto:
         data = {
             "messaging_product": "whatsapp",
+            "recipient_type": "individual",
             "to": number,
-            "type": "location",
-            "location": {
-                "latitude": "-12.067158831865067",
-                "longitude": "-77.03377940839486",
-                "name": "Estadio Nacional del Perú",
-                "address": "Cercado de Lima"
+            "type": "text",
+            "text": {
+                "preview_url": False,
+                "body": "Estos son nuestros productos"
             }
         }
     elif "3" in texto:        
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "location",
-            "location": {
-                "latitude": "14.564777",
-                "longitude": "-90.466011",
-                "name": "Intermotores",  # Nombre sin formato (texto plano)
-                "address": "Importadora Internacional de Motores Japoneses, s.a.\n\n Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"  # Usa \n para saltos de línea
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "location",
+                "location": {
+                    "latitude": "14.564777",
+                    "longitude": "-90.466011",
+                    "name": "Intermotores",  # Nombre sin formato (texto plano)
+                    "address": "Importadora Internacional de Motores Japoneses, s.a."
+                }
+            },
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
+                }
             }
-        }
-
+        ]
     elif "4" in texto:
         data = {
             "messaging_product": "whatsapp",
@@ -393,7 +233,7 @@ def enviar_mensajes_whatsapp(texto,number):
             "type": "text",
             "text": {
                 "preview_url": False,
-                "body": "🤝 En breve me pondre en contacto contigo. 🤓"
+                "body": "🤝 Dame una breve descripción de la falla. 🤓"
             }
         }
     elif "7" in texto:
@@ -404,7 +244,7 @@ def enviar_mensajes_whatsapp(texto,number):
             "type": "text",
             "text": {
                 "preview_url": False,
-                "body": "📅 *Horario de Atención:* \n\n Lunes a Viernes. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Sábado. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Domingo. Cerrado 🤓"
+                "body": "📅 *Estos son nuestros métodos de envío:* \n\n Envíos en la capital. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Envío al exterior. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Pago contra entrega. Cerrado 🤓"
             }
         }
     elif "0" in texto:
@@ -415,7 +255,7 @@ def enviar_mensajes_whatsapp(texto,number):
             "type": "text",
             "text": {
                 "preview_url": False,
-                "body": "🚀👋 Hola, visita mi web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+                "body": "🚀👋 Hola, visita nuestro sitio web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
             }
         }
     elif "boton" in texto:
@@ -569,29 +409,14 @@ def enviar_mensajes_whatsapp(texto,number):
             "type": "text",
             "text": {
                 "preview_url": False,
-                "body": "🚀👋 Hola, visita mi web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+                "body": "🚀👋 Hola, visita nuestro sitio web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
             }
         }
 
-    #Convertir el diccionaria a formato JSON
-    data=json.dumps(data)
-
-    headers = {
-        "Content-Type" : "application/json",
-        "Authorization" : "Bearer EAASuhuwPLvsBOyi4z4jqFSEjK6LluwqP7ZBUI5neqElC0PhJ5VVmTADzVlkjZCm9iCFjcztQG0ONSKpc1joEKlxM5oNEuNLXloY4fxu9jZCCJh4asEU4mwZAo9qZC5aoQAFXrb2ZC8fsIfcq5u1K90MTBrny375KAHHTG4SFMz7eXM1dbwRiBhqGhOxNtFBmVTwQZDZD"
-                                    
-    }
-
-    connection = http.client.HTTPSConnection("graph.facebook.com")
-
-    try:
-        connection.request("POST","/v22.0/641730352352096/messages", data, headers)
-        response = connection.getresponse()
-        print(response.status, response.reason)
-    except Exception as e:
-        agregar_mensajes_log(json.dumps(e))
-    finally:
-        connection.close()
+    # Envío secuencial con pausas
+    for mensaje in data:
+        bot_enviar_mensaje_whatsapp(mensaje)
+        time.sleep(1)  # Pausa para cumplir con rate limits de WhatsApp
 
 if __name__=='__main__':
     app.run(host='0.0.0.0',port=80,debug=True)
