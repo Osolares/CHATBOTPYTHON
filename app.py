@@ -1,29 +1,17 @@
 from flask import Flask, request, jsonify, render_template
 from config import app, db
-from models import UserSession
+from models import UserSession, Log, init_db
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import http.client
 import json
 import time
 
-app = Flask(__name__)
-
-#Configuracion de la base de datos SQLITE
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///metapython.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db =SQLAlchemy(app)
-
-
-#Modelo de la tabla log
-class Log(db.Model):
-    id = db.Column(db.Integer,primary_key=True)
-    fecha_y_hora = db.Column(db.DateTime, default=datetime.utcnow)
-    texto = db.Column(db.TEXT)
-
-#Crear la tabla si no existe
+# Inicializar DB
 with app.app_context():
-    db.create_all()
+    init_db()
+
+app = Flask(__name__)
 
 #Funcion para ordenar los registros por fecha y hora
 def ordenar_por_fecha_y_hora(registros):
@@ -31,10 +19,8 @@ def ordenar_por_fecha_y_hora(registros):
 
 @app.route('/')
 def index():
-    #obtener todos los registros de la base de datos
-    registros = Log.query.all()
-    registros_ordenados = ordenar_por_fecha_y_hora(registros)
-    return render_template('index.html',registros=registros_ordenados)
+    registros = Log.query.order_by(Log.fecha_y_hora.desc()).all()
+    return render_template('index.html', registros=registros)
 
 mensajes_log = []
 
@@ -70,48 +56,51 @@ def verificar_token(req):
 
 def recibir_mensajes(req):
     try:
-        req = request.get_json()
-        entry =req['entry'][0]
-        changes = entry['changes'][0]
-        value = changes['value']
-        objeto_mensaje = value['messages']
+        data = request.get_json()
 
-        if objeto_mensaje:
-            messages = objeto_mensaje[0]
+        if not data or 'entry' not in data:
+            agregar_mensajes_log("Error: JSON sin 'entry'")
+            return jsonify({'message': 'EVENT_RECEIVED'})
 
-            if "type" in messages:
-                tipo = messages["type"]
+        entry = data['entry'][0]
+        changes = entry.get('changes', [])[0]
+        value = changes.get('value', {})
+        messages_list = value.get('messages', [])
 
-                #Guardar Log en la BD
-                agregar_mensajes_log(json.dumps(messages))
+        if messages_list:
+            message = messages_list[0]
+            numero = message.get("from")
 
-                if tipo == "interactive":
-                    tipo_interactivo = messages["interactive"]["type"]
+            # Guardar log
+            agregar_mensajes_log(json.dumps(message))
 
-                    if tipo_interactivo == "button_reply":
-                        text = messages["interactive"]["button_reply"]["id"]
-                        numero = messages["from"]
+            msg_type = message.get("type")
 
-                        enviar_mensajes_whatsapp(text,numero)
-                    
-                    elif tipo_interactivo == "list_reply":
-                        text = messages["interactive"]["list_reply"]["id"]
-                        numero = messages["from"]
+            if msg_type == "interactive":
+                interactive = message.get("interactive", {})
+                tipo_interactivo = interactive.get("type")
 
-                        enviar_mensajes_whatsapp(text,numero)
+                if tipo_interactivo == "button_reply":
+                    text = interactive.get("button_reply", {}).get("id")
+                    if text:
+                        enviar_mensajes_whatsapp(text, numero)
 
-                if "text" in messages:
-                    text = messages["text"]["body"]
-                    numero = messages["from"]
+                elif tipo_interactivo == "list_reply":
+                    text = interactive.get("list_reply", {}).get("id")
+                    if text:
+                        enviar_mensajes_whatsapp(text, numero)
 
-                    enviar_mensajes_whatsapp(text,numero)
+            elif msg_type == "text":
+                text = message.get("text", {}).get("body")
+                if text:
+                    enviar_mensajes_whatsapp(text, numero)
 
-                    #Guardar Log en la BD
-                    agregar_mensajes_log(json.dumps(messages))
+        return jsonify({'message': 'EVENT_RECEIVED'})
 
-        return jsonify({'message':'EVENT_RECEIVED'})
     except Exception as e:
-        return jsonify({'message':'EVENT_RECEIVED'})
+        agregar_mensajes_log(f"Error en recibir_mensajes: {str(e)}")
+        return jsonify({'message': 'EVENT_RECEIVED'})
+
 
 def bot_enviar_mensaje_whatsapp(data):
     headers = {
@@ -262,6 +251,7 @@ def enviar_mensajes_whatsapp(texto,number):
         ]
     elif "0" in texto:
         data = [
+            # 📝 Texto normal del menú
             {
                 "messaging_product": "whatsapp",
                 "recipient_type": "individual",
@@ -269,7 +259,60 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣ ⚙Motores. \n\n2️⃣ 🛞Repuestos. \n\n3️⃣ 📍Ubicación. \n\n4️⃣ 🕜Horario de Atención. \n\n5️⃣ 💳Números de cuenta. \n\n6️⃣ ⏳Esperar para ser atendido por nuestro personal. \n\n7️⃣ 🚛Opciones de envío. \n\n0️⃣ 🔙Regresar al Menú. \n"
+                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n📌 *Por favor, ingresa un número #️⃣ para recibir información.*\n\n1️⃣ ⚙ Motores\n\n2️⃣ 🛞 Repuestos\n\n3️⃣ 📍 Ubicación\n\n4️⃣ 🕜 Horario de Atención\n\n5️⃣ 💳 Números de cuenta\n\n6️⃣ ⏳ Esperar para ser atendido por nuestro personal\n\n7️⃣ 🚛 Opciones de envío\n\n0️⃣ 🔙 Regresar al Menú"
+                }
+            },
+
+            # 📋 Lista interactiva
+            {
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "list",
+                    "body": {
+                        "text": "Selecciona una opción del menú:"
+                    },
+                    "footer": {
+                        "text": "Toca una opción para continuar"
+                    },
+                    "action": {
+                        "button": "Ver Menú",
+                        "sections": [
+                            {
+                                "title": "Opciones Principales",
+                                "rows": [
+                                    {"id": "btn1", "title": "1️⃣ Motores", "description": "Información sobre motores"},
+                                    {"id": "btn2", "title": "2️⃣ Repuestos", "description": "Repuestos disponibles"},
+                                    {"id": "btn3", "title": "3️⃣ Ubicación", "description": "Dónde estamos ubicados"},
+                                    {"id": "btn4", "title": "4️⃣ Horario", "description": "Horario de atención"},
+                                    {"id": "btn5", "title": "5️⃣ Cuentas", "description": "Datos bancarios"},
+                                    {"id": "btn6", "title": "6️⃣ Hablar con personal", "description": "Conectarte con alguien"},
+                                    {"id": "btn7", "title": "7️⃣ Envíos", "description": "Opciones de envío"}
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+
+            # 🔘 Botones interactivos
+            {
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "button",
+                    "body": {
+                        "text": "Selecciona una opción rápida:"
+                    },
+                    "action": {
+                        "buttons": [
+                            {"type": "reply", "reply": {"id": "btn1", "title": "1️⃣ Motores"}},
+                            {"type": "reply", "reply": {"id": "btn2", "title": "2️⃣ Repuestos"}},
+                            {"type": "reply", "reply": {"id": "btn3", "title": "3️⃣ Ubicación"}}
+                        ]
+                    }
                 }
             }
         ]

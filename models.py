@@ -14,3 +14,12 @@ class UserSession(db.Model):
 
     def __repr__(self):
         return f'<Session {self.phone_number}>'
+
+class Log(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    fecha_y_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    texto = db.Column(db.TEXT)
+
+# Crear tablas si no existen
+def init_db():
+    db.create_all()
