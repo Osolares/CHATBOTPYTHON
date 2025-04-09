@@ -143,7 +143,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "to": number,
                 "type": "image",
                 "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2024/09/Logo_Intermotores.webp"
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
                 }
             },
             {
@@ -155,30 +155,34 @@ def enviar_mensajes_whatsapp(texto,number):
                     "preview_url": False,
                     "body": "👋 Gracias por comunicarse con nostros, es un placer atenderle 👨‍💻"
                 }
-            },
+            }
         ]
     elif "1" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "Estos son nuestros motores"
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "Estos son nuestros motores"
+                }
             }
-        }
+        ]
     elif "2" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "Estos son nuestros productos"
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "Estos son nuestros productos"
+                }
             }
-        }
+        ]
     elif "3" in texto:        
         data = [
             {
@@ -205,213 +209,239 @@ def enviar_mensajes_whatsapp(texto,number):
             }
         ]
     elif "4" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "📅 Horario de Atención: \n\n Lunes a Viernes. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Sábado. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Domingo. Cerrado 🤓"
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "📅 Horario de Atención: \n\n Lunes a Viernes. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Sábado. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Domingo. Cerrado 🤓"
+                }
             }
-        }
+        ]
     elif "5" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "image",
-            "image": {
-                "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
+                }
             }
-        }
+        ]
     elif "6" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "🤝 Dame una breve descripción de la falla. 🤓"
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "🤝 Dame una breve descripción de la falla. 🤓"
+                }
             }
-        }
+        ]
     elif "7" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "📅 *Estos son nuestros métodos de envío:* \n\n Envíos en la capital. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Envío al exterior. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Pago contra entrega. Cerrado 🤓"
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "📅 *Estos son nuestros métodos de envío:* \n\n Envíos en la capital. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Envío al exterior. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Pago contra entrega. Cerrado 🤓"
+                }
             }
-        }
+        ]
     elif "0" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "🚀👋 Hola, visita nuestro sitio web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "🚀👋 Hola, visita nuestro sitio web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+                }
             }
-        }
+        ]
     elif "boton" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "interactive",
-            "interactive":{
-                "type":"button",
-                "body": {
-                    "text": "¿Confirmas tu registro?"
-                },
-                "footer": {
-                    "text": "Selecciona una de las opciones"
-                },
-                "action": {
-                    "buttons":[
-                        {
-                            "type": "reply",
-                            "reply":{
-                                "id":"btnsi",
-                                "title":"👋Si"
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "interactive",
+                "interactive":{
+                    "type":"button",
+                    "body": {
+                        "text": "¿Confirmas tu registro?"
+                    },
+                    "footer": {
+                        "text": "Selecciona una de las opciones"
+                    },
+                    "action": {
+                        "buttons":[
+                            {
+                                "type": "reply",
+                                "reply":{
+                                    "id":"btnsi",
+                                    "title":"👋Si"
+                                }
+                            },{
+                                "type": "reply",
+                                "reply":{
+                                    "id":"btnno",
+                                    "title":"👋No"
+                                }
+                            },{
+                                "type": "reply",
+                                "reply":{
+                                    "id":"btntalvez",
+                                    "title":"Tal Vez"
+                                }
                             }
-                        },{
-                            "type": "reply",
-                            "reply":{
-                                "id":"btnno",
-                                "title":"👋No"
-                            }
-                        },{
-                            "type": "reply",
-                            "reply":{
-                                "id":"btntalvez",
-                                "title":"Tal Vez"
-                            }
-                        }
-                    ]
+                        ]
+                    }
                 }
             }
-        }
+        ]
     elif "btnsi" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "Muchas Gracias por Aceptar."
-            }
-        }
-    elif "btnno" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "Es una Lastima."
-            }
-        }
-    elif "btntalvez" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "Estare a la espera."
-            }
-        }
-    elif "lista" in texto:
-        data ={
-            "messaging_product": "whatsapp",
-            "to": number,
-            "type": "interactive",
-            "interactive":{
-                "type" : "list",
-                "body": {
-                    "text": "Selecciona Alguna Opción"
-                },
-                "footer": {
-                    "text": "Selecciona una de las opciones para poder ayudarte"
-                },
-                "action":{
-                    "button":"Ver Opciones",
-                    "sections":[
-                        {
-                            "title":"Compra y Venta",
-                            "rows":[
-                                {
-                                    "id":"btncompra",
-                                    "title" : "Comprar",
-                                    "description": "Compra los mejores articulos de tecnologia"
-                                },
-                                {
-                                    "id":"btnvender",
-                                    "title" : "Vender",
-                                    "description": "Vende lo que ya no estes usando"
-                                }
-                            ]
-                        },{
-                            "title":"Distribución y Entrega",
-                            "rows":[
-                                {
-                                    "id":"btndireccion",
-                                    "title" : "Local",
-                                    "description": "Puedes visitar nuestro local."
-                                },
-                                {
-                                    "id":"btnentrega",
-                                    "title" : "Entrega",
-                                    "description": "La entrega se realiza todos los dias."
-                                }
-                            ]
-                        }
-                    ]
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "Muchas Gracias por Aceptar."
                 }
             }
-        }
+        ]
+    elif "btnno" in texto:
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "Es una Lastima."
+                }
+            }
+        ]
+    elif "btntalvez" in texto:
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "Estare a la espera."
+                }
+            }
+        ]
+    elif "lista" in texto:
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "interactive",
+                "interactive":{
+                    "type" : "list",
+                    "body": {
+                        "text": "Selecciona Alguna Opción"
+                    },
+                    "footer": {
+                        "text": "Selecciona una de las opciones para poder ayudarte"
+                    },
+                    "action":{
+                        "button":"Ver Opciones",
+                        "sections":[
+                            {
+                                "title":"Compra y Venta",
+                                "rows":[
+                                    {
+                                        "id":"btncompra",
+                                        "title" : "Comprar",
+                                        "description": "Compra los mejores articulos de tecnologia"
+                                    },
+                                    {
+                                        "id":"btnvender",
+                                        "title" : "Vender",
+                                        "description": "Vende lo que ya no estes usando"
+                                    }
+                                ]
+                            },{
+                                "title":"Distribución y Entrega",
+                                "rows":[
+                                    {
+                                        "id":"btndireccion",
+                                        "title" : "Local",
+                                        "description": "Puedes visitar nuestro local."
+                                    },
+                                    {
+                                        "id":"btnentrega",
+                                        "title" : "Entrega",
+                                        "description": "La entrega se realiza todos los dias."
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
     elif "btncompra" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "Los mejos articulos top en ofertas."
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "Los mejos articulos top en ofertas."
+                }
             }
-        }
+        ]
     elif "btnvender" in texto:
-        data = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "Excelente elección."
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "Excelente elección."
+                }
             }
-        }
+        ]
     else:
-        data={
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": "🚀👋 Hola, visita nuestro sitio web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+        data= [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "🚀👋 Hola, visita nuestro sitio web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+                }
             }
-        }
+        ]
 
     # Envío secuencial con pausas
     for mensaje in data:
