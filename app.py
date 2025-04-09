@@ -113,19 +113,37 @@ def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
 
     if "hola" in texto:
-        data= {
+        data = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
-            "to": number,
-            "type": "image",
-            "image": {
-                "link": "https://intermotores.com/wp-content/uploads/2024/09/Logo_Intermotores.webp",
-                "caption": "🙌*Hola bienvenid@ a Intermotores*, _es un placer atenderte_ 👨‍💻 "  # Texto con formato
-
+            "to": number, 
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "header": {
+                    "type": "image",
+                    "image": {
+                        "link": "https://intermotores.com/wp-content/uploads/2024/09/Logo_Intermotores.webp"  # URL válida HTTPS
+                    }
+                },
+                "body": {
+                    "text": "🙌 *Hola bienvenid@ a Intermotores*\n_Es un placer atenderte_ 👨‍💻"  # Texto con formato (negritas/cursivas)
+                },
+                "action": {
+                    "buttons": [
+                        {
+                            "type": "reply",
+                            "reply": {
+                                "id": "btn_1",
+                                "title": "Ver ubicación"  # Opcional: añade un botón de acción
+                            }
+                        }
+                    ]
                 }
+            }
         }
     elif "1" in texto:
-        {
+        data = {
             "version": "7.0",
             "screens": [
                 {
@@ -335,35 +353,36 @@ def enviar_mensajes_whatsapp(texto,number):
     elif "3" in texto:        
         data = {
             "messaging_product": "whatsapp",
+            "recipient_type": "individual",
             "to": number,
             "type": "location",
             "location": {
                 "latitude": "14.564777",
                 "longitude": "-90.466011",
-                "name": "*Intermotores*",
-                "address": "_Importadora Internacional de Motores Japoneses, s.a_",
-                "caption": "\n\n📍 Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, Intermotores "  # Texto con formato
-
+                "name": "Intermotores",  # Nombre sin formato (texto plano)
+                "address": "Importadora Internacional de Motores Japoneses, s.a.\n\n Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"  # Usa \n para saltos de línea
             }
         }
 
     elif "4" in texto:
-        data={
+        data = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
             "to": number,
-            "type": "audio",
-            "audio": {
-                "link": "https://filesamples.com/samples/audio/mp3/sample1.mp3"
+            "type": "text",
+            "text": {
+                "preview_url": False,
+                "body": "📅 Horario de Atención: \n\n Lunes a Viernes. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Sábado. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Domingo. Cerrado 🤓"
             }
         }
     elif "5" in texto:
         data = {
             "messaging_product": "whatsapp",
+            "recipient_type": "individual",
             "to": number,
-            "text": {
-                "preview_url": True,
-                "body": "Introduccion al curso! https://youtu.be/6ULOE2tGlBM"
+            "type": "image",
+            "image": {
+                "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
             }
         }
     elif "6" in texto:
@@ -396,7 +415,7 @@ def enviar_mensajes_whatsapp(texto,number):
             "type": "text",
             "text": {
                 "preview_url": False,
-                "body": "🚀👋 Hola, visita mi web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. 🔩Cotizar Motores. ⚙\n2️⃣. 🛞Cotizar Repuestos. \n3️⃣. 📍Ubicación. . \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+                "body": "🚀👋 Hola, visita mi web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
             }
         }
     elif "boton" in texto:
@@ -550,7 +569,7 @@ def enviar_mensajes_whatsapp(texto,number):
             "type": "text",
             "text": {
                 "preview_url": False,
-                "body": "🚀👋 Hola, visita mi web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. 🔩Cotizar Motores. ⚙\n2️⃣. 🛞Cotizar Repuestos. \n3️⃣. 📍Ubicación. . \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+                "body": "🚀👋 Hola, visita mi web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
             }
         }
 
