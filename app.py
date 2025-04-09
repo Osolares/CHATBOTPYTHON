@@ -133,6 +133,43 @@ def bot_enviar_mensaje_whatsapp(data):
     finally:
         connection.close()
 
+def generar_boton_menu(number):
+    """Retorna la estructura del botón 'Ver Menú' para reutilizar"""
+    return {
+        "messaging_product": "whatsapp",
+        "to": number,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {
+                "text": ""  # Texto opcional
+            },
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": "0", "title": "Ver Menú"}}
+                ]
+            }
+        }
+    }
+
+def generar_menu_principal(number):
+    """Retorna la estructura del botón 'Ver Menú' para reutilizar"""
+    return {
+        "messaging_product": "whatsapp",
+        "to": number,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {
+                "text": ""  # Texto opcional
+            },
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": "0", "title": "Ver Menú"}}
+                ]
+            }
+        }
+    }
 
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
@@ -155,9 +192,10 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "👋 Gracias por comunicarse con nostros, es un placer atenderle 👨‍💻"
+                    "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
                 }
-            }
+            },
+            generar_boton_menu(number)
         ]
     elif "1" in texto:
         data = [
@@ -208,7 +246,8 @@ def enviar_mensajes_whatsapp(texto,number):
                     "preview_url": False,
                     "body": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
                 }
-            }
+            },
+            generar_boton_menu(number)
         ]
     elif "4" in texto:
         data = [
@@ -229,11 +268,12 @@ def enviar_mensajes_whatsapp(texto,number):
                 "messaging_product": "whatsapp",
                 "recipient_type": "individual",
                 "to": number,
-                "type": "image",
-                "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
-                }
-            }
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "☎*Comunícate con nosotros será un placer atenderte* \n\n 📞 6637-9834 \n\n 📞 6646-6137 \n\n 📱 5510-5350 \n\n 🌐 www.intermotores.com  \n\n 📧 intermotores.ventas@gmail.com \n\n *Facebook* \n Intermotores GT\n\n *Instagram* \n Intermotores GT "}
+            },
+            generar_boton_menu(number)
         ]
     elif "6" in texto:
         data = [
@@ -241,12 +281,21 @@ def enviar_mensajes_whatsapp(texto,number):
                 "messaging_product": "whatsapp",
                 "recipient_type": "individual",
                 "to": number,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
+                }
+            }, 
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🤝 Gracias por esperar es un placer atenderle, indíquenos *¿cómo podemos apoyarle?* pronto será atendido por nuestro personal de atención al cliente. 🤓"
-                }
-            }
+                    "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo del producto es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n💳 Neo Link. \nTe enviamos un link para que pagues sin salir de tu casa"}
+            },
+            generar_boton_menu(number)
         ]
     elif "7" in texto:
         data = [
@@ -257,8 +306,22 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🏠🛋*Enviamos nuestros productos hasta la puerta de su casa*, estos son nuestros métodos de envío: \n\n 🛵 Envíos dentro de la capital. \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 Envío a Departamentos. \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 Tiempo de envío. \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
+                    "body": "🤝 Gracias por esperar es un placer atenderle, indíquenos *¿cómo podemos apoyarle?* pronto será atendido por nuestro personal de atención al cliente. 🤵‍♂"
+                }
             }
+        ]
+    elif "8" in texto:
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "🏠🛋*Enviamos nuestros productos hasta la puerta de su casa*, estos son nuestros métodos de envío: \n\n 🛵 Envíos dentro de la capital. \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 Envío a Departamentos. \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 Tiempo de envío. \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
+            },
+            generar_boton_menu(number)
         ]
     elif "0" in texto:
         data = [
@@ -270,7 +333,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n📌 *Por favor, ingresa un número #️⃣ para recibir información.*\n\n1️⃣ ⚙ Motores\n\n2️⃣ 🛞 Repuestos\n\n3️⃣ 📍 Ubicación\n\n4️⃣ 🕜 Horario de Atención\n\n5️⃣ 💳 Números de cuenta\n\n6️⃣ ⏳ Esperar para ser atendido por nuestro personal\n\n7️⃣ 🚛 Opciones de envío\n\n0️⃣ 🔙 Regresar al Menú"
+                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n1️⃣ ⚙ Motores\n\n2️⃣ 🛞 Repuestos\n\n3️⃣ 📍 Ubicación\n\n4️⃣ 🕜 Horario de Atención\n\n5️⃣ ☎ Contacto\n\n6️⃣  💳 Formas de pago y números de cuenta\n\n7️⃣ ⏳ Esperar para ser atendido por nuestro personal\n\n8️⃣ 🚛 Opciones de envío\n\n0️⃣ 🔙 Regresar al Menú \n\n📌 *Escribe el número #️⃣ de tu elección.*"
                 }
             },
 
@@ -282,7 +345,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "interactive": {
                     "type": "list",
                     "body": {
-                        "text": "Selecciona una opción del menú:"
+                        "text": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n1️⃣ ⚙ Motores\n\n2️⃣ 🛞 Repuestos\n\n3️⃣ 📍 Ubicación\n\n4️⃣ 🕜 Horario de Atención\n\n5️⃣ 💳 Números de cuenta\n\n6️⃣ ⏳ Esperar para ser atendido por nuestro personal\n\n7️⃣ 🚛 Opciones de envío\n\n0️⃣ 🔙 Regresar al Menú \n\n📌 *Escribe el número #️⃣ de tu elección.*"
                     },
                     "footer": {
                         "text": "Toca una opción para continuar"
@@ -293,35 +356,16 @@ def enviar_mensajes_whatsapp(texto,number):
                             {
                                 "title": "Opciones Principales",
                                 "rows": [
-                                    {"id": "btn1", "title": "1️⃣ Motores", "description": "Información sobre motores"},
-                                    {"id": "btn2", "title": "2️⃣ Repuestos", "description": "Repuestos disponibles"},
-                                    {"id": "btn3", "title": "3️⃣ Ubicación", "description": "Dónde estamos ubicados"},
-                                    {"id": "btn4", "title": "4️⃣ Horario", "description": "Horario de atención"},
-                                    {"id": "btn5", "title": "5️⃣ Cuentas", "description": "Datos bancarios"},
-                                    {"id": "btn6", "title": "6️⃣ Hablar con personal", "description": "Conectarte con alguien"},
-                                    {"id": "btn7", "title": "7️⃣ Envíos", "description": "Opciones de envío"}
+                                    {"id": "1", "title": "1️⃣ Motores", "description": "Cotizar Motores"},
+                                    {"id": "2", "title": "2️⃣ Repuestos", "description": "Cotizar Repuestos"},
+                                    {"id": "3", "title": "3️⃣ Ubicación", "description": "Dónde estamos ubicados"},
+                                    {"id": "4", "title": "4️⃣ Horario", "description": "Horario de atención"},
+                                    {"id": "5", "title": "5️⃣ Contacto", "description": "Contáctanos"},
+                                    {"id": "6", "title": "6️⃣ Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
+                                    {"id": "7", "title": "7️⃣ Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
+                                    {"id": "8", "title": "8️⃣ Envíos", "description": "Opciones de envío"}
                                 ]
                             }
-                        ]
-                    }
-                }
-            },
-
-            # 🔘 Botones interactivos
-            {
-                "messaging_product": "whatsapp",
-                "to": number,
-                "type": "interactive",
-                "interactive": {
-                    "type": "button",
-                    "body": {
-                        "text": "Selecciona una opción rápida:"
-                    },
-                    "action": {
-                        "buttons": [
-                            {"type": "reply", "reply": {"id": "btn1", "title": "1️⃣ Motores"}},
-                            {"type": "reply", "reply": {"id": "btn2", "title": "2️⃣ Repuestos"}},
-                            {"type": "reply", "reply": {"id": "btn3", "title": "3️⃣ Ubicación"}}
                         ]
                     }
                 }
@@ -363,6 +407,26 @@ def enviar_mensajes_whatsapp(texto,number):
                                     "title":"Tal Vez"
                                 }
                             }
+                        ]
+                    }
+                }
+            }
+        ]
+    elif "btnmenu" in texto:
+        data =  [           
+            # 🔘 Botones interactivos
+            {
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "button",
+                    "body": {
+                        "text": ""
+                    },
+                    "action": {
+                        "buttons": [
+                            {"type": "reply", "reply": {"id": "0", "title": "🕹️ Ver Menú"}}
                         ]
                     }
                 }
@@ -493,7 +557,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣ ⚙Motores. \n\n2️⃣ 🛞Repuestos. \n\n3️⃣ 📍Ubicación. \n\n4️⃣ 🕜Horario de Atención. \n\n5️⃣ 💳Números de cuenta. \n\n6️⃣ ⏳Esperar para ser atendido por nuestro personal. \n\n7️⃣ 🚛Opciones de envío. \n\n0️⃣ 🔙Regresar al Menú. \n"
+                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n \n1️⃣ ⚙Motores. \n\n2️⃣ 🛞Repuestos. \n\n3️⃣ 📍Ubicación. \n\n4️⃣ 🕜Horario de Atención. \n\n5️⃣ 💳Números de cuenta. \n\n6️⃣ ⏳Esperar para ser atendido por nuestro personal. \n\n7️⃣ 🚛Opciones de envío. \n\n0️⃣ 🔙Regresar al Menú. \n \n📌*Escribe el número #️⃣ de tu respuesta.*"
                 }
             }
         ]
