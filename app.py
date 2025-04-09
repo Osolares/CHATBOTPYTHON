@@ -143,10 +143,7 @@ def generar_boton_menu(number):
         "interactive":{
             "type":"button",
             "body": {
-                "text": "hola"
-            },
-            "footer": {
-                "text": "prueba"
+                "text": "Menú Principal"
             },
             "action": {
                 "buttons":[
@@ -169,13 +166,29 @@ def generar_menu_principal(number):
         "to": number,
         "type": "interactive",
         "interactive": {
-            "type": "button",
+            "type": "list",
             "body": {
-                "text": ""  # Texto opcional
+                "text": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n1️⃣ ⚙ Motores\n2️⃣ 🛞 Repuestos\n3️⃣ 📍 Ubicación\n4️⃣ 🕜 Horario de Atención\n5️⃣ ☎ Contacto\n6️⃣  💳 Formas de pago y números de cuenta\n7️⃣ ⏳ Esperar para ser atendido por nuestro personal\n8️⃣ 🚛 Opciones de envío\n0️⃣ 🔙 Regresar al Menú \n\n📌 *Escribe el número #️⃣ de tu elección.*"
+            },
+            "footer": {
+                "text": ""
             },
             "action": {
-                "buttons": [
-                    {"type": "reply", "reply": {"id": "0", "title": "Ver Menú"}}
+                "button": "Ver Menú",
+                "sections": [
+                    {
+                        "title": "Opciones Principales",
+                        "rows": [
+                            {"id": "1", "title": "1️⃣ Motores", "description": "Cotizar Motores"},
+                            {"id": "2", "title": "2️⃣ Repuestos", "description": "Cotizar Repuestos"},
+                            {"id": "3", "title": "3️⃣ Ubicación", "description": "Dónde estamos ubicados"},
+                            {"id": "4", "title": "4️⃣ Horario", "description": "Horario de atención"},
+                            {"id": "5", "title": "5️⃣ Contacto", "description": "Contáctanos"},
+                            {"id": "6", "title": "6️⃣ Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
+                            {"id": "7", "title": "7️⃣ Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
+                            {"id": "8", "title": "8️⃣ Envíos", "description": "Opciones de envío"}
+                        ]
+                    }
                 ]
             }
         }
@@ -184,7 +197,7 @@ def generar_menu_principal(number):
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
 
-    if "hola" in texto:
+    if "hola" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -207,7 +220,7 @@ def enviar_mensajes_whatsapp(texto,number):
             },
             generar_boton_menu(number)
         ]
-    elif 1 == int(texto.strip()):
+    elif "1" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -220,7 +233,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif 2 == int(texto.strip()):
+    elif "2" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -233,7 +246,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "3" == texto:        
+    elif "3" == texto.strip():        
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -349,38 +362,8 @@ def enviar_mensajes_whatsapp(texto,number):
             #},
 
             # 📋 Lista interactiva
-            {
-                "messaging_product": "whatsapp",
-                "to": number,
-                "type": "interactive",
-                "interactive": {
-                    "type": "list",
-                    "body": {
-                        "text": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n1️⃣ ⚙ Motores\n2️⃣ 🛞 Repuestos\n3️⃣ 📍 Ubicación\n4️⃣ 🕜 Horario de Atención\n5️⃣ ☎ Contacto\n6️⃣  💳 Formas de pago y números de cuenta\n7️⃣ ⏳ Esperar para ser atendido por nuestro personal\n8️⃣ 🚛 Opciones de envío\n0️⃣ 🔙 Regresar al Menú \n\n📌 *Escribe el número #️⃣ de tu elección.*"
-                    },
-                    "footer": {
-                        "text": ""
-                    },
-                    "action": {
-                        "button": "Ver Menú",
-                        "sections": [
-                            {
-                                "title": "Opciones Principales",
-                                "rows": [
-                                    {"id": "1", "title": "1️⃣ Motores", "description": "Cotizar Motores"},
-                                    {"id": "2", "title": "2️⃣ Repuestos", "description": "Cotizar Repuestos"},
-                                    {"id": "3", "title": "3️⃣ Ubicación", "description": "Dónde estamos ubicados"},
-                                    {"id": "4", "title": "4️⃣ Horario", "description": "Horario de atención"},
-                                    {"id": "5", "title": "5️⃣ Contacto", "description": "Contáctanos"},
-                                    {"id": "6", "title": "6️⃣ Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
-                                    {"id": "7", "title": "7️⃣ Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
-                                    {"id": "8", "title": "8️⃣ Envíos", "description": "Opciones de envío"}
-                                ]
-                            }
-                        ]
-                    }
-                }
-            }
+            generar_menu_principal(number)
+
         ]
     elif "boton" in texto:
         data = [
