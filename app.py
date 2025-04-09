@@ -1,4 +1,6 @@
 from flask import Flask, request, jsonify, render_template
+from config import app, db
+from models import UserSession
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import http.client
@@ -242,7 +244,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🤝 Dame una breve descripción de la falla. 🤓"
+                    "body": "🤝 Gracias por esperar es un placer atenderle, indíquenos *¿cómo podemos apoyarle?* pronto será atendido por nuestro personal de atención al cliente. 🤓"
                 }
             }
         ]
@@ -255,8 +257,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "📅 *Estos son nuestros métodos de envío:* \n\n Envíos en la capital. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Envío al exterior. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Pago contra entrega. Cerrado 🤓"
-                }
+                    "body": "🏠🛋*Enviamos nuestros productos hasta la puerta de su casa*, estos son nuestros métodos de envío: \n\n 🛵 Envíos dentro de la capital. \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 Envío a Departamentos. \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 Tiempo de envío. \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
             }
         ]
     elif "0" in texto:
@@ -268,7 +269,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🚀👋 Hola, visita nuestro sitio web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣ ⚙Motores. \n\n2️⃣ 🛞Repuestos. \n\n3️⃣ 📍Ubicación. \n\n4️⃣ 🕜Horario de Atención. \n\n5️⃣ 💳Números de cuenta. \n\n6️⃣ ⏳Esperar para ser atendido por nuestro personal. \n\n7️⃣ 🚛Opciones de envío. \n\n0️⃣ 🔙Regresar al Menú. \n"
                 }
             }
         ]
@@ -438,7 +439,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🚀👋 Hola, visita nuestro sitio web www.intermotores.com 🌐 para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣. ⚙Motores. \n2️⃣. 🛞Repuestos. \n3️⃣. 📍Ubicación. \n4️⃣. 🕜Horario de Atención. \n5️⃣. 💳Números de cuenta. \n6️⃣. 🛎Reportar Garantía. \n7️⃣. 🚛Formas de envío. \n0️⃣. 🔙Regresar al Menú. \n"
+                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n \n📌*Por favor, ingresa un número #️⃣ para recibir información.*\n \n1️⃣ ⚙Motores. \n\n2️⃣ 🛞Repuestos. \n\n3️⃣ 📍Ubicación. \n\n4️⃣ 🕜Horario de Atención. \n\n5️⃣ 💳Números de cuenta. \n\n6️⃣ ⏳Esperar para ser atendido por nuestro personal. \n\n7️⃣ 🚛Opciones de envío. \n\n0️⃣ 🔙Regresar al Menú. \n"
                 }
             }
         ]
