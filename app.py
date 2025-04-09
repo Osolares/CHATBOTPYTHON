@@ -134,20 +134,22 @@ def bot_enviar_mensaje_whatsapp(data):
         connection.close()
 
 def generar_boton_menu(number):
-    """Retorna la estructura del botón 'Ver Menú' para reutilizar"""
+    #"""Retorna la estructura del botón 'Ver Menú' para reutilizar"""
     return {
-        "messaging_product": "whatsapp",
-        "to": number,
-        "type": "interactive",
-        "interactive": {
-            "type": "button",
-            "body": {
-                "text": ""  # Texto opcional
-            },
-            "action": {
-                "buttons": [
-                    {"type": "reply", "reply": {"id": "0", "title": "Ver Menú"}}
-                ]
+        {
+            "messaging_product": "whatsapp",
+            "to": number,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {
+                    "text": ""  # Texto opcional
+                },
+                "action": {
+                    "buttons": [
+                        {"type": "reply", "reply": {"id": "0", "title": "Ver Menú"}}
+                    ]
+                }
             }
         }
     }
@@ -195,9 +197,7 @@ def enviar_mensajes_whatsapp(texto,number):
                     "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
                 }
             },
-            {
             generar_boton_menu(number)
-            }
         ]
     elif "1" == texto:
         data = [
@@ -249,9 +249,8 @@ def enviar_mensajes_whatsapp(texto,number):
                     "body": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
                 }
             },
-            {
             generar_boton_menu(number)
-            }
+
         ]
     elif "4" in texto:
         data = [
@@ -297,7 +296,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n💳 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"}
+                    "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"}
             },
             generar_boton_menu(number)
         ]
