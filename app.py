@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from config import db, migrate, Config
-from models import UserSession, Log
+from models import UserSession, Log, ModelProduct
+from formularios import formulario_motor, manejar_paso_actual
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import http.client
@@ -80,7 +81,13 @@ def recibir_mensajes(req):
 
         if messages_list:
             message = messages_list[0]
-            numero = message.get("from")
+            phone_number = message.get("from")
+
+            session = UserSession.query.get(phone_number)
+            if not session:
+                session = UserSession(phone_number=phone_number)
+                db.session.add(session)
+                db.session.commit()
 
             # Guardar log
             agregar_mensajes_log(json.dumps(message))
@@ -94,24 +101,23 @@ def recibir_mensajes(req):
                 if tipo_interactivo == "button_reply":
                     text = interactive.get("button_reply", {}).get("id")
                     if text:
-                        enviar_mensajes_whatsapp(text, numero)
+                        enviar_mensajes_whatsapp(text, phone_number)
 
                 elif tipo_interactivo == "list_reply":
                     text = interactive.get("list_reply", {}).get("id")
                     if text:
-                        enviar_mensajes_whatsapp(text, numero)
+                        enviar_mensajes_whatsapp(text, phone_number)
 
             elif msg_type == "text":
                 text = message.get("text", {}).get("body")
                 if text:
-                    enviar_mensajes_whatsapp(text, numero)
+                    enviar_mensajes_whatsapp(text, phone_number)
 
         return jsonify({'message': 'EVENT_RECEIVED'})
 
     except Exception as e:
         agregar_mensajes_log(f"Error en recibir_mensajes: {str(e)}")
         return jsonify({'message': 'EVENT_RECEIVED'})
-
 
 def bot_enviar_mensaje_whatsapp(data):
     headers = {
@@ -196,6 +202,7 @@ def generar_menu_principal(number):
 
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
+    data = []
 
     if "hola" == texto.strip():
         data = [
@@ -218,21 +225,10 @@ def enviar_mensajes_whatsapp(texto,number):
                     "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
                 }
             },
-            generar_boton_menu(number)
         ]
     elif "1" == texto.strip():
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "Estos son nuestros motores"
-                }
-            }
-        ]
+        data = formulario_motor(number)
+
     elif "2" == texto.strip():
         data = [
             {
@@ -553,24 +549,13 @@ def enviar_mensajes_whatsapp(texto,number):
             }
         ]
     else:
-        data= [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n \n1️⃣ ⚙Motores. \n\n2️⃣ 🛞Repuestos. \n\n3️⃣ 📍Ubicación. \n\n4️⃣ 🕜Horario de Atención. \n\n5️⃣ 💳Números de cuenta. \n\n6️⃣ ⏳Esperar para ser atendido por nuestro personal. \n\n7️⃣ 🚛Opciones de envío. \n\n0️⃣ 🔙Regresar al Menú. \n \n📌*Escribe el número #️⃣ de tu respuesta.*"
-                }
-            }
-        ]
+        data = manejar_paso_actual(number, texto)
+
 
     # Envío secuencial con pausas
     for mensaje in data:
         bot_enviar_mensaje_whatsapp(mensaje)
         agregar_mensajes_log(json.dumps(mensaje))
-
         time.sleep(1)  # Pausa para cumplir con rate limits de WhatsApp
 
 if __name__=='__main__':
