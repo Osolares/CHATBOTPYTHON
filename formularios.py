@@ -26,7 +26,7 @@ def formulario_motor(number):
             "to": number,
             "type": "text",
             "text": {
-                "body": "🔧 *Cotización de repuestos*\n\nEscribe la MARCA de tu vehículo:\n(Ej: Toyota, Honda)"
+                "body": "🔧 *Cotización de repuestos*\n\n📝Escribe la *MARCA* de tu vehículo:\n_(Ej: Toyota, Mitsubishi, Kia, Hyundai)_"
             }
         }
     ]
@@ -68,7 +68,7 @@ def manejar_paso_marca(number, user_message, producto):
             "to": number,
             "type": "text",
             "text": {
-                "body": f"✓ Marca: {user_message}\n\nAhora escribe el MODELO:\n(Ej: Corolla, Civic)"
+                "body": f"✅ Marca: {user_message}\n\n📝Ahora escribe el *MODELO*:\n_(Ej: L200, Hilux, Terracan, Sportage)_"
             }
         }
     ]
@@ -86,12 +86,12 @@ def manejar_paso_modelo(number, user_message, producto):
             "interactive": {
                 "type": "button",
                 "body": {
-                    "text": f"✓ Marca: {producto.marca}\n✓ Modelo: {user_message}\n\nSelecciona el COMBUSTIBLE:"
+                    "text": f"✅ Marca: {producto.marca}\n✅ Modelo: {user_message}\n\n🫳Selecciona el *COMBUSTIBLE:*"
                 },
                 "action": {
                     "buttons": [
                         {"type": "reply", "reply": {"id": "comb_gasolina", "title": "Gasolina"}},
-                        {"type": "reply", "reply": {"id": "comb_diesel", "title": "Diesel"}}
+                        {"type": "reply", "reply": {"id": "comb_diesel", "title": "Diésel"}}
                     ]
                 }
             }
@@ -109,7 +109,7 @@ def manejar_paso_combustible(number, user_message, producto):
             "to": number,
             "type": "text",
             "text": {
-                "body": f"✓ Combustible: {producto.combustible}\n\nEscribe el AÑO del vehículo:\n(Ej: 2018, 2020)"
+                "body": f"✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 2000, 2005, 2010, 2018, 2020)_"
             }
         }
     ]
@@ -135,7 +135,7 @@ def manejar_paso_año(number, user_message, producto):
             "to": number,
             "type": "text",
             "text": {
-                "body": f"✅ *Datos registrados:*\n\n• Marca: {producto.marca}\n• Modelo: {producto.linea}\n• Combustible: {producto.combustible}\n• Año: {producto.modelo_anio}\n\n¿Deseas cotizar repuestos? (Responde *SI* o *NO*)"
+                "body": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n\n¿Deseas cotizar repuestos? (Responde *SI* o *NO*)"
             }
         }
     ]

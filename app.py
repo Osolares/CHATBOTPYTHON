@@ -139,26 +139,35 @@ def bot_enviar_mensaje_whatsapp(data):
     finally:
         connection.close()
 
-def generar_boton_menu(number):
+def generar_list_menu(number):
     #"""Retorna la estructura del botón 'Ver Menú' para reutilizar"""
     return {
         "messaging_product": "whatsapp",
-        "recipient_type": "individual",
         "to": number,
         "type": "interactive",
-        "interactive":{
-            "type":"button",
+        "interactive": {
+            "type": "list",
             "body": {
+                "text": ""
+            },
+            "footer": {
                 "text": "Menú Principal"
             },
             "action": {
-                "buttons":[
+                "button": "Ver Menú",
+                "sections": [
                     {
-                        "type": "reply",
-                        "reply":{
-                            "id":"0",
-                            "title":"Ver Menú"
-                        }
+                        "title": "Opciones Principales",
+                        "rows": [
+                            {"id": "1", "title": "1️⃣ ⚙Motores", "description": "Cotizar Motores"},
+                            {"id": "2", "title": "2️⃣ 🛞Repuestos", "description": "Cotizar Repuestos"},
+                            {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
+                            {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
+                            {"id": "5", "title": "5️⃣ ☎Contacto", "description": "Contáctanos"},
+                            {"id": "6", "title": "6️⃣ 💳Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
+                            {"id": "7", "title": "7️⃣ ⏳Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
+                            {"id": "8", "title": "8️⃣ 🚛Envíos", "description": "Opciones de envío"}
+                        ]
                     }
                 ]
             }
@@ -185,15 +194,15 @@ def generar_menu_principal(number):
                     {
                         "title": "Opciones Principales",
                         "rows": [
-                            {"id": "1", "title": "1️⃣ Motores", "description": "Cotizar Motores"},
-                            {"id": "2", "title": "2️⃣ Repuestos", "description": "Cotizar Repuestos"},
-                            {"id": "3", "title": "3️⃣ Ubicación", "description": "Dónde estamos ubicados"},
-                            {"id": "4", "title": "4️⃣ Horario", "description": "Horario de atención"},
-                            {"id": "5", "title": "5️⃣ Contacto", "description": "Contáctanos"},
-                            {"id": "6", "title": "6️⃣ Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
-                            {"id": "7", "title": "7️⃣ Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
-                            {"id": "8", "title": "8️⃣ Envíos", "description": "Opciones de envío"}
-                        ]
+                            {"id": "1", "title": "1️⃣ ⚙Motores", "description": "Cotizar Motores"},
+                            {"id": "2", "title": "2️⃣ 🛞Repuestos", "description": "Cotizar Repuestos"},
+                            {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
+                            {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
+                            {"id": "5", "title": "5️⃣ ☎Contacto", "description": "Contáctanos"},
+                            {"id": "6", "title": "6️⃣ 💳Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
+                            {"id": "7", "title": "7️⃣ ⏳Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
+                            {"id": "8", "title": "8️⃣ 🚛Envíos", "description": "Opciones de envío"}
+                            ]
                     }
                 ]
             }
@@ -266,10 +275,10 @@ def enviar_mensajes_whatsapp(texto,number):
                     "body": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
                 }
             },
-            generar_boton_menu(number)
+            generar_list_menu(number)
 
         ]
-    elif "4" in texto:
+    elif "4" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -282,7 +291,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "5" in texto:
+    elif "5" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -293,9 +302,9 @@ def enviar_mensajes_whatsapp(texto,number):
                     "preview_url": False,
                     "body": "☎*Comunícate con nosotros será un placer atenderte* \n\n 📞 6637-9834 \n\n 📞 6646-6137 \n\n 📱 5510-5350 \n\n 🌐 www.intermotores.com  \n\n 📧 intermotores.ventas@gmail.com \n\n *Facebook* \n Intermotores GT\n\n *Instagram* \n Intermotores GT "}
             },
-            generar_boton_menu(number)
+            generar_list_menu(number)
         ]
-    elif "6" in texto:
+    elif "6" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -315,9 +324,9 @@ def enviar_mensajes_whatsapp(texto,number):
                     "preview_url": False,
                     "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"}
             },
-            generar_boton_menu(number)
+            generar_list_menu(number)
         ]
-    elif "7" in texto:
+    elif "7" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -330,7 +339,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "8" in texto:
+    elif "8" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -341,9 +350,9 @@ def enviar_mensajes_whatsapp(texto,number):
                     "preview_url": False,
                     "body": "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
             },
-            generar_boton_menu(number)
+            generar_list_menu(number)
         ]
-    elif "0" in texto:
+    elif "0" == texto.strip():
         data = [
             # 📝 Texto normal del menú
             #{
@@ -361,7 +370,7 @@ def enviar_mensajes_whatsapp(texto,number):
             generar_menu_principal(number)
 
         ]
-    elif "boton" in texto:
+    elif "boton" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -402,7 +411,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "btnmenu" == texto:
+    elif "btnmenu" == texto.strip():
         data =  [           
             # 🔘 Botones interactivos
             {
@@ -432,7 +441,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "btnsi" in texto:
+    elif "btnsi" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -445,7 +454,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "btnno" in texto:
+    elif "btnno" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -458,7 +467,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "btntalvez" in texto:
+    elif "btntalvez" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -471,7 +480,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "lista" in texto:
+    elif "lista" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -522,7 +531,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "btncompra" in texto:
+    elif "btncompra" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -535,7 +544,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "btnvender" in texto:
+    elif "btnvender" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
