@@ -136,28 +136,30 @@ def bot_enviar_mensaje_whatsapp(data):
 def generar_boton_menu(number):
     #"""Retorna la estructura del botón 'Ver Menú' para reutilizar"""
     return {
-        "messaging_product": "whatsapp",
-        "recipient_type": "individual",
-        "to": number,
-        "type": "interactive",
-        "interactive":{
-            "type":"button",
-            "body": {
-                "text": ""
-            },
-            "footer": {
-                "text": ""
-            },
-            "action": {
-                "buttons":[
-                    {
-                        "type": "reply",
-                        "reply":{
-                            "id":"0",
-                            "title":"Ver Menú"
+        {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": number,
+            "type": "interactive",
+            "interactive":{
+                "type":"button",
+                "body": {
+                    "text": ""
+                },
+                "footer": {
+                    "text": ""
+                },
+                "action": {
+                    "buttons":[
+                        {
+                            "type": "reply",
+                            "reply":{
+                                "id":"0",
+                                "title":"Ver Menú"
+                            }
                         }
-                    }
-                ]
+                    ]
+                }
             }
         }
     }
@@ -207,7 +209,7 @@ def enviar_mensajes_whatsapp(texto,number):
             },
             generar_boton_menu(number)
         ]
-    elif "1" == texto:
+    elif "1" == int(texto.strip()):
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -220,7 +222,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "2" == texto:
+    elif "2" == int(texto.strip()):
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -423,21 +425,31 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "btnmenu" in texto:
+    elif "btnmenu" == texto.strip():
         data =  [           
             # 🔘 Botones interactivos
             {
                 "messaging_product": "whatsapp",
+                "recipient_type": "individual",
                 "to": number,
                 "type": "interactive",
-                "interactive": {
-                    "type": "button",
+                "interactive":{
+                    "type":"button",
                     "body": {
                         "text": ""
                     },
+                    "footer": {
+                        "text": ""
+                    },
                     "action": {
-                        "buttons": [
-                            {"type": "reply", "reply": {"id": "0", "title": "🕹️ Ver Menú"}}
+                        "buttons":[
+                            {
+                                "type": "reply",
+                                "reply":{
+                                    "id":"0",
+                                    "title":"Ver Menú"
+                                }
+                            }
                         ]
                     }
                 }
