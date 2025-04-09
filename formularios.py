@@ -128,6 +128,35 @@ def manejar_paso_año(number, user_message, producto):
     producto.modelo_anio = user_message
     producto.current_step = 'completed'
     actualizar_interaccion(number)
+
+    return [
+        {
+            "messaging_product": "whatsapp",
+            "to": number,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {
+                    "text": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n\n"
+                },
+                "action": {
+                    "buttons": [
+                        {"type": "reply", "reply": {"id": "cotizar_si", "title": "✅ Sí, cotizar"}},
+                        {"type": "reply", "reply": {"id": "salir_flujo", "title": "❌ Salir"}}
+                    ]
+                }
+            }
+        }
+    ]
+
+def cancelar_flujo(number):
+    """Limpia la sesión y productos asociados"""
+    session = UserSession.query.get(number)
+    if session:
+        # Eliminar productos asociados
+        ModelProduct.query.filter_by(session_id=number).delete()
+        db.session.delete(session)
+        db.session.commit()
     
     return [
         {
@@ -135,7 +164,7 @@ def manejar_paso_año(number, user_message, producto):
             "to": number,
             "type": "text",
             "text": {
-                "body": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n\n¿Deseas cotizar repuestos? (Responde *SI* o *NO*)"
+                "body": "🔁 Formulario cancelado correctamente. Envía '1' si deseas comenzar de nuevo."
             }
         }
     ]
