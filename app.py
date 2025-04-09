@@ -1,18 +1,29 @@
 from flask import Flask, request, jsonify, render_template
-from config import app, db
-from models import UserSession, Log, init_db
+from config import db, migrate, Config
+from models import UserSession, Log
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import http.client
 import json
 import time
 
-# Inicializar DB
-with app.app_context():
-    init_db()
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    
+    # Inicialización segura
+    db.init_app(app)
+    migrate.init_app(app, db)
+    
+    with app.app_context():
+        db.create_all()
+    
+    return app
 
-app = Flask(__name__)
-
+app = create_app()
+# ------------------------------------------
+# Funciones auxiliares
+# ------------------------------------------
 #Funcion para ordenar los registros por fecha y hora
 def ordenar_por_fecha_y_hora(registros):
     return sorted(registros, key=lambda x: x.fecha_y_hora,reverse=True)

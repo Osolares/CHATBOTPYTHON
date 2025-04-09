@@ -1,8 +1,10 @@
-from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///autoparts_chatbot.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy()
+migrate = Migrate()
 
-db = SQLAlchemy(app)
+class Config:
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///autoparts_chatbot.db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    TOKEN_WHATSAPP = "TOKEN_OIOT"  # Mueve el token aquí

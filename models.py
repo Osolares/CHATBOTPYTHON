@@ -11,15 +11,13 @@ class UserSession(db.Model):
     combustible = db.Column(db.String(20))
     año = db.Column(db.String(10))
     last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
+    logs = db.relationship('Log', backref='session', lazy=True)  # Relación 1-a-muchos
 
-    def __repr__(self):
-        return f'<Session {self.phone_number}>'
 
 class Log(db.Model):
+    __tablename__ = 'logs'
+    
     id = db.Column(db.Integer, primary_key=True)
     fecha_y_hora = db.Column(db.DateTime, default=datetime.utcnow)
-    texto = db.Column(db.TEXT)
-
-# Crear tablas si no existen
-def init_db():
-    db.create_all()
+    texto = db.Column(db.Text)
+    session_id = db.Column(db.String(20), db.ForeignKey('user_sessions.phone_number'))
