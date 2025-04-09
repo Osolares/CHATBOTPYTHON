@@ -195,9 +195,11 @@ def enviar_mensajes_whatsapp(texto,number):
                     "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
                 }
             },
+            {
             generar_boton_menu(number)
+            }
         ]
-    elif "1" in texto:
+    elif "1" == texto:
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -210,7 +212,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "2" in texto:
+    elif "2" == texto:
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -223,7 +225,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-    elif "3" in texto:        
+    elif "3" == texto:        
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -247,7 +249,9 @@ def enviar_mensajes_whatsapp(texto,number):
                     "body": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
                 }
             },
+            {
             generar_boton_menu(number)
+            }
         ]
     elif "4" in texto:
         data = [
@@ -293,7 +297,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo del producto es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n💳 Neo Link. \nTe enviamos un link para que pagues sin salir de tu casa"}
+                    "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n💳 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"}
             },
             generar_boton_menu(number)
         ]
@@ -319,23 +323,23 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🏠🛋*Enviamos nuestros productos hasta la puerta de su casa*, estos son nuestros métodos de envío: \n\n 🛵 Envíos dentro de la capital. \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 Envío a Departamentos. \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 Tiempo de envío. \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
+                    "body": "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
             },
             generar_boton_menu(number)
         ]
     elif "0" in texto:
         data = [
             # 📝 Texto normal del menú
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n1️⃣ ⚙ Motores\n\n2️⃣ 🛞 Repuestos\n\n3️⃣ 📍 Ubicación\n\n4️⃣ 🕜 Horario de Atención\n\n5️⃣ ☎ Contacto\n\n6️⃣  💳 Formas de pago y números de cuenta\n\n7️⃣ ⏳ Esperar para ser atendido por nuestro personal\n\n8️⃣ 🚛 Opciones de envío\n\n0️⃣ 🔙 Regresar al Menú \n\n📌 *Escribe el número #️⃣ de tu elección.*"
-                }
-            },
+            #{
+            #    "messaging_product": "whatsapp",
+            #    "recipient_type": "individual",
+            #    "to": number,
+            #    "type": "text",
+            #    "text": {
+            #        "preview_url": False,
+            #        "body": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n1️⃣ ⚙ Motores\n\n2️⃣ 🛞 Repuestos\n\n3️⃣ 📍 Ubicación\n\n4️⃣ 🕜 Horario de Atención\n\n5️⃣ ☎ Contacto\n\n6️⃣  💳 Formas de pago y números de cuenta\n\n7️⃣ ⏳ Esperar para ser atendido por nuestro personal\n\n8️⃣ 🚛 Opciones de envío\n\n0️⃣ 🔙 Regresar al Menú \n\n📌 *Escribe el número #️⃣ de tu elección.*"
+            #    }
+            #},
 
             # 📋 Lista interactiva
             {
@@ -345,10 +349,10 @@ def enviar_mensajes_whatsapp(texto,number):
                 "interactive": {
                     "type": "list",
                     "body": {
-                        "text": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n1️⃣ ⚙ Motores\n\n2️⃣ 🛞 Repuestos\n\n3️⃣ 📍 Ubicación\n\n4️⃣ 🕜 Horario de Atención\n\n5️⃣ 💳 Números de cuenta\n\n6️⃣ ⏳ Esperar para ser atendido por nuestro personal\n\n7️⃣ 🚛 Opciones de envío\n\n0️⃣ 🔙 Regresar al Menú \n\n📌 *Escribe el número #️⃣ de tu elección.*"
+                        "text": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n1️⃣ ⚙ Motores\n2️⃣ 🛞 Repuestos\n3️⃣ 📍 Ubicación\n4️⃣ 🕜 Horario de Atención\n5️⃣ ☎ Contacto\n6️⃣  💳 Formas de pago y números de cuenta\n7️⃣ ⏳ Esperar para ser atendido por nuestro personal\n8️⃣ 🚛 Opciones de envío\n0️⃣ 🔙 Regresar al Menú \n\n📌 *Escribe el número #️⃣ de tu elección.*"
                     },
                     "footer": {
-                        "text": "Toca una opción para continuar"
+                        "text": ""
                     },
                     "action": {
                         "button": "Ver Menú",
