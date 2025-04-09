@@ -13,7 +13,7 @@ class UserSession(db.Model):
 
 class ModelProduct(db.Model):
     __tablename__ = 'model_products'
-    
+
     id = db.Column(db.Integer, primary_key=True)  # ¡Añade esta línea!
     current_step = db.Column(db.String(50), default='awaiting_marca')
     marca = db.Column(db.String(50))
@@ -21,7 +21,7 @@ class ModelProduct(db.Model):
     combustible = db.Column(db.String(20))
     modelo_anio = db.Column(db.String(10))
     tipo_repuesto = db.Column(db.String(50))
-    estado = db.Column(db.String(50))
+    estado = db.Column(db.String(100))
     session_id = db.Column(db.String(20), db.ForeignKey('user_sessions.phone_number'), nullable=False)
 
 class Log(db.Model):

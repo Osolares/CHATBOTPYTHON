@@ -46,7 +46,10 @@ def manejar_paso_actual(number, user_message):
         'awaiting_marca': manejar_paso_marca,
         'awaiting_modelo': manejar_paso_modelo,
         'awaiting_combustible': manejar_paso_combustible,
-        'awaiting_año': manejar_paso_año
+        'awaiting_año': manejar_paso_año,
+        'awaiting_tipo_repuesto': manejar_paso_tipo_repuesto,
+        'awaiting_comentario': manejar_paso_comentario
+
     }
 
     handler = handlers.get(producto.current_step)
@@ -68,7 +71,7 @@ def manejar_paso_marca(number, user_message, producto):
             "to": number,
             "type": "text",
             "text": {
-                "body": f"✅ Marca: {user_message}\n\n📝Ahora escribe el *MODELO*:\n_(Ej: L200, Hilux, Terracan, Sportage)_"
+                "body": f"✅ Marca: {user_message}\n\n📝Ahora escribe la *LINEA*:\n_(Ej: L200, Hilux, Terracan, Sportage)_"
             }
         }
     ]
@@ -86,7 +89,7 @@ def manejar_paso_modelo(number, user_message, producto):
             "interactive": {
                 "type": "button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Modelo: {user_message}\n\n🫳Selecciona el *COMBUSTIBLE:*"
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n\n🫳Selecciona el *COMBUSTIBLE:*"
                 },
                 "action": {
                     "buttons": [
@@ -109,7 +112,7 @@ def manejar_paso_combustible(number, user_message, producto):
             "to": number,
             "type": "text",
             "text": {
-                "body": f"✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 2000, 2005, 2010, 2018, 2020)_"
+                "body": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 2000, 2005, 2010, 2018, 2020)_"
             }
         }
     ]
@@ -126,6 +129,38 @@ def manejar_paso_año(number, user_message, producto):
         }]
     
     producto.modelo_anio = user_message
+    producto.current_step = 'awaiting_tipo_repuesto'
+    actualizar_interaccion(number)
+
+    return [
+        {
+            "messaging_product": "whatsapp",
+            "to": number,
+            "type": "text",
+            "text": {
+                "body": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n\n📝Escribe el *TIPO DE REPUESTO* que necesitas:\n_(Ej: Motor, Culata, Turbo, Cigüeñal)_"
+            }
+        }
+    ]
+
+def manejar_paso_tipo_repuesto(number, user_message, producto):
+    producto.tipo_repuesto = user_message
+    producto.current_step = 'awaiting_comentario'
+    actualizar_interaccion(number)
+
+    return [
+        {
+            "messaging_product": "whatsapp",
+            "to": number,
+            "type": "text",
+            "text": {
+                "body": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n\n📝Escribe una *DESCRIPCIÓN O COMENTARIO FINAL*:\n_Si no tienes comentarios escribe *No*_"
+            }
+        }
+    ]
+
+def manejar_paso_comentario(number, user_message, producto):
+    producto.estado = user_message
     producto.current_step = 'completed'
     actualizar_interaccion(number)
 
@@ -137,12 +172,12 @@ def manejar_paso_año(number, user_message, producto):
             "interactive": {
                 "type": "button",
                 "body": {
-                    "text": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n\n"
+                    "text": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n✅ Descripción: {producto.estado}\n\n"
                 },
                 "action": {
                     "buttons": [
                         {"type": "reply", "reply": {"id": "cotizar_si", "title": "✅ Sí, cotizar"}},
-                        {"type": "reply", "reply": {"id": "salir_flujo", "title": "❌ Salir"}}
+                        {"type": "reply", "reply": {"id": "salir_flujo", "title": "❌ Salir/Cancelar"}}
                     ]
                 }
             }
