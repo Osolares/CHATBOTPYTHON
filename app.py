@@ -568,6 +568,8 @@ def enviar_mensajes_whatsapp(texto,number):
     # Envío secuencial con pausas
     for mensaje in data:
         bot_enviar_mensaje_whatsapp(mensaje)
+        agregar_mensajes_log(json.dumps(mensaje))
+
         time.sleep(1)  # Pausa para cumplir con rate limits de WhatsApp
 
 if __name__=='__main__':
