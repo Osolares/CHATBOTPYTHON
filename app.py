@@ -137,7 +137,7 @@ def recibir_mensajes(req):
 def bot_enviar_mensaje_whatsapp(data):
     headers = {
         "Content-Type" : "application/json",
-        "Authorization" : f"Bearer {Config.WHATSAPP_TOKEN}"
+        "Authorization" : f"Bearer EAASuhuwPLvsBOyi4z4jqFSEjK6LluwqP7ZBUI5neqElC0PhJ5VVmTADzVlkjZCm9iCFjcztQG0ONSKpc1joEKlxM5oNEuNLXloY4fxu9jZCCJh4asEU4mwZAo9qZC5aoQAFXrb2ZC8fsIfcq5u1K90MTBrny375KAHHTG4SFMz7eXM1dbwRiBhqGhOxNtFBmVTwQZDZD"
     }
     
     connection = http.client.HTTPSConnection("graph.facebook.com")
@@ -250,7 +250,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
+                    "body": f"👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻\n\n {Config.TOKEN_WEBHOOK_WHATSAPP} {Config.WHATSAPP_TOKEN} {Config.PHONE_NUMBER_ID}"
                 }
             },
         ]
