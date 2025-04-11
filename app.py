@@ -46,7 +46,7 @@ def agregar_mensajes_log(texto):
     db.session.commit()
 
 #Token de verificacion para la configuracion
-TOKEN_WHATSAPP = "TOKEN_OIOT"
+TOKEN_WHATSAPP = f"{Config.TOKEN_WEBHOOK_WHATSAPP}"
 
 @app.route('/webhook', methods=['GET','POST'])
 def webhook():
@@ -122,14 +122,14 @@ def recibir_mensajes(req):
 def bot_enviar_mensaje_whatsapp(data):
     headers = {
         "Content-Type" : "application/json",
-        "Authorization" : "Bearer EAASuhuwPLvsBOyi4z4jqFSEjK6LluwqP7ZBUI5neqElC0PhJ5VVmTADzVlkjZCm9iCFjcztQG0ONSKpc1joEKlxM5oNEuNLXloY4fxu9jZCCJh4asEU4mwZAo9qZC5aoQAFXrb2ZC8fsIfcq5u1K90MTBrny375KAHHTG4SFMz7eXM1dbwRiBhqGhOxNtFBmVTwQZDZD"
+        "Authorization" : f"Bearer {Config.WHATSAPP_TOKEN}"
     }
     
     connection = http.client.HTTPSConnection("graph.facebook.com")
     try:
         #Convertir el diccionaria a formato JSON
         json_data = json.dumps(data)
-        connection.request("POST", "/v22.0/641730352352096/messages", json_data, headers)
+        connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
         response = connection.getresponse()
         print(f"Estado: {response.status} - {response.reason}")
         return response.read()

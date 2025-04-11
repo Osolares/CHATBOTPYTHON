@@ -172,7 +172,7 @@ def manejar_paso_comentario(number, user_message, producto):
             "interactive": {
                 "type": "button",
                 "body": {
-                    "text": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n✅ Descripción: {producto.estado}\n\n"
+                    "text": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n• Tipo de repuesto: {producto.tipo_repuesto}\n• Descripción: {producto.estado}\n\n"
                 },
                 "action": {
                     "buttons": [
@@ -199,7 +199,7 @@ def cancelar_flujo(number):
             "to": number,
             "type": "text",
             "text": {
-                "body": "🔁 Formulario cancelado correctamente. Envía '1' si deseas comenzar de nuevo."
+                "body": "🔁 Formulario cancelado correctamente. Escribe '0' si deseas ver el menú."
             }
         }
     ]
