@@ -137,14 +137,14 @@ def recibir_mensajes(req):
 def bot_enviar_mensaje_whatsapp(data):
     headers = {
         "Content-Type" : "application/json",
-        "Authorization" : f"Bearer EAASuhuwPLvsBOyi4z4jqFSEjK6LluwqP7ZBUI5neqElC0PhJ5VVmTADzVlkjZCm9iCFjcztQG0ONSKpc1joEKlxM5oNEuNLXloY4fxu9jZCCJh4asEU4mwZAo9qZC5aoQAFXrb2ZC8fsIfcq5u1K90MTBrny375KAHHTG4SFMz7eXM1dbwRiBhqGhOxNtFBmVTwQZDZD"
+        "Authorization" : f"{Config.WHATSAPP_TOKEN}"
     }
     
     connection = http.client.HTTPSConnection("graph.facebook.com")
     try:
         #Convertir el diccionaria a formato JSON
         json_data = json.dumps(data)
-        connection.request("POST", f"/v22.0/641730352352096/messages", json_data, headers)
+        connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
         response = connection.getresponse()
         print(f"Estado: {response.status} - {response.reason}")
         return response.read()
@@ -232,18 +232,7 @@ def enviar_mensajes_whatsapp(texto,number):
     body = f"👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻\n\n webhook {Config.TOKEN_WEBHOOK_WHATSAPP} token {Config.WHATSAPP_TOKEN} phoneId {Config.PHONE_NUMBER_ID}"
 
     if flujo_producto:
-        #data = manejar_paso_actual(number, texto)
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "image",
-                "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                }
-            }
-        ]
+        data = manejar_paso_actual(number, texto)
 
     elif "hola" == texto.strip():
         data = [
@@ -591,8 +580,17 @@ def enviar_mensajes_whatsapp(texto,number):
         ]
 
     else:
-        data = manejar_paso_actual(number, texto)
-
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                }
+            }
+        ]
     # Envío secuencial con pausas
     for mensaje in data:
         bot_enviar_mensaje_whatsapp(mensaje)
