@@ -25,7 +25,7 @@ class ProductModel(db.Model):
     tipo_repuesto = db.Column(db.String(50))
     estado = db.Column(db.String(100))
     
-    session_id = db.Column(db.String(20), db.ForeignKey('user_sessions.phone_number'), nullable=False)
+    session_id = db.Column(db.String(20), db.ForeignKey('user_sessions.idUser'), nullable=False)
 
 class Log(db.Model):
     __tablename__ = 'logs'
@@ -34,4 +34,4 @@ class Log(db.Model):
     fecha_y_hora = db.Column(db.DateTime, default=datetime.utcnow)
     texto = db.Column(db.Text)
     
-    session_id = db.Column(db.String(20), db.ForeignKey('user_sessions.phone_number'))
+    session_id = db.Column(db.String(20), db.ForeignKey('user_sessions.idUser'))

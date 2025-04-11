@@ -3,6 +3,8 @@ from models import UserSession, ProductModel, db
 from session_manager import load_or_create_session, get_session
 import time
 
+lista_cancelar = ["exit", "cancel", "salir", "cancelar"]
+
 def formulario_motor(number):
     """Inicia el flujo de cotización creando o actualizando sesión"""
     session = get_session()
@@ -26,7 +28,7 @@ def formulario_motor(number):
             "to": number,
             "type": "text",
             "text": {
-                "body": "🔧 *Cotización de repuestos*\n\n📝Escribe la *MARCA* de tu vehículo:\n_(Ej: Toyota, Mitsubishi, Kia, Hyundai)_"
+                "body": "🔧 *Cotización de repuestos*\n\n📝Escribe la *MARCA* de tu vehículo:\n_(Ej: Toyota, Mitsubishi, Kia, Hyundai)_ "
             }
         }
     ]
@@ -48,7 +50,7 @@ def manejar_paso_actual(number, user_message):
         }]
     
     elif session and (
-        user_message in ["exit", "cancel"] or 
+        user_message in lista_cancelar or 
         (
             session.last_interaction and 
             datetime.utcnow() - session.last_interaction > timedelta(hours=1)
@@ -62,7 +64,9 @@ def manejar_paso_actual(number, user_message):
         'awaiting_combustible': manejar_paso_combustible,
         'awaiting_año': manejar_paso_anio,
         'awaiting_tipo_repuesto': manejar_paso_tipo_repuesto,
-        'awaiting_comentario': manejar_paso_comentario
+        'awaiting_comentario': manejar_paso_comentario,
+        'completed': manejar_paso_finish
+
     }
 
     handler = handlers.get(producto.current_step)
@@ -190,12 +194,41 @@ def manejar_paso_comentario(number, user_message, producto):
                 "action": {
                     "buttons": [
                         {"type": "reply", "reply": {"id": "cotizar_si", "title": "✅ Sí, cotizar"}},
-                        {"type": "reply", "reply": {"id": "salir_flujo", "title": "❌ Salir/Cancelar"}}
+                        {"type": "reply", "reply": {"id": "cancelar", "title": "❌ Salir/Cancelar"}}
                     ]
                 }
             }
         }
     ]
+
+def manejar_paso_finish(number, user_message, producto):
+    producto.current_step = 'finished'
+    actualizar_interaccion(number)
+
+    session = get_session()
+    if session:
+        # Eliminar productos asociados
+        ProductModel.query.filter_by(session_id=session.idUser).delete()
+        db.session.delete(session)
+        db.session.commit()
+        actualizar_interaccion(number)
+
+
+    if user_message in lista_cancelar:
+        cancelar_flujo(number)
+
+    if user_message == "cotizar_si":
+
+        return [
+            {
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "body": " Formulario recibido, en unos minutos nos pondremos en contacto"
+                }
+            }
+        ]
 
 def cancelar_flujo(number):
     """Limpia la sesión y productos asociados"""

@@ -229,7 +229,6 @@ def enviar_mensajes_whatsapp(texto,number):
     data = []
     session = load_or_create_session(number)
     flujo_producto = ProductModel.query.filter_by(session_id=session.idUser).first()
-    body = f"👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻\n\n webhook {Config.TOKEN_WEBHOOK_WHATSAPP} token {Config.WHATSAPP_TOKEN} phoneId {Config.PHONE_NUMBER_ID}"
 
     if flujo_producto:
         data = manejar_paso_actual(number, texto)
@@ -252,7 +251,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": body
+                    "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
                 }
             },
         ]
