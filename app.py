@@ -229,10 +229,21 @@ def enviar_mensajes_whatsapp(texto,number):
     data = []
     session = load_or_create_session(number)
     flujo_producto = ProductModel.query.filter_by(session_id=session.idUser).first()
-    body = f"👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻\n\n {Config.TOKEN_WEBHOOK_WHATSAPP} {Config.WHATSAPP_TOKEN} {Config.PHONE_NUMBER_ID}"
+    body = f"👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻\n\n webhook {Config.TOKEN_WEBHOOK_WHATSAPP} token {Config.WHATSAPP_TOKEN} phoneId {Config.PHONE_NUMBER_ID}"
 
     if flujo_producto:
-        data = manejar_paso_actual(number, texto)
+        #data = manejar_paso_actual(number, texto)
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                }
+            }
+        ]
 
     elif "hola" == texto.strip():
         data = [
