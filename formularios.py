@@ -1,18 +1,18 @@
 from datetime import datetime, timedelta
 from models import UserSession, ProductModel, db
+from session_manager import load_or_create_session, get_session
 import time
 
 def formulario_motor(number):
     """Inicia el flujo de cotización creando o actualizando sesión"""
-    session = UserSession.query.get(number)
+    session = get_session()
     if not session:
-        session = UserSession(phone_number=number)
-        db.session.add(session)
+        session = load_or_create_session(number)
 
     # Crear o reiniciar producto asociado
-    producto = ProductModel.query.filter_by(session_id=number).first()
+    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
     if not producto:
-        producto = ProductModel(session_id=number)
+        producto = ProductModel(session_id=session.idUser)
         db.session.add(producto)
     
     producto.current_step = 'awaiting_marca'
@@ -33,8 +33,11 @@ def formulario_motor(number):
 
 def manejar_paso_actual(number, user_message):
     """Maneja todos los pasos del formulario"""
-    session = UserSession.query.get(number)
-    producto = ProductModel.query.filter_by(session_id=number).first()
+    session = get_session()
+    if not session:
+        session = load_or_create_session(number)
+
+    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
     if not producto:
         return [{
             "messaging_product": "whatsapp",
@@ -195,13 +198,14 @@ def manejar_paso_comentario(number, user_message, producto):
 
 def cancelar_flujo(number):
     """Limpia la sesión y productos asociados"""
-    session = UserSession.query.get(number)
+    session = get_session()
     if session:
         # Eliminar productos asociados
-        ProductModel.query.filter_by(session_id=number).delete()
+        ProductModel.query.filter_by(session_id=session.idUser).delete()
         db.session.delete(session)
         db.session.commit()
-    
+        actualizar_interaccion(number)
+
     return [
         {
             "messaging_product": "whatsapp",

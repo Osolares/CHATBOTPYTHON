@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template
 from config import db, migrate, Config
 from models import UserSession, Log, ProductModel
 from formularios import formulario_motor, manejar_paso_actual
+from session_manager import load_or_create_session, get_session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import http.client
@@ -99,11 +100,9 @@ def recibir_mensajes(req):
             message = messages_list[0]
             phone_number = message.get("from")
 
-            session = UserSession.query.get(phone_number)
+            session = load_or_create_session(phone_number)
             if not session:
-                session = UserSession(phone_number=phone_number)
-                db.session.add(session)
-                db.session.commit()
+                session = load_or_create_session(phone_number)
 
             # Guardar log
             agregar_mensajes_log(json.dumps(message))
@@ -138,14 +137,14 @@ def recibir_mensajes(req):
 def bot_enviar_mensaje_whatsapp(data):
     headers = {
         "Content-Type" : "application/json",
-        "Authorization" : f"Bearer EAASuhuwPLvsBOyi4z4jqFSEjK6LluwqP7ZBUI5neqElC0PhJ5VVmTADzVlkjZCm9iCFjcztQG0ONSKpc1joEKlxM5oNEuNLXloY4fxu9jZCCJh4asEU4mwZAo9qZC5aoQAFXrb2ZC8fsIfcq5u1K90MTBrny375KAHHTG4SFMz7eXM1dbwRiBhqGhOxNtFBmVTwQZDZD"
+        "Authorization" : f"Bearer {Config.WHATSAPP_TOKEN}"
     }
     
     connection = http.client.HTTPSConnection("graph.facebook.com")
     try:
         #Convertir el diccionaria a formato JSON
         json_data = json.dumps(data)
-        connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
+        connection.request("POST", f"/v22.0/641730352352096/messages", json_data, headers)
         response = connection.getresponse()
         print(f"Estado: {response.status} - {response.reason}")
         return response.read()
@@ -228,8 +227,8 @@ def generar_menu_principal(number):
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
     data = []
-
-    flujo_producto = ProductModel.query.filter_by(session_id=number).first()
+    session = load_or_create_session(number)
+    flujo_producto = ProductModel.query.filter_by(session_id=session.idUser).first()
     if flujo_producto:
         data = manejar_paso_actual(number, texto)
 

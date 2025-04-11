@@ -47,12 +47,20 @@
     <table>
         <tr>
             <th>Ultima Ultima Interaccion</th>
-            <th>Mensaje</th>
+            <th>Id User</th>
+            <th>Phone Number</th>
+            <th>Last </th>
+            <th>Product</th>
+
         </tr>
         {% for user in users %}
         <tr>
             <td>{{ user.last_interaction }}</td>
-            <td>{{ user }}</td>
+            <td>{{ user.idUser }}</td>
+            <td>{{ user.phone_number }}</td>
+            <td>{{ user.last_interaction }}</td>
+            <td>{{ user.model_products }}</td>
+
         </tr>
         {% endfor %}
     </table>
@@ -63,12 +71,25 @@
     <table>
         <tr>
             <th>Fecha y Hora</th>
-            <th>Mensaje</th>
+            <th>Step</th>
+            <th>Marca</th>
+            <th>Linea</th>
+            <th>Combustible</th>
+            <th>Anio</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+
         </tr>
         {% for product in products %}
         <tr>
             <td>Session_ID: {{ product.session_id }} ID_Product: {{ product.idProduct }} </td>
-            <td>{{ product }}</td>
+            <td>{{ product.current_step }}</td>
+            <td>{{ product.marca }}</td>
+            <td>{{ product.linea }}</td>
+            <td>{{ product.combustible }}</td>
+            <td>{{ product.modelo_anio }}</td>
+            <td>{{ product.tipo_repuesto }}</td>
+            <td>{{ product.estado }}</td>
         </tr>
         {% endfor %}
     </table>

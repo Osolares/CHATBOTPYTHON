@@ -13,7 +13,6 @@ class UserSession(db.Model):
 
     logs = db.relationship('Log', backref='session', lazy=True)  # Relación 1-a-muchos
     model_products = db.relationship('ProductModel', backref='session', lazy=True)  # FIX: nombre de la clase correcto
-
 class ProductModel(db.Model):
     __tablename__ = 'model_products'
 
