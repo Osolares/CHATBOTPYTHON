@@ -5,7 +5,8 @@ class UserSession(db.Model):
     __tablename__ = 'user_sessions'
 
     idUser = db.Column(db.Integer, primary_key=True)
-    phone_number = db.Column(db.String(20), unique=True)
+    #phone_number = db.Column(db.String(20), unique=True)
+    phone_number = db.Column(db.String(20))
     nombre = db.Column(db.String(25))
     apellido = db.Column(db.String(25))
     last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
