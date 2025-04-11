@@ -28,7 +28,7 @@ def formulario_motor(number):
             "to": number,
             "type": "text",
             "text": {
-                "body": "🔧 *Cotización de repuestos*\n\n📝Escribe la *MARCA* de tu vehículo:\n_(Ej: Toyota, Mitsubishi, Kia, Hyundai)_ "
+                "body": "Este es un formulario para \n🔧 *Cotización de motores y repuestos*\n llenalo con los datos de tu vehículo 🛻\n\n📝Escribe la *MARCA* de tu vehículo:\n_(Ej: Toyota, Mitsubishi, Kia, Hyundai)_ \n\n Escribe *cancelar* para salir del formulario"
             }
         }
     ]
@@ -46,7 +46,7 @@ def manejar_paso_actual(number, user_message):
             "messaging_product": "whatsapp",
             "to": number,
             "type": "text",
-            "text": {"body": "⚠️ Sesión no encontrada. Envía '1' para comenzar."}
+            "text": {"body": "⚠️ Sesión no encontrada. Envía '1' para comenzar. \n\n Escribe *cancelar* para salir del formulario"}
         }]
     
     elif session and (
@@ -74,7 +74,7 @@ def manejar_paso_actual(number, user_message):
         "messaging_product": "whatsapp",
         "to": number,
         "type": "text",
-        "text": {"body": "⚠️ Flujo no reconocido. Envía '1' para reiniciar."}
+        "text": {"body": "⚠️ Flujo no reconocido. Envía '1' para reiniciar. \n\n Escribe *cancelar* para salir del formulario"}
     }]
 
 def manejar_paso_marca(number, user_message, producto):
@@ -88,7 +88,7 @@ def manejar_paso_marca(number, user_message, producto):
             "to": number,
             "type": "text",
             "text": {
-                "body": f"✅ Marca: {user_message}\n\n📝Ahora escribe la *LINEA*:\n_(Ej: L200, Hilux, Terracan, Sportage)_"
+                "body": f"✅ Marca: {user_message}\n\n📝Ahora escribe la *LINEA*:\n_(Ej: L200, Hilux, Terracan, Sportage)_ \n\n Escribe *cancelar* para salir del formulario"
             }
         }
     ]
@@ -106,7 +106,7 @@ def manejar_paso_modelo(number, user_message, producto):
             "interactive": {
                 "type": "button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n\n🫳Selecciona el *COMBUSTIBLE:*"
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n\n🫳Selecciona el *COMBUSTIBLE:* \n\n Escribe *cancelar* para salir del formulario"
                 },
                 "action": {
                     "buttons": [
@@ -129,19 +129,19 @@ def manejar_paso_combustible(number, user_message, producto):
             "to": number,
             "type": "text",
             "text": {
-                "body": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 2000, 2005, 2010, 2018, 2020)_"
+                "body": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 2000, 2005, 2010, 2018, 2020)_ \n\n Escribe *cancelar* para salir del formulario"
             }
         }
     ]
 
 def manejar_paso_anio(number, user_message, producto):
-    if not user_message.isdigit() or not (1900 < int(user_message) <= datetime.now().year + 1):
+    if not user_message.isdigit() or not (1950 < int(user_message) <= datetime.now().year + 1):
         return [{
             "messaging_product": "whatsapp",
             "to": number,
             "type": "text",
             "text": {
-                "body": "⚠️ Año inválido. Ingresa un año entre 1900 y actual.\nEjemplo: 2015"
+                "body": "⚠️ Año inválido. Ingresa un año entre 1950 y actual.\nEjemplo: 1995, 2000, 2005, 2008, 2015, 2020 \n\n Escribe *cancelar* para salir del formulario"
             }
         }]
     
@@ -155,7 +155,7 @@ def manejar_paso_anio(number, user_message, producto):
             "to": number,
             "type": "text",
             "text": {
-                "body": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n\n📝Escribe el *TIPO DE REPUESTO* que necesitas:\n_(Ej: Motor, Culata, Turbo, Cigüeñal)_"
+                "body": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n\n📝Escribe el *TIPO DE REPUESTO* que necesitas:\n_(Ej: Motor, Culata, Turbo, Cigüeñal)_ \n\n Escribe *cancelar* para salir del formulario"
             }
         }
     ]
@@ -166,12 +166,31 @@ def manejar_paso_tipo_repuesto(number, user_message, producto):
     actualizar_interaccion(number)
 
     return [
+
         {
             "messaging_product": "whatsapp",
+            "recipient_type": "individual",
             "to": number,
-            "type": "text",
-            "text": {
-                "body": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n\n📝Escribe una *DESCRIPCIÓN O COMENTARIO FINAL*:\n_Si no tienes comentarios escribe *No*_"
+            "type": "interactive",
+            "interactive":{
+                "type":"button",
+                "body": {
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n\n📝Escribe una *DESCRIPCIÓN O COMENTARIO FINAL*:\n_Si no tienes comentarios escribe *No* o presiona el botón_ \n\n Escribe *cancelar* para salir del formulario"
+                },
+                "footer": {
+                    "text": ""
+                },
+                "action": {
+                    "buttons":[
+                        {
+                            "type": "reply",
+                            "reply":{
+                                "id":"no",
+                                "title":"No"
+                            }
+                        }
+                    ]
+                }
             }
         }
     ]
@@ -189,7 +208,7 @@ def manejar_paso_comentario(number, user_message, producto):
             "interactive": {
                 "type": "button",
                 "body": {
-                    "text": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n• Tipo de repuesto: {producto.tipo_repuesto}\n• Descripción: {producto.estado}\n\n"
+                    "text": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n• *Tipo de repuesto:* {producto.tipo_repuesto}\n• *Descripción:* {producto.estado}\n\n"
                 },
                 "action": {
                     "buttons": [
@@ -209,7 +228,7 @@ def manejar_paso_finish(number, user_message, producto):
     if session:
         # Eliminar productos asociados
         ProductModel.query.filter_by(session_id=session.idUser).delete()
-        db.session.delete(session)
+        #db.session.delete(session)
         db.session.commit()
         actualizar_interaccion(number)
 
@@ -232,11 +251,12 @@ def manejar_paso_finish(number, user_message, producto):
 
 def cancelar_flujo(number):
     """Limpia la sesión y productos asociados"""
-    session = get_session()
+    session = UserSession.query.filter_by(phone_number=number).first()
+    #session = get_session()
     if session:
         # Eliminar productos asociados
         ProductModel.query.filter_by(session_id=session.idUser).delete()
-        db.session.delete(session)
+        #db.session.delete(session)
         db.session.commit()
         actualizar_interaccion(number)
 
