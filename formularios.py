@@ -1,5 +1,6 @@
-from datetime import datetime
-from models import UserSession, ModelProduct, db
+from datetime import datetime, timedelta
+from models import UserSession, ProductModel, db
+from app import generar_menu_principal
 import time
 
 def formulario_motor(number):
@@ -8,11 +9,11 @@ def formulario_motor(number):
     if not session:
         session = UserSession(phone_number=number)
         db.session.add(session)
-    
+
     # Crear o reiniciar producto asociado
-    producto = ModelProduct.query.filter_by(session_id=number).first()
+    producto = ProductModel.query.filter_by(session_id=number).first()
     if not producto:
-        producto = ModelProduct(session_id=number)
+        producto = ProductModel(session_id=number)
         db.session.add(producto)
     
     producto.current_step = 'awaiting_marca'
@@ -33,7 +34,8 @@ def formulario_motor(number):
 
 def manejar_paso_actual(number, user_message):
     """Maneja todos los pasos del formulario"""
-    producto = ModelProduct.query.filter_by(session_id=number).first()
+    session = UserSession.query.get(number)
+    producto = ProductModel.query.filter_by(session_id=number).first()
     if not producto:
         return [{
             "messaging_product": "whatsapp",
@@ -41,6 +43,15 @@ def manejar_paso_actual(number, user_message):
             "type": "text",
             "text": {"body": "⚠️ Sesión no encontrada. Envía '1' para comenzar."}
         }]
+    
+    elif session and (
+        user_message in ["exit", "cancel"] or 
+        (
+            session.last_interaction and 
+            datetime.utcnow() - session.last_interaction > timedelta(hours=1)
+        )
+    ):
+        cancelar_flujo(number)
 
     handlers = {
         'awaiting_marca': manejar_paso_marca,
@@ -48,8 +59,7 @@ def manejar_paso_actual(number, user_message):
         'awaiting_combustible': manejar_paso_combustible,
         'awaiting_año': manejar_paso_año,
         'awaiting_tipo_repuesto': manejar_paso_tipo_repuesto,
-        'awaiting_comentario': manejar_paso_comentario
-
+        'awaiting_comentario': manejar_paso_comentario,
     }
 
     handler = handlers.get(producto.current_step)
@@ -189,7 +199,7 @@ def cancelar_flujo(number):
     session = UserSession.query.get(number)
     if session:
         # Eliminar productos asociados
-        ModelProduct.query.filter_by(session_id=number).delete()
+        ProductModel.query.filter_by(session_id=number).delete()
         db.session.delete(session)
         db.session.commit()
     
@@ -199,9 +209,11 @@ def cancelar_flujo(number):
             "to": number,
             "type": "text",
             "text": {
-                "body": "🔁 Formulario cancelado correctamente. Escribe '0' si deseas ver el menú."
+                "body": "🚪 Formulario cancelado. Has salido del formulario actual. ¿Qué deseas hacer ahora?"
             }
-        }
+        },
+        generar_menu_principal(number)
+
     ]
 
 def actualizar_interaccion(number):

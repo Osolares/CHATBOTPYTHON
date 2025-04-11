@@ -3,18 +3,17 @@ from config import db
 
 class UserSession(db.Model):
     __tablename__ = 'user_sessions'
-    
-    phone_number = db.Column(db.String(20), primary_key=True)
+    idUser = db.Column(db.Integer, primary_key=True)  # ¡Añade esta línea!
+    phone_number = db.Column(db.String(20))
     nombre = db.Column(db.String(25))
     apellido = db.Column(db.String(25))
     last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
     logs = db.relationship('Log', backref='session', lazy=True)  # Relación 1-a-muchos
     model_products = db.relationship('ModelProduct', backref='session', lazy=True)  # Relación 1-a-muchos
 
-class ModelProduct(db.Model):
+class ProductModel(db.Model):
     __tablename__ = 'model_products'
-
-    id = db.Column(db.Integer, primary_key=True)  # ¡Añade esta línea!
+    idProduct = db.Column(db.Integer, primary_key=True)  # ¡Añade esta línea!
     current_step = db.Column(db.String(50), default='awaiting_marca')
     marca = db.Column(db.String(50))
     linea = db.Column(db.String(50))

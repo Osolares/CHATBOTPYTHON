@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from config import db, migrate, Config
-from models import UserSession, Log, ModelProduct
+from models import UserSession, Log, ProductModel
 from formularios import formulario_motor, manejar_paso_actual, cancelar_flujo
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -26,27 +26,43 @@ app = create_app()
 # Funciones auxiliares
 # ------------------------------------------
 #Funcion para ordenar los registros por fecha y hora
-def ordenar_por_fecha_y_hora(registros):
-    return sorted(registros, key=lambda x: x.fecha_y_hora,reverse=True)
+#def ordenar_por_fecha_y_hora(registros):
+#    return sorted(registros, key=lambda x: x.fecha_y_hora,reverse=True)
 
 @app.route('/')
 def index():
-    registros = Log.query.order_by(Log.fecha_y_hora.desc()).all()
-    return render_template('index.html', registros=registros)
+    try:
+        registros = Log.query.order_by(Log.fecha_y_hora.desc()).limit(100).all()
+    except Exception as e:
+        registros = []
+        agregar_mensajes_log(f"Error cargando registros: {json.dumps(str(e))}")
+
+    try:
+        users = UserSession.query.order_by(UserSession.last_interaction.desc()).all()
+    except Exception as e:
+        users = []
+        agregar_mensajes_log(f"Error cargando usuarios: {json.dumps(str(e))}")
+
+    try:
+        products = ProductModel.query.order_by(ProductModel.session_id.desc()).all()
+    except Exception as e:
+        products = []
+        agregar_mensajes_log(f"Error cargando productos: {json.dumps(str(e))}")
+
+    return render_template('index.html', registros=registros, users=users, products=products)
 
 mensajes_log = []
 
 #Funcion para agregar mensajes y guardar en la base de datos
 def agregar_mensajes_log(texto):
     mensajes_log.append(texto)
-
     #Guardar el mensaje en la base de datos
     nuevo_registro = Log(texto=texto)
     db.session.add(nuevo_registro)
     db.session.commit()
 
 #Token de verificacion para la configuracion
-TOKEN_WHATSAPP = f"{Config.TOKEN_WEBHOOK_WHATSAPP}"
+TOKEN_WEBHOOK_WHATSAPP = f"{Config.TOKEN_WEBHOOK_WHATSAPP}"
 
 @app.route('/webhook', methods=['GET','POST'])
 def webhook():
@@ -61,7 +77,7 @@ def verificar_token(req):
     token = req.args.get('hub.verify_token')
     challenge = req.args.get('hub.challenge')
 
-    if challenge and token == TOKEN_WHATSAPP:
+    if challenge and token == TOKEN_WEBHOOK_WHATSAPP:
         return challenge
     else:
         return jsonify({'error':'Token Invalido'}),401
@@ -71,7 +87,7 @@ def recibir_mensajes(req):
         data = request.get_json()
 
         if not data or 'entry' not in data:
-            agregar_mensajes_log("Error: JSON sin 'entry'")
+            agregar_mensajes_log("Error: JSON sin 'entry' o 'Data'")
             return jsonify({'message': 'EVENT_RECEIVED'})
 
         entry = data['entry'][0]
@@ -214,6 +230,9 @@ def enviar_mensajes_whatsapp(texto,number):
     data = []
     CANCEL_COMMANDS = ["salir", "cancelar", "volver", "menu"]
 
+    flujo_producto = ProductModel.query.filter_by(session_id=number).first()
+    if flujo_producto:
+        data = manejar_paso_actual(number, texto)
 
     if "hola" == texto.strip():
         data = [
@@ -585,8 +604,7 @@ def enviar_mensajes_whatsapp(texto,number):
         data = cancelar_flujo(number)
 
     else:
-        data = manejar_paso_actual(number, texto)
-
+        return 0
 
     # Envío secuencial con pausas
     for mensaje in data:

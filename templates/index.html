@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -11,16 +12,20 @@
             border-collapse: collapse;
             margin: 20px auto;
         }
-        th, td {
+
+        th,
+        td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
+
         th {
             background-color: #f2f2f2;
         }
     </style>
 </head>
+
 <body>
     <h2>Registro de Mensajes</h2>
 
@@ -30,11 +35,44 @@
             <th>Mensaje</th>
         </tr>
         {% for registro in registros %}
-            <tr>
-                <td>{{ registro.fecha_y_hora }}</td>
-                <td>{{ registro.texto }}</td>
-            </tr>
+        <tr>
+            <td>{{ registro.fecha_y_hora }}</td>
+            <td>{{ registro.texto }}</td>
+        </tr>
         {% endfor %}
     </table>
+    <br><br>
+    <h2>Registro de Usuarios</h2>
+
+    <table>
+        <tr>
+            <th>Ultima Ultima Interaccion</th>
+            <th>Mensaje</th>
+        </tr>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.last_interaction }}</td>
+            <td>{{ user }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br><br>
+    <h2>Registro de Productos</h2>
+
+    <table>
+        <tr>
+            <th>Fecha y Hora</th>
+            <th>Mensaje</th>
+        </tr>
+        {% for product in products %}
+        <tr>
+            <td>Session_ID: {{ product.session_id }} ID_Product: {{ product.idProduct }} </td>
+            <td>{{ product }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
 </body>
+
 </html>
