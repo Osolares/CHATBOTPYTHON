@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from config import db, migrate, Config
 from models import UserSession, Log, ProductModel
-from formularios import formulario_motor, manejar_paso_actual, cancelar_flujo
+from formularios import formulario_motor, manejar_paso_actual
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import http.client
@@ -228,7 +228,6 @@ def generar_menu_principal(number):
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
     data = []
-    CANCEL_COMMANDS = ["salir", "cancelar", "volver", "menu"]
 
     flujo_producto = ProductModel.query.filter_by(session_id=number).first()
     if flujo_producto:
@@ -578,30 +577,6 @@ def enviar_mensajes_whatsapp(texto,number):
                 }
             }
         ]
-
-    elif any(cmd in texto.lower() for cmd in CANCEL_COMMANDS):
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "body": "🚪 Has salido del formulario actual. ¿Qué deseas hacer ahora?"
-                }
-            },
-            generar_menu_principal(number)
-
-        ]
-        # Reiniciar la sesión
-        session = UserSession.query.get(number)
-        if session:
-            db.session.delete(session)
-            db.session.commit()
-        # Después de recibir el mensaje:
-        data = cancelar_flujo(number)
-
-    elif texto.strip() == "salir_flujo":  # ID del botón
-        data = cancelar_flujo(number)
 
     else:
         return 0
