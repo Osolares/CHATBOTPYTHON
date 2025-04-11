@@ -34,10 +34,11 @@ def formulario_motor(number):
 def manejar_paso_actual(number, user_message):
     """Maneja todos los pasos del formulario"""
     session = get_session()
+    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+
     if not session:
         session = load_or_create_session(number)
 
-    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
     if not producto:
         return [{
             "messaging_product": "whatsapp",

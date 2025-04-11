@@ -229,10 +229,12 @@ def enviar_mensajes_whatsapp(texto,number):
     data = []
     session = load_or_create_session(number)
     flujo_producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    body = f"👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻\n\n {Config.TOKEN_WEBHOOK_WHATSAPP} {Config.WHATSAPP_TOKEN} {Config.PHONE_NUMBER_ID}"
+
     if flujo_producto:
         data = manejar_paso_actual(number, texto)
 
-    if "hola" == texto.strip():
+    elif "hola" == texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -250,7 +252,7 @@ def enviar_mensajes_whatsapp(texto,number):
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": f"👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻\n\n {Config.TOKEN_WEBHOOK_WHATSAPP} {Config.WHATSAPP_TOKEN} {Config.PHONE_NUMBER_ID}"
+                    "body": body
                 }
             },
         ]
@@ -578,7 +580,7 @@ def enviar_mensajes_whatsapp(texto,number):
         ]
 
     else:
-        return 0
+        data = manejar_paso_actual(number, texto)
 
     # Envío secuencial con pausas
     for mensaje in data:
