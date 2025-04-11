@@ -224,19 +224,17 @@ def manejar_paso_finish(number, user_message, producto):
     producto.current_step = 'finished'
     actualizar_interaccion(number)
 
-    session = get_session()
-    if session:
-        # Eliminar productos asociados
-        ProductModel.query.filter_by(session_id=session.idUser).delete()
-        #db.session.delete(session)
-        db.session.commit()
-        actualizar_interaccion(number)
-
-
     if user_message in lista_cancelar:
         cancelar_flujo(number)
 
     if user_message == "cotizar_si":
+        session = get_session()
+        if session:
+            # Eliminar productos asociados
+            ProductModel.query.filter_by(session_id=session.idUser).delete()
+            #db.session.delete(session)
+            db.session.commit()
+            actualizar_interaccion(number)
 
         return [
             {
