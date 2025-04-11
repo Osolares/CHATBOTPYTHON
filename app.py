@@ -138,14 +138,14 @@ def recibir_mensajes(req):
 def bot_enviar_mensaje_whatsapp(data):
     headers = {
         "Content-Type" : "application/json",
-        "Authorization" : f"Bearer {Config.WHATSAPP_TOKEN}"
+        "Authorization" : f"Bearer{Config.WHATSAPP_TOKEN}"
     }
     
     connection = http.client.HTTPSConnection("graph.facebook.com")
     try:
         #Convertir el diccionaria a formato JSON
         json_data = json.dumps(data)
-        connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
+        connection.request("POST", f"/v22.0/641730352352096/messages", json_data, headers)
         response = connection.getresponse()
         print(f"Estado: {response.status} - {response.reason}")
         return response.read()
