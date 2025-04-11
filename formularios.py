@@ -56,9 +56,9 @@ def manejar_paso_actual(number, user_message):
         'awaiting_marca': manejar_paso_marca,
         'awaiting_modelo': manejar_paso_modelo,
         'awaiting_combustible': manejar_paso_combustible,
-        'awaiting_año': manejar_paso_año,
+        'awaiting_año': manejar_paso_anio,
         'awaiting_tipo_repuesto': manejar_paso_tipo_repuesto,
-        'awaiting_comentario': manejar_paso_comentario,
+        'awaiting_comentario': manejar_paso_comentario
     }
 
     handler = handlers.get(producto.current_step)
@@ -126,7 +126,7 @@ def manejar_paso_combustible(number, user_message, producto):
         }
     ]
 
-def manejar_paso_año(number, user_message, producto):
+def manejar_paso_anio(number, user_message, producto):
     if not user_message.isdigit() or not (1900 < int(user_message) <= datetime.now().year + 1):
         return [{
             "messaging_product": "whatsapp",
