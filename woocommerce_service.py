@@ -100,8 +100,8 @@ class WooCommerceService:
                     f"⚠️ *Nota:* Los precios y disponibilidad pueden cambiar en cualquier momento sin previo aviso."
                 )
 
-                if imagen:
-                    mensaje += f"\n\n📷 {imagen}"
+                #if imagen:
+                #    mensaje += f"\n\n📷 {imagen}"
 
                 mensajes.append(mensaje)
             except Exception as e:

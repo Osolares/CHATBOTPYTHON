@@ -189,9 +189,12 @@ def manejar_comando_ofertas(number):
                     "messaging_product": "whatsapp",
                     "to": number,
                     "type": "text",
-                    "text": {"body": msg}
+                    "text": {
+                        "preview_url": True,
+                        "body": msg
+                    }
                 })
-        
+
         # Botón final solo si hay mensajes válidos
         if len(respuesta) > 1:  # Si hay al menos un producto
             respuesta.append({
