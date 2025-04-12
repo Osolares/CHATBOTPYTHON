@@ -2,6 +2,8 @@ import requests
 from config import Config
 from datetime import datetime
 import random
+import re
+from html import unescape
 
 class WooCommerceService:
     def __init__(self):
@@ -33,54 +35,75 @@ class WooCommerceService:
             return []
 
     def formatear_ofertas_whatsapp(self, productos):
-        """Formatea productos en oferta para mensaje de WhatsApp con estilo personalizado"""
+        """Formatea los productos para mensajes de WhatsApp con saltos de línea y detalles estructurados"""
         if not productos:
             return ["📢 No hay ofertas disponibles en este momento."]
 
         mensajes = []
-
-        for producto in productos[:3]:  # Mostrar máximo 3
+        for producto in productos[:3]:  # Limitar a 3 productos
             try:
                 nombre = producto.get('name', 'Producto sin nombre')
-                precio_regular = producto.get('regular_price', '')
-                precio_oferta = producto.get('price', '')
-                descripcion_corta = self.limpiar_html(producto.get('short_description', ''))
-                descripcion_larga = self.limpiar_html(producto.get('description', ''))
+                precio = producto.get('price', 'Precio no disponible')
+                precio_normal = producto.get('regular_price') or precio
+                precio_oferta = producto.get('sale_price', '')
+                sku = producto.get('sku', 'N/A')
+                stock = producto.get('stock_status', 'N/A')
                 enlace = producto.get('permalink', 'https://intermotores.com')
                 imagen = producto.get('images', [{}])[0].get('src', '')
-                fecha_fin_oferta = producto.get('date_on_sale_to', None)
+                descripcion_corta = producto.get('short_description', '')
+                descripcion_larga = producto.get('description', '')
+                fecha_oferta = producto.get('date_on_sale_to')  # formato ISO
+
+                # Limpiar HTML y decodificar entidades
+                def limpiar_html(texto):
+                    texto = re.sub(r'<br\s*/?>', '\n', texto)
+                    texto = re.sub(r'<.*?>', '', texto)
+                    texto = unescape(texto)
+                    return texto.strip()
+
+                descripcion_corta = limpiar_html(descripcion_corta)
+                descripcion_larga = limpiar_html(descripcion_larga)
+
+                # Limitar descripción larga a 700 caracteres sin cortar palabras
+                if len(descripcion_larga) > 700:
+                    corte = descripcion_larga[:700].rfind(' ')
+                    descripcion_larga = descripcion_larga[:corte] + '...'
+
+                # Formato de fecha si existe
+                fecha_oferta_texto = ''
+                if fecha_oferta:
+                    try:
+                        fecha_dt = datetime.fromisoformat(fecha_oferta)
+                        if fecha_dt > datetime.now():
+                            fecha_oferta_texto = f"\n🗓 Oferta válida hasta: {fecha_dt.strftime('%d/%m/%Y')}"
+                    except:
+                        pass
 
                 mensaje = (
-                    f"🔩⚙ *{nombre}* ⚙🔩\n"
-                    f"📝 *Descripción:* {descripcion_corta or 'Sin descripción corta.'}\n"
-                    f"🔗 Puedes ver imágenes y más información en el siguiente LINK:\n{enlace}\n"
-                    f"💲 *Precio:* Q{precio_regular}\n"
+                    f"🔩⚙ *{nombre}* ⚙🔩\n\n"
+                    f"📝 *Descripción:*\n{descripcion_corta}\n\n"
+                    f"🔗 Puedes ver imágenes y más información en el siguiente LINK:\n{enlace}\n\n"
+                    f"💲 Precio: Q{precio_normal}"
                 )
 
-                if precio_oferta and precio_oferta != precio_regular:
-                    mensaje += f"💥🏷 *Súper Oferta (Efectivo):* Q{precio_oferta}\n"
+                if precio_oferta:
+                    mensaje += f"\n💥🏷 *Súper Oferta (Efectivo):* Q{precio_oferta}"
 
-                if fecha_fin_oferta:
-                    try:
-                        fecha = datetime.strptime(fecha_fin_oferta, "%Y-%m-%dT%H:%M:%S")
-                        if fecha > datetime.now():
-                            mensaje += f"📅 *Oferta válida hasta:* {fecha.strftime('%d/%m/%Y')}\n"
-                    except Exception as e:
-                        print(f"Error al convertir fecha: {str(e)}")
+                if fecha_oferta_texto:
+                    mensaje += fecha_oferta_texto
 
                 mensaje += (
-                    f"\n🌟 *Detalles:* {descripcion_larga or 'Sin detalles adicionales.'}\n\n"
-                    "🚚 Envío a domicilio\n"
-                    "🤝 Pago contra entrega (solamente repuestos)\n"
-                    "💳 Aceptamos todas las tarjetas de crédito sin recargo\n\n"
-                    "⚠ Nota: Los precios y disponibilidad pueden cambiar en cualquier momento sin previo aviso."
+                    f"\n\n🌟 *Detalles:*\n{descripcion_larga}\n\n"
+                    f"🚚 Envío a domicilio\n"
+                    f"🤝 Pago contra entrega (solamente repuestos)\n"
+                    f"💳 Aceptamos todas las tarjetas de crédito sin recargo\n\n"
+                    f"⚠️ *Nota:* Los precios y disponibilidad pueden cambiar en cualquier momento sin previo aviso."
                 )
 
                 if imagen:
-                    mensaje += f"\n📷 {imagen}"
+                    mensaje += f"\n\n📷 {imagen}"
 
                 mensajes.append(mensaje)
-
             except Exception as e:
                 print(f"Error formateando producto: {str(e)}")
                 continue
