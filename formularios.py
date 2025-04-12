@@ -322,11 +322,9 @@ def manejar_paso_tipo_repuesto(number, user_message, producto):
                     "text": ""
                 },
                 "action": {
-                    "buttons":[
-                        {
-                            {"type": "reply", "reply": {"id": "no", "title": "✅ No"}},
-                            {"type": "reply", "reply": {"id": "cancelar", "title": "❌ Salir/Cancelar"}}
-                        }
+                    "buttons": [
+                        {"type": "reply", "reply": {"id": "no", "title": "No"}},
+                        {"type": "reply", "reply": {"id":"exit", "title":"❌ Cancelar/Salir"}}
                     ]
                 }
             }
