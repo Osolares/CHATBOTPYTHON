@@ -31,7 +31,7 @@ def formulario_motor(number):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": "Este es un formulario para \n🔧 *Cotización de motores y repuestos*\n llenalo con los datos de tu vehículo 🛻\n\n📝Escribe la *MARCA* de tu vehículo:\n_(Ej: Toyota, Mitsubishi, Kia, Hyundai)_ \n\n Escribe *cancelar* para salir del formulario"
+                    "text": "Este es un formulario para \n🔧 *Cotización de motores y repuestos*\n llenalo con los datos de tu vehículo 🛻\n\n📝Escribe la *MARCA* de tu vehículo:\n_(Ej: Toyota, Mitsubishi, Kia, Hyundai)_ "
                 },
                 "footer": {
                     "text": ""
@@ -54,11 +54,11 @@ def formulario_motor(number):
 def manejar_paso_actual(number, user_message):
     """Maneja todos los pasos del formulario"""
     session = get_session()
-    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
 
     if not session:
         session = load_or_create_session(number)
 
+    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
     if not producto:
         return [
 
@@ -70,7 +70,7 @@ def manejar_paso_actual(number, user_message):
                 "interactive":{
                     "type":"button",
                     "body": {
-                        "text": "⚠️ Sesión no encontrada. Envía '1' para comenzar. \n\n Escribe *cancelar* para salir del formulario"
+                        "text": "⚠️ Sesión no encontrada. Envía '1' para comenzar. "
                     },
                     "footer": {
                         "text": ""
@@ -89,8 +89,6 @@ def manejar_paso_actual(number, user_message):
                 }
             }
         ]
-    
-    
     
     elif session and (
         user_message in lista_cancelar or 
@@ -112,35 +110,34 @@ def manejar_paso_actual(number, user_message):
 
     }
 
-    return [
-        {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "interactive",
-            "interactive":{
-                "type":"button",
-                "body": {
-                    "text": "⚠️ Flujo no reconocido. Envía '1' para reiniciar. \n\n Escribe *cancelar* para salir del formulario"
-                },
-                "footer": {
-                    "text": ""
-                },
-                "action": {
-                    "buttons":[
-                        {
-                            "type": "reply",
-                            "reply":{
-                                "id":"exit",
-                                "title":"❌ Cancelar/Salir"
-                            }
+    handler = handlers.get(producto.current_step)
+    return handler(number, user_message, producto) if handler else [{
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": number,
+        "type": "interactive",
+        "interactive":{
+            "type":"button",
+            "body": {
+                "text": "⚠️ Flujo no reconocido. Envía '1' para reiniciar. "
+            },
+            "footer": {
+                "text": ""
+            },
+            "action": {
+                "buttons":[
+                    {
+                        "type": "reply",
+                        "reply":{
+                            "id":"exit",
+                            "title":"❌ Cancelar/Salir"
                         }
-                    ]
-                }
+                    }
+                ]
             }
         }
-    ]
-    
+    }]
+
 def manejar_paso_marca(number, user_message, producto):
     producto.marca = user_message
     producto.current_step = 'awaiting_modelo'
@@ -155,7 +152,7 @@ def manejar_paso_marca(number, user_message, producto):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": f"✅ Marca: {user_message}\n\n📝Ahora escribe la *LINEA*:\n_(Ej: L200, Hilux, Terracan, Sportage)_ \n\n Escribe *cancelar* para salir del formulario"
+                    "text": f"✅ Marca: {user_message}\n\n📝Ahora escribe la *LINEA*:\n_(Ej: L200, Hilux, Terracan, Sportage)_ "
                 },
                 "footer": {
                     "text": ""
@@ -189,7 +186,7 @@ def manejar_paso_modelo(number, user_message, producto):
             "interactive": {
                 "type": "button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n\n🫳Selecciona el *COMBUSTIBLE:* \n\n Escribe *cancelar* para salir del formulario"
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n\n🫳Selecciona el *COMBUSTIBLE:* "
                 },
                 "action": {
                     "buttons": [
@@ -218,7 +215,7 @@ def manejar_paso_combustible(number, user_message, producto):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 2000, 2005, 2010, 2018, 2020)_ \n\n Escribe *cancelar* para salir del formulario"
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 2000, 2005, 2010, 2018, 2020)_ "
                 },
                 "footer": {
                     "text": ""
@@ -251,7 +248,7 @@ def manejar_paso_anio(number, user_message, producto):
                 "interactive":{
                     "type":"button",
                     "body": {
-                        "text": "⚠️ Año inválido. Ingresa un año entre 1950 y actual.\nEjemplo: 1995, 2000, 2005, 2008, 2015, 2020 \n\n Escribe *cancelar* para salir del formulario"
+                        "text": "⚠️ Año inválido. Ingresa un año entre 1950 y actual.\nEjemplo: 1995, 2000, 2005, 2008, 2015, 2020 "
                     },
                     "footer": {
                         "text": ""
@@ -284,7 +281,7 @@ def manejar_paso_anio(number, user_message, producto):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n\n📝Escribe el *TIPO DE REPUESTO* que necesitas:\n_(Ej: Motor, Culata, Turbo, Cigüeñal)_ \n\n Escribe *cancelar* para salir del formulario"
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n\n📝Escribe el *TIPO DE REPUESTO* que necesitas:\n_(Ej: Motor, Culata, Turbo, Cigüeñal)_ "
                 },
                 "footer": {
                     "text": ""
@@ -319,7 +316,7 @@ def manejar_paso_tipo_repuesto(number, user_message, producto):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n\n📝Escribe una *DESCRIPCIÓN O COMENTARIO FINAL*:\n_Si no tienes comentarios escribe *No* o presiona el botón_ \n\n Escribe *cancelar* para salir del formulario"
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n\n📝Escribe una *DESCRIPCIÓN O COMENTARIO FINAL*:\n_Si no tienes comentarios escribe *No* o presiona el botón_ "
                 },
                 "footer": {
                     "text": ""
