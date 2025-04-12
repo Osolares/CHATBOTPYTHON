@@ -3,11 +3,16 @@ from config import db, migrate, Config
 from models import UserSession, Log, ProductModel
 from formularios import formulario_motor, manejar_paso_actual
 from session_manager import load_or_create_session, get_session
+from menus import generar_list_menu, generar_menu_principal
+from woocommerce_service import WooCommerceService
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import http.client
 import json
 import time
+
+# Instancia global del servicio
+woo_service = WooCommerceService()
 
 def create_app():
     app = Flask(__name__)
@@ -154,75 +159,51 @@ def bot_enviar_mensaje_whatsapp(data):
     finally:
         connection.close()
 
-def generar_list_menu(number):
-    #"""Retorna la estructura del botón 'Ver Menú' para reutilizar"""
-    return {
+def manejar_comando_ofertas(number):
+    """Procesa el comando de ofertas"""
+    productos = woo_service.obtener_ofertas_recientes()
+    mensajes = woo_service.formatear_ofertas_whatsapp(productos)
+    
+    # Construir respuesta
+    respuesta = [
+        {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": number,
+            "type": "text",
+            "text": {
+                "body": "📢 *OFERTAS ESPECIALES* 🎁\n\nEstas son nuestras mejores ofertas:"
+            }
+        }
+    ]
+    
+    # Añadir productos
+    for msg in mensajes:
+        respuesta.append({
+            "messaging_product": "whatsapp",
+            "to": number,
+            "type": "text",
+            "text": {"body": msg}
+        })
+    
+    # Añadir botón final
+    respuesta.append({
         "messaging_product": "whatsapp",
         "to": number,
         "type": "interactive",
         "interactive": {
-            "type": "list",
-            "body": {
-                "text": "Menú Principal"
-            },
-            "footer": {
-                "text": ""
-            },
+            "type": "button",
+            "body": {"text": "¿Qué deseas hacer ahora?"},
             "action": {
-                "button": "Ver Menú",
-                "sections": [
-                    {
-                        "title": "Opciones Principales",
-                        "rows": [
-                            {"id": "1", "title": "1️⃣ ⚙Motores", "description": "Cotizar Motores"},
-                            {"id": "2", "title": "2️⃣ 🛞Repuestos", "description": "Cotizar Repuestos"},
-                            {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
-                            {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
-                            {"id": "5", "title": "5️⃣ ☎Contacto", "description": "Contáctanos"},
-                            {"id": "6", "title": "6️⃣ 💳Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
-                            {"id": "7", "title": "7️⃣ ⏳Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
-                            {"id": "8", "title": "8️⃣ 🚛Envíos", "description": "Opciones de envío"}
-                        ]
-                    }
+                "buttons": [
+                    {"type": "reply", "reply": {"id": "1", "title": "🔧 Cotizar repuesto"}},
+                    {"type": "reply", "reply": {"id": "0", "title": "🏠 Menú principal"}}
                 ]
             }
         }
-    }
-
-def generar_menu_principal(number):
-    """Retorna la estructura del botón 'Ver Menú' para reutilizar"""
-    return {
-        "messaging_product": "whatsapp",
-        "to": number,
-        "type": "interactive",
-        "interactive": {
-            "type": "list",
-            "body": {
-                "text": "🌐 Visita nuestro sitio web www.intermotores.com para más información.\n\n1️⃣ ⚙ Motores\n2️⃣ 🛞 Repuestos\n3️⃣ 📍 Ubicación\n4️⃣ 🕜 Horario de Atención\n5️⃣ ☎ Contacto\n6️⃣  💳 Formas de pago y números de cuenta\n7️⃣ ⏳ Esperar para ser atendido por nuestro personal\n8️⃣ 🚛 Opciones de envío\n0️⃣ 🔙 Regresar al Menú \n\n📌 *Escribe el número #️⃣ de tu elección.*"
-            },
-            "footer": {
-                "text": ""
-            },
-            "action": {
-                "button": "Ver Menú",
-                "sections": [
-                    {
-                        "title": "Opciones Principales",
-                        "rows": [
-                            {"id": "1", "title": "1️⃣ ⚙Motores", "description": "Cotizar Motores"},
-                            {"id": "2", "title": "2️⃣ 🛞Repuestos", "description": "Cotizar Repuestos"},
-                            {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
-                            {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
-                            {"id": "5", "title": "5️⃣ ☎Contacto", "description": "Contáctanos"},
-                            {"id": "6", "title": "6️⃣ 💳Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
-                            {"id": "7", "title": "7️⃣ ⏳Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
-                            {"id": "8", "title": "8️⃣ 🚛Envíos", "description": "Opciones de envío"}
-                            ]
-                    }
-                ]
-            }
-        }
-    }
+    })
+    
+    return respuesta
 
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
@@ -259,18 +240,8 @@ def enviar_mensajes_whatsapp(texto,number):
         data = formulario_motor(number)
 
     elif "2" == texto.strip():
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "Estos son nuestros productos"
-                }
-            }
-        ]
+        data = manejar_comando_ofertas(number)
+
     elif "3" == texto.strip():        
         data = [
             {

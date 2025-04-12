@@ -14,7 +14,7 @@ class Config:
     # Database
     SQLALCHEMY_DATABASE_URI = 'sqlite:///autoparts_chatbot.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    TOKEN_WHATSAPP = "TOKEN_OIOT"  # Mueve el token aquí
+    #TOKEN_WHATSAPP = "TOKEN_OIOT"  # Mueve el token aquí
 
     # WooCommerce
     WOOCOMMERCE_URL = os.getenv('WOOCOMMERCE_URL')
