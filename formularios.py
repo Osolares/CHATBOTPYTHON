@@ -31,7 +31,7 @@ def formulario_motor(number):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": "Este es un formulario para \n🔧 *Cotización de motores y repuestos*\n llenalo con los datos de tu vehículo 🛻\n\n📝Escribe la *MARCA* de tu vehículo:\n_(Ej: Toyota, Mitsubishi, Kia, Hyundai)_ "
+                    "text": "🔧 *Formulario para cotización de motores y repuestos* 🛻\n\n📝Escribe la *MARCA* de tu vehículo:\n_(Ej: Toyota, Mitsubishi, Kia, Hyundai)_ "
                 },
                 "footer": {
                     "text": ""
@@ -97,7 +97,7 @@ def manejar_paso_actual(number, user_message):
             datetime.utcnow() - session.last_interaction > timedelta(hours=1)
         )
     ):
-        cancelar_flujo(number)
+        return cancelar_flujo(number)
 
     handlers = {
         'awaiting_marca': manejar_paso_marca,
@@ -215,7 +215,7 @@ def manejar_paso_combustible(number, user_message, producto):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 2000, 2005, 2010, 2018, 2020)_ "
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 1995, 2000, 2005, 2010, 2018, 2020)_ "
                 },
                 "footer": {
                     "text": ""
@@ -324,16 +324,8 @@ def manejar_paso_tipo_repuesto(number, user_message, producto):
                 "action": {
                     "buttons":[
                         {
-                            "type": "reply",
-                            "reply":{
-                                "id":"no",
-                                "title":"No"
-                            },
-                            "type": "reply",
-                            "reply":{
-                                "id":"exit",
-                                "title":"❌ Cancelar/Salir"
-                            }
+                            {"type": "reply", "reply": {"id": "no", "title": "✅ No"}},
+                            {"type": "reply", "reply": {"id": "cancelar", "title": "❌ Salir/Cancelar"}}
                         }
                     ]
                 }
@@ -371,7 +363,7 @@ def manejar_paso_finish(number, user_message, producto):
     actualizar_interaccion(number)
 
     if user_message in lista_cancelar:
-        cancelar_flujo(number)
+        return cancelar_flujo(number)
 
     if user_message == "cotizar_si":
         session = get_session()
