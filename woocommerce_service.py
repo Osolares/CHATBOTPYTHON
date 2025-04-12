@@ -49,7 +49,7 @@ class WooCommerceService:
                 
                 mensaje = (
                     f"🏷️ *{nombre}*\n"
-                    f"💵 Precio: {precio} USD\n"
+                    f"💵 Precio: {precio} GTQ\n"
                     f"🔖 SKU: {sku}\n"
                     f"📦 Stock: {stock}\n"
                     f"🛒 {enlace}"
