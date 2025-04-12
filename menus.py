@@ -19,7 +19,7 @@ def generar_list_menu(number):
                         "title": "Opciones Principales",
                         "rows": [
                             {"id": "1", "title": "1️⃣ ⚙Motores", "description": "Cotizar Motores"},
-                            {"id": "2", "title": "2️⃣ 🛞Repuestos", "description": "Cotizar Repuestos"},
+                            {"id": "2", "title": "2️⃣ 🛞Ofertas!!!...", "description": "Ofertas Recientes"},
                             {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
                             {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
                             {"id": "5", "title": "5️⃣ ☎Contacto", "description": "Contáctanos"},
@@ -53,7 +53,7 @@ def generar_menu_principal(number):
                     {
                         "title": "Opciones Principales",
                         "rows": [
-                            {"id": "1", "title": "1️⃣ ⚙Corizar Motores y Repuestos", "description": "Llenar el formuilario para cotizar"},
+                            {"id": "1", "title": "1️⃣ ⚙Cotizar Motores y Repuestos", "description": "Llenar el formulario"},
                             {"id": "2", "title": "2️⃣ 📣Ofertas!!!...", "description": "Ofertas recientes"},
                             {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
                             {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
