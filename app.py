@@ -161,9 +161,11 @@ def bot_enviar_mensaje_whatsapp(data):
 
 def manejar_comando_ofertas(number):
     """Procesa el comando de ofertas"""
+    agregar_mensajes_log(json.dumps("adentro de comando ofertas"))
+
     productos = woo_service.obtener_ofertas_recientes()
-    mensajes = woo_service.formatear_ofertas_whatsapp(productos)
     agregar_mensajes_log(json.dumps(productos))
+    mensajes = woo_service.formatear_ofertas_whatsapp(productos)
     agregar_mensajes_log(json.dumps(mensajes))
 
     # Construir respuesta
@@ -555,38 +557,42 @@ def enviar_mensajes_whatsapp(texto,number):
         ]
 
     else:
-        return {
-            "messaging_product": "whatsapp",
-            "to": number,
-            "type": "interactive",
-            "interactive": {
-                "type": "list",
-                "body": {
-                    "text": "Menú Principal"
-                },
-                "footer": {
-                    "text": ""
-                },
-                "action": {
-                    "button": "Ver Menú",
-                    "sections": [
-                        {
-                            "title": "Opciones Principales",
-                            "rows": [
-                                {"id": "1", "title": "1️⃣ ⚙Motores", "description": "Cotizar Motores"},
-                                {"id": "2", "title": "2️⃣ 🛞Repuestos", "description": "Cotizar Repuestos"},
-                                {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
-                                {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
-                                {"id": "5", "title": "5️⃣ ☎Contacto", "description": "Contáctanos"},
-                                {"id": "6", "title": "6️⃣ 💳Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
-                                {"id": "7", "title": "7️⃣ ⏳Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
-                                {"id": "8", "title": "8️⃣ 🚛Envíos", "description": "Opciones de envío"}
-                            ]
-                        }
-                    ]
+        data = [
+            {
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "list",
+                    "body": {
+                        "text": "Menú Principal"
+                    },
+                    "footer": {
+                        "text": ""
+                    },
+                    "action": {
+                        "button": "Ver Menú",
+                        "sections": [
+                            {
+                                "title": "Opciones Principales",
+                                "rows": [
+                                    {"id": "1", "title": "1️⃣ ⚙Motores", "description": "Cotizar Motores"},
+                                    {"id": "2", "title": "2️⃣ 🛞Repuestos", "description": "Cotizar Repuestos"},
+                                    {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
+                                    {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
+                                    {"id": "5", "title": "5️⃣ ☎Contacto", "description": "Contáctanos"},
+                                    {"id": "6", "title": "6️⃣ 💳Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
+                                    {"id": "7", "title": "7️⃣ ⏳Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
+                                    {"id": "8", "title": "8️⃣ 🚛Envíos", "description": "Opciones de envío"}
+                                ]
+                            }
+                        ]
+                    }
                 }
             }
-        }
+
+
+        ]
 
     # Envío secuencial con pausas
     for mensaje in data:
