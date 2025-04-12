@@ -160,57 +160,75 @@ def bot_enviar_mensaje_whatsapp(data):
         connection.close()
 
 def manejar_comando_ofertas(number):
-    """Procesa el comando de ofertas"""
-    agregar_mensajes_log(json.dumps("adentro de comando ofertas"))
-
-    productos = woo_service.obtener_ofertas_recientes()
-    agregar_mensajes_log(json.dumps(productos))
-    mensajes = woo_service.formatear_ofertas_whatsapp(productos)
-    agregar_mensajes_log(json.dumps(mensajes))
-
-    # Construir respuesta
-    respuesta = [
-        {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "text",
-            "text": {
-                "body": "📢 *OFERTAS ESPECIALES* 🎁\n\nEstas son nuestras mejores ofertas:"
-            }
-        }
-    ]
-    
-    agregar_mensajes_log(json.dumps(respuesta))
-
-    # Añadir productos
-    for msg in mensajes:
-        respuesta.append({
+    """Procesa el comando de ofertas con mejor logging"""
+    try:
+        agregar_mensajes_log(f"Inicio comando ofertas para {number}")
+        
+        productos = woo_service.obtener_ofertas_recientes()
+        agregar_mensajes_log(f"Productos crudos recibidos: {len(productos)} items")
+        
+        # Validación adicional de productos
+        if not isinstance(productos, list):
+            agregar_mensajes_log("Error: La respuesta de productos no es una lista")
+            productos = []
+        
+        mensajes = woo_service.formatear_ofertas_whatsapp(productos)
+        agregar_mensajes_log(f"Mensajes formateados: {len(mensajes)}")
+        
+        respuesta = [{
             "messaging_product": "whatsapp",
             "to": number,
             "type": "text",
-            "text": {"body": msg}
-        })
-    
-    # Añadir botón final
-    respuesta.append({
-        "messaging_product": "whatsapp",
-        "to": number,
-        "type": "interactive",
-        "interactive": {
-            "type": "button",
-            "body": {"text": "¿Qué deseas hacer ahora?"},
-            "action": {
-                "buttons": [
-                    {"type": "reply", "reply": {"id": "1", "title": "🔧 Cotizar repuesto"}},
-                    {"type": "reply", "reply": {"id": "0", "title": "🏠 Menú principal"}}
-                ]
-            }
-        }
-    })
-    agregar_mensajes_log(json.dumps(respuesta))
-
-    return respuesta
+            "text": {"body": "📢 *OFERTAS ESPECIALES* 🎁\n\nEstas son nuestras mejores ofertas:"}
+        }]
+        
+        for msg in mensajes:
+            # Validar que el mensaje no esté vacío
+            if msg and isinstance(msg, str):
+                respuesta.append({
+                    "messaging_product": "whatsapp",
+                    "to": number,
+                    "type": "text",
+                    "text": {"body": msg}
+                })
+        
+        # Botón final solo si hay mensajes válidos
+        if len(respuesta) > 1:  # Si hay al menos un producto
+            respuesta.append({
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "button",
+                    "body": {"text": "¿Qué deseas hacer ahora?"},
+                    "action": {
+                        "buttons": [
+                            {"type": "reply", "reply": {"id": "1", "title": "🔧 Cotizar repuesto"}},
+                            {"type": "reply", "reply": {"id": "0", "title": "🏠 Menú principal"}}
+                        ]
+                    }
+                }
+            })
+        else:
+            respuesta.append({
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "text",
+                "text": {"body": "⚠️ No hay ofertas disponibles en este momento."}
+            })
+        
+        agregar_mensajes_log(f"Respuesta final construida con {len(respuesta)} mensajes")
+        return respuesta
+        
+    except Exception as e:
+        error_msg = f"Error crítico en manejar_comando_ofertas: {str(e)}"
+        agregar_mensajes_log(error_msg)
+        return [{
+            "messaging_product": "whatsapp",
+            "to": number,
+            "type": "text",
+            "text": {"body": "⚠️ Ocurrió un error al cargar las ofertas. Por favor intenta más tarde."}
+        }]
 
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
@@ -590,7 +608,6 @@ def enviar_mensajes_whatsapp(texto,number):
                     }
                 }
             }
-
 
         ]
 

@@ -405,7 +405,7 @@ def cancelar_flujo(number):
                 "body": "🚪 Formulario cancelado. Has salido del formulario actual. ¿Qué deseas hacer ahora?"
             }
         },
-        generar_menu_principal(number)
+        generar_list_menu(number)
     ]
 
 def actualizar_interaccion(number):
