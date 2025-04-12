@@ -403,7 +403,7 @@ def cancelar_flujo(number):
         ProductModel.query.filter_by(session_id=session.idUser).delete(synchronize_session=False)
         #db.session.delete(session)
         db.session.commit()
-        actualizar_interaccion(number, session)
+        actualizar_interaccion(number)
 
     return [
         {
@@ -448,9 +448,9 @@ def cancelar_flujo(number):
         }
     ]
 
-def actualizar_interaccion(number, session):
+def actualizar_interaccion(number):
     """Actualiza la marca de tiempo de la sesión"""
-    #session = UserSession.query.get(number)
+    session = UserSession.query.filter_by(phone_number=number).first()
     if session:
         session.last_interaction = datetime.utcnow()
         db.session.commit()
