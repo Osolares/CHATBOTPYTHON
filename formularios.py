@@ -191,8 +191,8 @@ def manejar_paso_modelo(number, user_message, producto):
                 },
                 "action": {
                     "buttons": [
-                        {"type": "reply", "reply": {"id": "comb_gasolina", "title": "Gasolina"}},
-                        {"type": "reply", "reply": {"id": "comb_diesel", "title": "Diésel"}},
+                        {"type": "reply", "reply": {"id": "gasolina", "title": "Gasolina"}},
+                        {"type": "reply", "reply": {"id": "diesel", "title": "Diésel"}},
                         {"type": "reply", "reply": {"id":"exit", "title":"❌ Cancelar/Salir"}}
                     ]
                 }
@@ -203,7 +203,41 @@ def manejar_paso_modelo(number, user_message, producto):
 
 
 def manejar_paso_combustible(number, user_message, producto):
-    producto.combustible = "Gasolina" if "gasolina" in user_message.lower() else "Diesel"
+
+    lista_combustible = ["gasolina", "diesel", "disel", "diésel", "gas", "gas propano"]
+    if not user_message.lower() in lista_combustible:
+
+        return [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "interactive",
+                "interactive":{
+                    "type":"button",
+                    "body": {
+                        "text": "⚠️ Combustible inválido. Ingresa el combustible.\nEjemplo: Gasolina, Diesel "
+                    },
+                    "footer": {
+                        "text": ""
+                    },
+                    "action": {
+                        "buttons":[
+                            {
+                                "type": "reply",
+                                "reply":{
+                                    "id":"exit",
+                                    "title":"❌ Cancelar/Salir"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+
+    producto.combustible = user_message
+    #producto.combustible = "Gasolina" if "gasolina" in user_message.lower() else "Diesel"
     producto.current_step = 'awaiting_año'
     actualizar_interaccion(number)
 
@@ -216,7 +250,7 @@ def manejar_paso_combustible(number, user_message, producto):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 1995, 2000, 2005, 2010, 2018, 2020)_ "
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {producto.linea}\n✅ Combustible: {producto.combustible}\n\n📝Escribe el *AÑO* del vehículo:\n_(Ej: 1995, 2000, 2005, 2010, 2018, 2020)_ "
                 },
                 "footer": {
                     "text": ""
@@ -282,7 +316,7 @@ def manejar_paso_anio(number, user_message, producto):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n\n📝Escribe el *TIPO DE REPUESTO* que necesitas:\n_(Ej: Motor, Culata, Turbo, Cigüeñal)_ "
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {producto.linea}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n\n📝Escribe el *TIPO DE REPUESTO* que necesitas:\n_(Ej: Motor, Culata, Turbo, Cigüeñal)_ "
                 },
                 "footer": {
                     "text": ""
@@ -317,7 +351,7 @@ def manejar_paso_tipo_repuesto(number, user_message, producto):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {user_message}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n\n📝Escribe una *DESCRIPCIÓN O COMENTARIO FINAL*:\n_Si no tienes comentarios escribe *No* o presiona el botón_ "
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {producto.linea}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n\n📝Escribe una *DESCRIPCIÓN O COMENTARIO FINAL*:\n_Si no tienes comentarios escribe *No* o presiona el botón_ "
                 },
                 "footer": {
                     "text": ""

@@ -64,9 +64,9 @@ class WooCommerceService:
                 descripcion_corta = limpiar_html(descripcion_corta)
                 descripcion_larga = limpiar_html(descripcion_larga)
 
-                # Limitar descripción larga a 700 caracteres sin cortar palabras
-                if len(descripcion_larga) > 700:
-                    corte = descripcion_larga[:700].rfind(' ')
+                # Limitar descripción larga a 500 caracteres sin cortar palabras
+                if len(descripcion_larga) > 500:
+                    corte = descripcion_larga[:500].rfind(' ')
                     descripcion_larga = descripcion_larga[:corte] + '...'
 
                 # Formato de fecha si existe
