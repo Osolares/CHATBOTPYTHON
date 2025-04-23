@@ -1,19 +1,23 @@
 from langgraph.graph import StateGraph, END
+from typing import TypedDict, Optional
 from llm import ask_llm
 
-def simple_node(state):
+# Define el tipo de estado manualmente
+class ChatState(TypedDict):
+    input: str
+    output: Optional[str]
+
+def simple_node(state: ChatState) -> dict:
     user_input = state.get("input", "")
-    output = ask_llm(user_input)  # Consulta al modelo de lenguaje
+    output = ask_llm(user_input)
     return {"output": output}
 
 def build_chain():
-    workflow = StateGraph(input_schema=dict, output_schema=dict) # Crea un nuevo grafo de flujo
+    # Crea el grafo con nuestro tipo de estado definido
+    workflow = StateGraph(ChatState)
     
-    # Añade un nodo llamado "Responder" que usa la función simple_node
     workflow.add_node("Responder", simple_node)
-    
-    # Configura el punto de entrada y final del grafo
     workflow.set_entry_point("Responder")
-    workflow.set_finish_point(END)
+    workflow.add_edge("Responder", END)
     
-    return workflow.compile()  # Compila el grafo para su uso
+    return workflow.compile()
