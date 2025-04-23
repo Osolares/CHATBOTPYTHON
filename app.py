@@ -26,7 +26,9 @@ def create_app():
     
     with app.app_context():
         db.create_all()
-    
+
+    app.chain = build_chain()
+
     return app
 
 def asistente (user_msg):
@@ -39,7 +41,6 @@ def asistente (user_msg):
 
 
 app = create_app()
-chain = build_chain()
 
 # ------------------------------------------
 # Funciones auxiliares
