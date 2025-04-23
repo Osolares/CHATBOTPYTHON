@@ -1,44 +1,65 @@
-from langgraph.graph import StateGraph, END  # Asegúrate de importar END
-from typing import TypedDict, Optional, Dict, Any
-from llm import ask_llm
-import json
+# langgraph_chain.py
 
-class ChatState(TypedDict):
-    input: str
+from langgraph.graph import StateGraph, END
+from typing import TypedDict, Optional
+from langchain.llms import HuggingFaceHub
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# 1. Definimos el estado de la conversación
+class State(TypedDict):
+    step: str
+    input: Optional[str]
+    marca: Optional[str]
+    modelo: Optional[str]
     output: Optional[str]
-    error: Optional[str]
-    status_code: Optional[int]
 
-def ensure_serializable(data: Any) -> Dict[str, Any]:
-    """Función de seguridad para garantizar serialización"""
-    try:
-        if isinstance(data, dict):
-            return {k: str(v) if not isinstance(v, (str, int, float, bool)) else v for k, v in data.items()}
-        return {"output": str(data)}
-    except Exception as e:
-        return {"error": f"Serialization failed: {str(e)}", "status_code": 500}
+# 2. Modelo ligero (flan-t5-base)
+llm = HuggingFaceHub(
+    repo_id="google/flan-t5-base",
+    model_kwargs={"temperature": 0.7, "max_new_tokens": 128},
+    huggingfacehub_api_token=os.getenv("HF_API_TOKEN")
+)
 
-def simple_node(state: ChatState) -> Dict[str, Any]:
-    try:
-        user_input = state.get("input", "")
-        if not user_input or not isinstance(user_input, str):
-            return ensure_serializable({
-                "error": "Input inválido",
-                "status_code": 400
-            })
-            
-        llm_response = ask_llm(user_input)
-        return ensure_serializable(llm_response)
-        
-    except Exception as e:
-        return ensure_serializable({
-            "error": f"Error en simple_node: {str(e)}",
-            "status_code": 500
-        })
+# 3. Funciones por paso
 
+def paso_marca(state: State) -> State:
+    user_input = state["input"]
+    return {
+        **state,
+        "marca": user_input,
+        "step": "awaiting_modelo",
+        "output": f"✅ Marca recibida: {user_input}. Ahora, ¿cuál es el modelo?"
+    }
+
+def paso_modelo(state: State) -> State:
+    user_input = state["input"]
+    return {
+        **state,
+        "modelo": user_input,
+        "step": "completed",
+        "output": f"📋 Gracias. Recibimos:\nMarca: {state['marca']}\nModelo: {user_input}"
+    }
+
+def paso_final(state: State) -> State:
+    return {**state, "output": "✅ Formulario completado. Gracias."}
+
+# 4. Construcción del grafo
 def build_chain():
-    workflow = StateGraph(ChatState)
-    workflow.add_node("Responder", simple_node)
-    workflow.set_entry_point("Responder")
-    workflow.add_edge("Responder", END)  # END debe estar importado
-    return workflow.compile()
+    builder = StateGraph(state_schema=State)
+    
+    builder.add_node("awaiting_marca", paso_marca)
+    builder.add_node("awaiting_modelo", paso_modelo)
+    builder.add_node("completed", paso_final)
+
+    builder.set_entry_point("awaiting_marca")
+
+    builder.add_edge("awaiting_marca", "awaiting_modelo")
+    builder.add_edge("awaiting_modelo", "completed")
+    builder.set_finish_point("completed")
+
+    return builder.compile()

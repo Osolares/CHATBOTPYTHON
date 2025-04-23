@@ -73,7 +73,7 @@ def asistente(user_msg):
         }), 500
 
 app = create_app()
-
+chain = build_chain()
 # ------------------------------------------
 # Funciones auxiliares
 # ------------------------------------------
