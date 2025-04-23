@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, current_app
 from config import db, migrate, Config
 from models import UserSession, Log, ProductModel
 from formularios import formulario_motor, manejar_paso_actual
@@ -27,8 +27,8 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-    app.chain = build_chain()
-
+    app.chain = build_chain()  # Inicialización dentro del contexto
+    
     return app
 
 def asistente (user_msg):
