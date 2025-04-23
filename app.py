@@ -30,16 +30,22 @@ def create_app():
     
     return app
 
-def asistente (user_msg):
+def asistente(user_msg):
+    try:
+        state = {"input": user_msg}
+        result = current_app.chain.invoke(state)
+        
+        # Respuesta ya está serializable
+        response_text = result.get("output", "Lo siento, no entendí.")
+        return jsonify({"response": response_text})
     
-    state = {"input": user_msg}  # Prepara el estado inicial para LangGraph
-    #result = chain.invoke(state)  # Ejecuta el flujo de conversación
-    result = current_app.chain.invoke(state)
-
-    response = result.get("output", "Lo siento, no entendí.")  # Obtiene la respuesta
-
-    return jsonify({"response": response})  # Devuelve la respuesta como JSON
-
+    except Exception as e:
+        error_msg = f"Error en asistente: {str(e)}"
+        agregar_mensajes_log(error_msg)
+        return jsonify({
+            "response": "Ocurrió un error al procesar tu solicitud",
+            "status": "error"
+        }), 500
 
 app = create_app()
 
