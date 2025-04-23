@@ -34,22 +34,38 @@ def asistente(user_msg):
     try:
         if not isinstance(user_msg, str):
             user_msg = str(user_msg)
-            
+
         state = {"input": user_msg}
         result = current_app.chain.invoke(state)
-        
-        # Respuesta ultra segura
+
+        # Extraer campos útiles y forzar serialización segura
         response_text = result.get("output", "Lo siento, no entendí.")
         if not isinstance(response_text, str):
             response_text = str(response_text)
-            
+
+        status = "success" if not result.get("error") else "error"
+        status_code = result.get("status_code", 200)
+
+        # Registrar en base de datos de forma segura
+        log_safe = {
+            "input": user_msg,
+            "output": response_text,
+            "error": result.get("error"),
+            "status_code": status_code
+        }
+
+        # Guardar como texto plano en Log
+        agregar_mensajes_log(json.dumps(log_safe, ensure_ascii=False))
+
         return jsonify({
             "response": response_text,
-            "status": "success" if not result.get("error") else "error"
-        })
-        
+            "status": status
+        }), status_code
+
     except Exception as e:
-        error_msg = str(e)  # Asegura que sea string
+        error_msg = str(e)
+        agregar_mensajes_log(f"Error en asistente: {error_msg}")
+
         return jsonify({
             "response": "Error en el servidor",
             "error": error_msg,
