@@ -10,6 +10,8 @@ from datetime import datetime
 import http.client
 import json
 import time
+from langgraph_chain import build_chain
+import os
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -28,6 +30,8 @@ def create_app():
     return app
 
 app = create_app()
+chain = build_chain()
+
 # ------------------------------------------
 # Funciones auxiliares
 # ------------------------------------------
@@ -233,8 +237,17 @@ def manejar_comando_ofertas(number):
             "text": {"body": "⚠️ Ocurrió un error al cargar las ofertas. Por favor intenta más tarde."}
         }]
 
+def asistente (user_msg):
+    
+    state = {"input": user_msg}  # Prepara el estado inicial para LangGraph
+    result = chain.invoke(state)  # Ejecuta el flujo de conversación
+    response = result.get("output", "Lo siento, no entendí.")  # Obtiene la respuesta
+
+    return jsonify({"response": response})  # Devuelve la respuesta como JSON
+
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
+    user_msg = texto
     data = []
     session = load_or_create_session(number)
     flujo_producto = ProductModel.query.filter_by(session_id=session.idUser).first()
@@ -242,7 +255,7 @@ def enviar_mensajes_whatsapp(texto,number):
     if flujo_producto:
         data = manejar_paso_actual(number, texto)
 
-    elif "hola" == texto.strip():
+    elif "hola" in texto.strip():
         data = [
             {
                 "messaging_product": "whatsapp",
@@ -389,230 +402,47 @@ def enviar_mensajes_whatsapp(texto,number):
             generar_menu_principal(number)
 
         ]
-    elif "boton" == texto.strip():
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "interactive",
-                "interactive":{
-                    "type":"button",
-                    "body": {
-                        "text": "¿Confirmas tu registro?"
-                    },
-                    "footer": {
-                        "text": "Selecciona una de las opciones"
-                    },
-                    "action": {
-                        "buttons":[
-                            {
-                                "type": "reply",
-                                "reply":{
-                                    "id":"btnsi",
-                                    "title":"👋Si"
-                                }
-                            },{
-                                "type": "reply",
-                                "reply":{
-                                    "id":"btnno",
-                                    "title":"👋No"
-                                }
-                            },{
-                                "type": "reply",
-                                "reply":{
-                                    "id":"btntalvez",
-                                    "title":"Tal Vez"
-                                }
-                            }
-                        ]
-                    }
-                }
-            }
-        ]
-    elif "btnmenu" == texto.strip():
-        data =  [           
-            # 🔘 Botones interactivos
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "interactive",
-                "interactive":{
-                    "type":"button",
-                    "body": {
-                        "text": "Hola"
-                    },
-                    "footer": {
-                        "text": "Prueba"
-                    },
-                    "action": {
-                        "buttons":[
-                            {
-                                "type": "reply",
-                                "reply":{
-                                    "id":"0",
-                                    "title":"Ver Menú"
-                                }
-                            }
-                        ]
-                    }
-                }
-            }
-        ]
-    elif "btnsi" == texto.strip():
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "Muchas Gracias por Aceptar."
-                }
-            }
-        ]
-    elif "btnno" == texto.strip():
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "Es una Lastima."
-                }
-            }
-        ]
-    elif "btntalvez" == texto.strip():
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "Estare a la espera."
-                }
-            }
-        ]
-    elif "lista" == texto.strip():
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "to": number,
-                "type": "interactive",
-                "interactive":{
-                    "type" : "list",
-                    "body": {
-                        "text": "Selecciona Alguna Opción"
-                    },
-                    "footer": {
-                        "text": "Selecciona una de las opciones para poder ayudarte"
-                    },
-                    "action":{
-                        "button":"Ver Opciones",
-                        "sections":[
-                            {
-                                "title":"Compra y Venta",
-                                "rows":[
-                                    {
-                                        "id":"btncompra",
-                                        "title" : "Comprar",
-                                        "description": "Compra los mejores articulos de tecnologia"
-                                    },
-                                    {
-                                        "id":"btnvender",
-                                        "title" : "Vender",
-                                        "description": "Vende lo que ya no estes usando"
-                                    }
-                                ]
-                            },{
-                                "title":"Distribución y Entrega",
-                                "rows":[
-                                    {
-                                        "id":"btndireccion",
-                                        "title" : "Local",
-                                        "description": "Puedes visitar nuestro local."
-                                    },
-                                    {
-                                        "id":"btnentrega",
-                                        "title" : "Entrega",
-                                        "description": "La entrega se realiza todos los dias."
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                }
-            }
-        ]
-    elif "btncompra" == texto.strip():
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "Los mejos articulos top en ofertas."
-                }
-            }
-        ]
-    elif "btnvender" == texto.strip():
-        data = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "Excelente elección."
-                }
-            }
-        ]
 
     else:
         data = [
-            {
-                "messaging_product": "whatsapp",
-                "to": number,
-                "type": "interactive",
-                "interactive": {
-                    "type": "list",
-                    "body": {
-                        "text": "Menú Principal"
-                    },
-                    "footer": {
-                        "text": ""
-                    },
-                    "action": {
-                        "button": "Ver Menú",
-                        "sections": [
-                            {
-                                "title": "Opciones Principales",
-                                "rows": [
-                                    {"id": "1", "title": "1️⃣ ⚙Motores", "description": "Cotizar Motores"},
-                                    {"id": "2", "title": "2️⃣ 🛞Repuestos", "description": "Cotizar Repuestos"},
-                                    {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
-                                    {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
-                                    {"id": "5", "title": "5️⃣ ☎Contacto", "description": "Contáctanos"},
-                                    {"id": "6", "title": "6️⃣ 💳Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
-                                    {"id": "7", "title": "7️⃣ ⏳Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
-                                    {"id": "8", "title": "8️⃣ 🚛Envíos", "description": "Opciones de envío"}
-                                ]
-                            }
-                        ]
-                    }
-                }
-            }
-
+            asistente(user_msg)
         ]
+
+        #data = [
+        #    {
+        #        "messaging_product": "whatsapp",
+        #        "to": number,
+        #        "type": "interactive",
+        #        "interactive": {
+        #            "type": "list",
+        #            "body": {
+        #                "text": "Menú Principal"
+        #            },
+        #            "footer": {
+        #                "text": ""
+        #            },
+        #            "action": {
+        #                "button": "Ver Menú",
+        #                "sections": [
+        #                    {
+        #                        "title": "Opciones Principales",
+        #                        "rows": [
+        #                            {"id": "1", "title": "1️⃣ ⚙Motores", "description": "Cotizar Motores"},
+        #                            {"id": "2", "title": "2️⃣ 🛞Repuestos", "description": "Cotizar Repuestos"},
+        #                            {"id": "3", "title": "3️⃣ 📍Ubicación", "description": "Dónde estamos ubicados"},
+        #                            {"id": "4", "title": "4️⃣ 🕜Horario", "description": "Horario de atención"},
+        #                            {"id": "5", "title": "5️⃣ ☎Contacto", "description": "Contáctanos"},
+        #                            {"id": "6", "title": "6️⃣ 💳Cuentas y Pagos", "description": "Cuentas de banco y formas de pago"},
+        #                            {"id": "7", "title": "7️⃣ ⏳Hablar con personal", "description": "Esperar para ser atendido por nuestro personal"},
+        #                            {"id": "8", "title": "8️⃣ 🚛Envíos", "description": "Opciones de envío"}
+        #                        ]
+        #                    }
+        #                ]
+        #            }
+        #        }
+        #    }
+#
+        #]
 
     # Envío secuencial con pausas
     for mensaje in data:
