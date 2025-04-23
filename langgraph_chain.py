@@ -1,4 +1,4 @@
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, END  # Asegúrate de importar END
 from typing import TypedDict, Optional, Dict, Any
 from llm import ask_llm
 import json
@@ -40,5 +40,5 @@ def build_chain():
     workflow = StateGraph(ChatState)
     workflow.add_node("Responder", simple_node)
     workflow.set_entry_point("Responder")
-    workflow.add_edge("Responder", END)
+    workflow.add_edge("Responder", END)  # END debe estar importado
     return workflow.compile()
