@@ -29,6 +29,15 @@ def create_app():
     
     return app
 
+def asistente (user_msg):
+    
+    state = {"input": user_msg}  # Prepara el estado inicial para LangGraph
+    result = chain.invoke(state)  # Ejecuta el flujo de conversación
+    response = result.get("output", "Lo siento, no entendí.")  # Obtiene la respuesta
+
+    return jsonify({"response": response})  # Devuelve la respuesta como JSON
+
+
 app = create_app()
 chain = build_chain()
 
@@ -236,14 +245,6 @@ def manejar_comando_ofertas(number):
             "type": "text",
             "text": {"body": "⚠️ Ocurrió un error al cargar las ofertas. Por favor intenta más tarde."}
         }]
-
-def asistente (user_msg):
-    
-    state = {"input": user_msg}  # Prepara el estado inicial para LangGraph
-    result = chain.invoke(state)  # Ejecuta el flujo de conversación
-    response = result.get("output", "Lo siento, no entendí.")  # Obtiene la respuesta
-
-    return jsonify({"response": response})  # Devuelve la respuesta como JSON
 
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
