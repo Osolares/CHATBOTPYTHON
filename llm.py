@@ -7,7 +7,7 @@ import json
 load_dotenv()
 
 HUGGINGFACE_API_TOKEN = os.getenv("HF_API_TOKEN")
-MODEL = "mistralai/Mistral-7B-Instruct-v0.1-small"  # Versión más ligera
+MODEL = "google/flan-t5-small" 
 
 def serialize_response(response: Any) -> Dict[str, Any]:
     """Garantiza que la respuesta sea serializable a JSON"""
@@ -40,7 +40,7 @@ def ask_llm(prompt: str) -> Dict[str, Any]:
         }
 
         payload = {
-            "inputs": f"[INST] {prompt} [/INST]",
+            "inputs": prompt,
             "parameters": {
                 "temperature": 0.7,
                 "max_new_tokens": 300,
