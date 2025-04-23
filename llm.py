@@ -7,7 +7,7 @@ import json
 load_dotenv()
 
 HUGGINGFACE_API_TOKEN = os.getenv("HF_API_TOKEN")
-MODEL = "google/flan-t5-small" 
+MODEL = "tiiuae/falcon-7b-instruct" 
 
 def serialize_response(response: Any) -> Dict[str, Any]:
     """Garantiza que la respuesta sea serializable a JSON"""
