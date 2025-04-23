@@ -32,40 +32,28 @@ def create_app():
 
 def asistente(user_msg):
     try:
-        # Validación de entrada
         if not isinstance(user_msg, str):
-            raise ValueError("El mensaje debe ser un string")
+            user_msg = str(user_msg)
             
-        state = {
-            "input": user_msg,
-            "output": None,
-            "error": None,
-            "status_code": None
-        }
-        
+        state = {"input": user_msg}
         result = current_app.chain.invoke(state)
         
-        # Respuesta final ultra segura
-        response_data = {
-            "response": result.get("output", "Lo siento, no entendí."),
-            "status": "success" if not result.get("error") else "error",
-            "status_code": result.get("status_code", 200)
-        }
-        
-        if result.get("error"):
-            response_data["error_details"] = result.get("error")
-            agregar_mensajes_log(f"Error en cadena: {result.get('error')}")
-        
-        return jsonify(response_data)
+        # Respuesta ultra segura
+        response_text = result.get("output", "Lo siento, no entendí.")
+        if not isinstance(response_text, str):
+            response_text = str(response_text)
+            
+        return jsonify({
+            "response": response_text,
+            "status": "success" if not result.get("error") else "error"
+        })
         
     except Exception as e:
-        error_msg = f"Error crítico en asistente: {str(e)}"
-        agregar_mensajes_log(error_msg)
+        error_msg = str(e)  # Asegura que sea string
         return jsonify({
-            "response": "Ocurrió un error interno al procesar tu solicitud",
-            "status": "error",
-            "status_code": 500,
-            "error_details": str(e)
+            "response": "Error en el servidor",
+            "error": error_msg,
+            "status": "error"
         }), 500
 
 app = create_app()

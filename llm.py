@@ -7,7 +7,7 @@ import json
 load_dotenv()
 
 HUGGINGFACE_API_TOKEN = os.getenv("HF_API_TOKEN")
-MODEL = "mistralai/Mistral-7B-Instruct-v0.1"
+MODEL = "mistralai/Mistral-7B-Instruct-v0.1-small"  # Versión más ligera
 
 def serialize_response(response: Any) -> Dict[str, Any]:
     """Garantiza que la respuesta sea serializable a JSON"""
@@ -30,7 +30,6 @@ def serialize_response(response: Any) -> Dict[str, Any]:
         return {"output": "", "error": f"Error de serialización: {str(e)}", "status_code": 500}
 
 def ask_llm(prompt: str) -> Dict[str, Any]:
-    """Versión ultra robusta con manejo completo de errores"""
     try:
         if not isinstance(prompt, str):
             raise ValueError("El prompt debe ser un string")
@@ -56,19 +55,37 @@ def ask_llm(prompt: str) -> Dict[str, Any]:
             timeout=30
         )
 
-        if response.status_code != 200:
-            error_msg = f"API Error {response.status_code}: {response.text[:200]}" if response.text else "Respuesta vacía de la API"
-            return serialize_response({"error": error_msg, "status_code": response.status_code})
-
-        try:
-            api_response = response.json()
-            generated_text = api_response[0].get("generated_text", "") if isinstance(api_response, list) else ""
-            return serialize_response({"output": generated_text, "status_code": 200})
+        if response.status_code == 200:
+            response_data = response.json()
+            # Asegurar serialización incluso si la estructura cambia
+            if isinstance(response_data, list) and len(response_data) > 0:
+                output = str(response_data[0].get("generated_text", ""))
+            else:
+                output = str(response_data.get("generated_text", "")) if isinstance(response_data, dict) else str(response_data)
             
-        except (IndexError, KeyError, AttributeError) as e:
-            return serialize_response({"error": f"Error procesando respuesta: {str(e)}", "status_code": 500})
+            return {
+                "output": output,
+                "error": None,
+                "status_code": 200
+            }
+        else:
+            error_msg = f"API Error {response.status_code}"
+            if response.text:
+                try:
+                    error_details = response.json()
+                    error_msg += f": {str(error_details.get('error', response.text[:200]))}"
+                except:
+                    error_msg += f": {response.text[:200]}"
+            
+            return {
+                "output": None,
+                "error": error_msg,
+                "status_code": response.status_code
+            }
 
-    except requests.exceptions.RequestException as e:
-        return serialize_response({"error": f"Error de conexión: {str(e)}", "status_code": 503})
     except Exception as e:
-        return serialize_response({"error": f"Error inesperado: {str(e)}", "status_code": 500})
+        return {
+            "output": None,
+            "error": f"Error inesperado: {str(e)}",
+            "status_code": 500
+        }
