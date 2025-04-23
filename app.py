@@ -32,45 +32,40 @@ def create_app():
 
 def asistente(user_msg):
     try:
-        if not isinstance(user_msg, str):
-            user_msg = str(user_msg)
+        # Obtener paso actual del usuario desde la base (opcional)
+        session = get_session()
+        paso_actual = session.current_step if session and session.current_step else "awaiting_marca"
 
-        state = {"input": user_msg}
-        result = current_app.chain.invoke(state)
-
-        # Extraer campos útiles y forzar serialización segura
-        response_text = result.get("output", "Lo siento, no entendí.")
-        if not isinstance(response_text, str):
-            response_text = str(response_text)
-
-        status = "success" if not result.get("error") else "error"
-        status_code = result.get("status_code", 200)
-
-        # Registrar en base de datos de forma segura
-        log_safe = {
+        state = {
+            "step": paso_actual,
             "input": user_msg,
-            "output": response_text,
-            "error": result.get("error"),
-            "status_code": status_code
+            "marca": None,
+            "modelo": None,
+            "anio": None,
+            "tipo": None,
+            "comentario": None
         }
 
-        # Guardar como texto plano en Log
-        agregar_mensajes_log(json.dumps(log_safe, ensure_ascii=False))
+        result = chain.invoke(state)
+        response = result.get("output", "Lo siento, no entendí.")
 
-        return jsonify({
-            "response": response_text,
-            "status": status
-        }), status_code
+        # Guardar en logs
+        agregar_mensajes_log(json.dumps({
+            "input": user_msg,
+            "output": response
+        }, ensure_ascii=False))
+
+        # Actualizar paso en sesión
+        if session:
+            session.current_step = result["step"]
+            db.session.commit()
+
+        return jsonify({"response": response})
 
     except Exception as e:
         error_msg = str(e)
         agregar_mensajes_log(f"Error en asistente: {error_msg}")
-
-        return jsonify({
-            "response": "Error en el servidor",
-            "error": error_msg,
-            "status": "error"
-        }), 500
+        return jsonify({"response": "Ocurrió un error en el servidor", "error": error_msg})
 
 app = create_app()
 chain = build_chain()
