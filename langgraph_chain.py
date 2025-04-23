@@ -3,7 +3,7 @@ from typing import TypedDict, Optional
 import os
 from dotenv import load_dotenv
 
-from langchain.llms import HuggingFaceHub
+from langchain_community.llms import HuggingFaceHub
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 
