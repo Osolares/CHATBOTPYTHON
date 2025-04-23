@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, current_app
+from flask import Flask, request, jsonify, render_template
 from config import db, migrate, Config
 from models import UserSession, Log, ProductModel
 from formularios import formulario_motor, manejar_paso_actual
@@ -26,21 +26,11 @@ def create_app():
     
     with app.app_context():
         db.create_all()
-
-    app.chain = build_chain()  # Inicialización dentro del contexto
     
     return app
 
-def asistente (user_msg):
-    
-    state = {"input": user_msg}  # Prepara el estado inicial para LangGraph
-    result = chain.invoke(state)  # Ejecuta el flujo de conversación
-    response = result.get("output", "Lo siento, no entendí.")  # Obtiene la respuesta
-
-    return jsonify({"response": response})  # Devuelve la respuesta como JSON
-
-
 app = create_app()
+chain = build_chain()
 
 # ------------------------------------------
 # Funciones auxiliares
@@ -246,6 +236,14 @@ def manejar_comando_ofertas(number):
             "type": "text",
             "text": {"body": "⚠️ Ocurrió un error al cargar las ofertas. Por favor intenta más tarde."}
         }]
+
+def asistente (user_msg):
+    
+    state = {"input": user_msg}  # Prepara el estado inicial para LangGraph
+    result = chain.invoke(state)  # Ejecuta el flujo de conversación
+    response = result.get("output", "Lo siento, no entendí.")  # Obtiene la respuesta
+
+    return jsonify({"response": response})  # Devuelve la respuesta como JSON
 
 def enviar_mensajes_whatsapp(texto,number):
     texto = texto.lower()
