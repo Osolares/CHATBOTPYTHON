@@ -5,14 +5,15 @@ class UserSession(db.Model):
     __tablename__ = 'user_sessions'
 
     idUser = db.Column(db.Integer, primary_key=True)
-    #phone_number = db.Column(db.String(20), unique=True)  # Asegúrate de que sea único si lo usas como ForeignKey
-    phone_number = db.Column(db.String(20))  # Asegúrate de que sea único si lo usas como ForeignKey
+    phone_number = db.Column(db.String(20))
     nombre = db.Column(db.String(25))
     apellido = db.Column(db.String(25))
     last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
+    current_step = db.Column(db.String(50), default='awaiting_marca')  # ← NUEVA LÍNEA
 
-    logs = db.relationship('Log', backref='session', lazy=True)  # Relación 1-a-muchos
-    model_products = db.relationship('ProductModel', backref='session', lazy=True)  # FIX: nombre de la clase correcto
+    logs = db.relationship('Log', backref='session', lazy=True)
+    model_products = db.relationship('ProductModel', backref='session', lazy=True)
+
 class ProductModel(db.Model):
     __tablename__ = 'model_products'
 

@@ -100,13 +100,35 @@ def index():
 
 mensajes_log = []
 
-#Funcion para agregar mensajes y guardar en la base de datos
-def agregar_mensajes_log(texto):
-    mensajes_log.append(texto)
-    #Guardar el mensaje en la base de datos
-    nuevo_registro = Log(texto=texto)
-    db.session.add(nuevo_registro)
-    db.session.commit()
+def agregar_mensajes_log(texto, session_id=None):
+    """
+    Guarda un mensaje en memoria y en la base de datos.
+    Si el mensaje no es serializable, lo convierte a string.
+    Puede vincularse a una sesión si se proporciona session_id.
+    """
+    try:
+        # Serializar texto si es necesario
+        if isinstance(texto, (dict, list)):
+            texto_str = json.dumps(texto, ensure_ascii=False)
+        else:
+            texto_str = str(texto)
+
+        mensajes_log.append(texto_str)
+
+        nuevo_registro = Log(texto=texto_str, session_id=session_id)
+        db.session.add(nuevo_registro)
+        db.session.commit()
+
+    except Exception as e:
+        fallback = f"[ERROR LOG] No se pudo guardar el log original: {str(texto)} | Error: {str(e)}"
+        mensajes_log.append(fallback)
+
+        try:
+            fallback_registro = Log(texto=fallback, session_id=session_id)
+            db.session.add(fallback_registro)
+            db.session.commit()
+        except:
+            pass
 
 #Token de verificacion para la configuracion
 TOKEN_WEBHOOK_WHATSAPP = f"{Config.TOKEN_WEBHOOK_WHATSAPP}"
@@ -132,6 +154,10 @@ def verificar_token(req):
 def recibir_mensajes(req):
     try:
         data = request.get_json()
+        try:
+            agregar_mensajes_log(json.dumps(data, ensure_ascii=False))
+        except TypeError as e:
+            agregar_mensajes_log(f"[Log ignorado] No se pudo serializar data: {str(e)}")
 
         if not data or 'entry' not in data:
             agregar_mensajes_log("Error: JSON sin 'entry' o 'Data'")
@@ -151,8 +177,10 @@ def recibir_mensajes(req):
                 session = load_or_create_session(phone_number)
 
             # Guardar log
-            agregar_mensajes_log(json.dumps(message))
-
+            try:
+                agregar_mensajes_log(json.dumps(message, ensure_ascii=False))
+            except TypeError as e:
+                agregar_mensajes_log(f"[Log ignorado] No se pudo serializar message: {str(e)}")
             msg_type = message.get("type")
 
             if msg_type == "interactive":
