@@ -44,7 +44,7 @@ def ask_llm(prompt: str) -> Dict[str, Any]:
             "parameters": {
                 "temperature": 0.7,
                 "max_new_tokens": 175,
-                "return_full_text": False
+                #"return_full_text": False
             }
         }
 
