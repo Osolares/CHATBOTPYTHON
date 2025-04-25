@@ -26,46 +26,12 @@ def create_app():
     
     with app.app_context():
         db.create_all()
-        app.chain = build_chain()  # Inicialización dentro del contexto
+        #app.chain = build_chain()  # Inicialización dentro del contexto
     
     return app
 
 def asistente(user_msg):
-    try:
-        # Obtener paso actual del usuario desde la base (opcional)
-        session = get_session()
-        paso_actual = session.current_step if session and session.current_step else "awaiting_marca"
-
-        state = {
-            "step": paso_actual,
-            "input": user_msg,
-            "marca": None,
-            "modelo": None,
-            "anio": None,
-            "tipo": None,
-            "comentario": None
-        }
-
-        result = chain.invoke(state)
-        response = result.get("output", "Lo siento, no entendí.")
-
-        # Guardar en logs
-        agregar_mensajes_log(json.dumps({
-            "input": user_msg,
-            "output": response
-        }, ensure_ascii=False))
-
-        # Actualizar paso en sesión
-        if session:
-            session.current_step = result["step"]
-            db.session.commit()
-
-        return jsonify({"response": response})
-
-    except Exception as e:
-        error_msg = str(e)
-        agregar_mensajes_log(f"Error en asistente: {error_msg}")
-        return jsonify({"response": "Ocurrió un error en el servidor", "error": error_msg})
+    return 0
 
 app = create_app()
 chain = build_chain()
