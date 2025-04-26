@@ -477,6 +477,22 @@ def webhook():
         if messages_list:
             message = messages_list[0]
             phone_number = message.get("from")
+            message_id = message.get("id")  # ⚠️ ID único de WhatsApp
+
+            # =============================================
+            # 🛡️ INICIO: Manejo de duplicados (Nuevo código)
+            # =============================================
+            # Verificar si ya procesamos este message_id
+            existing_log = Log.query.filter(
+                Log.texto.like(f'%whatsapp_msg_id:{message_id}%')
+            ).first()
+            
+            if existing_log:
+                agregar_mensajes_log(f"🚫 Mensaje duplicado ignorado (ID: {message_id})")
+                return jsonify({'status': 'ignored_duplicate'}), 200
+            # =============================================
+            # 🛡️ FIN: Manejo de duplicados
+            # =============================================
             
             # Determinar el texto del mensaje (código existente)
             if message.get("type") == "interactive":
