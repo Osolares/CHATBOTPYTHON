@@ -110,8 +110,10 @@ def handle_special_commands(state: BotState) -> BotState:
         ]
     elif texto == "1":
         state["response_data"] = formulario_motor(number)
+
     elif texto == "2":
         state["response_data"] = manejar_comando_ofertas(number)
+        
     elif texto == "3":
         state["response_data"] = [
             {

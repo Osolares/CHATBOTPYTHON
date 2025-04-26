@@ -415,7 +415,9 @@ def manejar_paso_finish(number, user_message, producto):
                 "text": {
                     "body": " Formulario recibido, en unos minutos nos pondremos en contacto"
                 }
-            }
+            },
+            generar_list_menu(number)
+
         ]
 
 def cancelar_flujo(number):
