@@ -292,31 +292,48 @@ def asistente(state: BotState) -> BotState:
     
     return state
 
+#def send_messages(state: BotState) -> BotState:
+#    """Envía mensajes por el canal correspondiente"""
+#    channel = state["channel"]
+#    
+#    for mensaje in state["response_data"]:
+#        try:
+#            if channel == 'whatsapp':
+#                bot_enviar_mensaje_whatsapp(mensaje)
+#            elif channel == 'telegram':
+#                bot_enviar_mensaje_telegram(mensaje)
+#            elif channel == 'messenger':
+#                bot_enviar_mensaje_messenger(mensaje)
+#            elif channel == 'web':
+#                bot_enviar_mensaje_web(mensaje)
+#            
+#            agregar_mensajes_log(
+#                json.dumps(mensaje), 
+#                state["session"].idUser if state["session"] else None
+#            )
+#            time.sleep(1)
+#        except Exception as e:
+#            agregar_mensajes_log(
+#                f"Error enviando mensaje a {state['channel_id']}: {str(e)}",
+#                state["session"].idUser if state["session"] else None
+#            )
+#    return state
+
 def send_messages(state: BotState) -> BotState:
-    """Envía mensajes por el canal correspondiente"""
     channel = state["channel"]
     
     for mensaje in state["response_data"]:
         try:
+            # Envío por canal
             if channel == 'whatsapp':
-                bot_enviar_mensaje_whatsapp(mensaje)
-            elif channel == 'telegram':
-                bot_enviar_mensaje_telegram(mensaje)
-            elif channel == 'messenger':
-                bot_enviar_mensaje_messenger(mensaje)
-            elif channel == 'web':
-                bot_enviar_mensaje_web(mensaje)
+                response = bot_enviar_mensaje_whatsapp(mensaje)
+                agregar_mensajes_log(f"WHATSAPP_ENVIADO - Respuesta: {response.decode()}")
             
-            agregar_mensajes_log(
-                json.dumps(mensaje), 
-                state["session"].idUser if state["session"] else None
-            )
-            time.sleep(1)
+            agregar_mensajes_log(f"MSG_ENVIADO - Contenido: {json.dumps(mensaje)}")
+            
         except Exception as e:
-            agregar_mensajes_log(
-                f"Error enviando mensaje a {state['channel_id']}: {str(e)}",
-                state["session"].idUser if state["session"] else None
-            )
+            agregar_mensajes_log(f"ERROR_ENVIO: {str(e)}")
+    
     return state
 
 # ------------------------------------------
@@ -496,49 +513,44 @@ def index():
 @flask_app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'GET':
-        challenge = verificar_token_whatsapp(request)
-        return challenge
+        return verificar_token_whatsapp(request)
     
     try:
-        agregar_mensajes_log("📥 Webhook WhatsApp recibido")
-
         data = request.get_json()
-        
-        # Extrae datos clave del mensaje
         message = data['entry'][0]['changes'][0]['value']['messages'][0]
         message_id = message['id']
         phone_number = message['from']
-        timestamp = message['timestamp']
-
-        # 🛡️ Verificación de duplicados MEJORADA
-        if db.session.query(Log).filter(
-            Log.texto.like(f'%MSG_PROCESADO:{message_id}%')
-        ).first():
+        
+        # 🛡️ Verificación de duplicados MEJORADA (usa texto exacto)
+        existing_log = db.session.query(Log).filter(
+            Log.texto.contains(f'MSG_INICIADO:{message_id}')
+        ).first()
+        
+        if existing_log:
             return jsonify({'status': 'duplicate_ignored'}), 200
 
-        # 📝 Registrar recepción ANTES de procesar
-        agregar_mensajes_log(f"INICIO_PROCESO - ID:{message_id} - T:{timestamp}")
-
-        # 📦 Preparar estado inicial
+        # 📝 Registrar INICIO de procesamiento (ANTES de procesar)
+        agregar_mensajes_log(f"MSG_INICIADO:{message_id}")
+        
+        # Procesar mensaje
         initial_state = {
             "channel": "whatsapp",
             "channel_id": phone_number,
-            "phone_number": phone_number,  # Compatibilidad
+            "phone_number": phone_number,
             "user_msg": message.get('text', {}).get('body', ''),
             "response_data": [],
             "message_data": message,
             "logs": []
         }
-
-        # ⚙️ Ejecutar flujo
+        
         app_flow.invoke(initial_state)
         
-        # ✅ Registrar éxito DESPUÉS de procesar
-        agregar_mensajes_log(f"FIN_PROCESO - ID:{message_id}")
-        return jsonify({'status': 'processed'}), 200
+        # Registrar finalización
+        agregar_mensajes_log(f"MSG_COMPLETADO:{message_id}")
+        return jsonify({'status': 'success'}), 200
 
     except Exception as e:
-        agregar_mensajes_log(f"ERROR_GRAVE: {str(e)}")
+        agregar_mensajes_log(f"ERROR_WEBHOOK: {str(e)}")
         return jsonify({'status': 'error'}), 500
      
 @flask_app.route('/webhook/telegram', methods=['POST'])

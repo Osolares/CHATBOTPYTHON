@@ -69,6 +69,7 @@ class Log(db.Model):
     
     # Índices optimizados para búsquedas
     __table_args__ = (
+        db.Index('idx_msg_id', db.func.substr('texto', 1, 50)),  # Para búsqueda rápida
         db.Index('idx_log_timestamp', 'fecha_y_hora'),
         db.Index('idx_log_content', db.func.substr('texto', 1, 50)),  # Para búsqueda de message_id
     )
