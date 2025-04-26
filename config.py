@@ -25,3 +25,13 @@ class Config:
     WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN')
     PHONE_NUMBER_ID = os.getenv('PHONE_NUMBER_ID')
     TOKEN_WEBHOOK_WHATSAPP = os.getenv('TOKEN_WEBHOOK_WHATSAPP')
+
+    # Telegram
+    TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+    
+    # Messenger
+    FB_PAGE_TOKEN = os.getenv('FB_PAGE_TOKEN')
+    FB_VERIFY_TOKEN = os.getenv('FB_VERIFY_TOKEN')
+    
+    # Web
+    WEB_SECRET_KEY = os.getenv('WEB_SECRET_KEY')

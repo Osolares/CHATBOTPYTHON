@@ -1,18 +1,32 @@
 from datetime import datetime
 from config import db
 
+from datetime import datetime
+from config import db
+
 class UserSession(db.Model):
     __tablename__ = 'user_sessions'
 
     idUser = db.Column(db.Integer, primary_key=True)
-    #phone_number = db.Column(db.String(20), unique=True)  # Asegúrate de que sea único si lo usas como ForeignKey
-    phone_number = db.Column(db.String(20))  # Asegúrate de que sea único si lo usas como ForeignKey
+    phone_number = db.Column(db.String(20))  # Para WhatsApp/Telegram
+    email = db.Column(db.String(100))  # Nuevo: Para sitio web
+    fb_user_id = db.Column(db.String(50))  # Nuevo: Para Messenger
     nombre = db.Column(db.String(25))
     apellido = db.Column(db.String(25))
     last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
+    last_platform = db.Column(db.String(20))  # Nuevo: 'whatsapp', 'telegram', 'messenger', 'web'
 
-    logs = db.relationship('Log', backref='session', lazy=True)  # Relación 1-a-muchos
-    model_products = db.relationship('ProductModel', backref='session', lazy=True)  # FIX: nombre de la clase correcto
+    logs = db.relationship('Log', backref='session', lazy=True)
+    model_products = db.relationship('ProductModel', backref='session', lazy=True)
+
+class PlatformMessage(db.Model):  # Nueva tabla
+    __tablename__ = 'platform_messages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    platform = db.Column(db.String(20))  # 'whatsapp', 'telegram', 'messenger', 'web'
+    platform_message_id = db.Column(db.String(100))  # ID del mensaje en la plataforma
+    session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'))
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
 
 class ProductModel(db.Model):
     __tablename__ = 'model_products'

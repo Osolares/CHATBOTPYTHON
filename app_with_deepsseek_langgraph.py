@@ -14,7 +14,6 @@ from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
-from message_services import MessageService
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -33,10 +32,8 @@ model = ChatOpenAI(
 # Definición del Estado y Modelos
 # ------------------------------------------
 
-# Modificar BotState
 class BotState(TypedDict):
-    platform: str  # Nuevo: 'whatsapp', 'telegram', 'messenger', 'web'
-    identifier: Dict[str, str]  # Nuevo: contiene phone/email/fb_user_id según plataforma
+    phone_number: str
     user_msg: str
     session: Optional[UserSession]
     flujo_producto: Optional[ProductModel]
@@ -48,16 +45,21 @@ class BotState(TypedDict):
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
 
-# Modificar load_or_create_session
 def load_or_create_session(state: BotState) -> BotState:
-    """Carga o crea sesión basada en plataforma"""
-    identifier = {
-        'platform': state['platform'],
-        'phone': state['identifier'].get('phone'),
-        'email': state['identifier'].get('email'),
-        'fb_user_id': state['identifier'].get('fb_user_id')
-    }
-    state['session'] = MessageService.get_or_create_user(identifier)
+    """Carga o crea una sesión de usuario, compatible con múltiples usuarios"""
+    phone_number = state["phone_number"]
+    
+    with db.session.begin():
+        session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
+        
+        if not session:
+            session = UserSession(phone_number=phone_number)
+            db.session.add(session)
+            db.session.flush()  # Para obtener el ID si es necesario
+        
+        session.last_interaction = datetime.utcnow()
+        state["session"] = session
+    
     return state
 
 def load_product_flow(state: BotState) -> BotState:
@@ -222,7 +224,6 @@ def handle_special_commands(state: BotState) -> BotState:
 
         ]
 
-
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
     
@@ -243,25 +244,20 @@ def asistente(state: BotState) -> BotState:
     
     return state
 
-# Modificar send_messages
 def send_messages(state: BotState) -> BotState:
-    """Envía mensajes por la plataforma adecuada"""
-    for mensaje in state['response_data']:
+    """Envía mensajes a WhatsApp con manejo seguro para múltiples usuarios"""
+    for mensaje in state["response_data"]:
         try:
-            MessageService.send_message(
-                mensaje,
-                state['platform'],
-                state['session']
-            )
+            bot_enviar_mensaje_whatsapp(mensaje)
             agregar_mensajes_log(
                 json.dumps(mensaje), 
-                state['session'].idUser if state['session'] else None
+                state["session"].idUser if state["session"] else None
             )
             time.sleep(1)
         except Exception as e:
             agregar_mensajes_log(
-                f"Error enviando mensaje: {str(e)}",
-                state['session'].idUser if state['session'] else None
+                f"Error enviando mensaje a {state['phone_number']}: {str(e)}",
+                state["session"].idUser if state["session"] else None
             )
     return state
 
@@ -457,10 +453,9 @@ def webhook():
             else:
                 text = ""
 
-            # Ejecutar el flujo para este usuario con la nueva estructura
+            # Ejecutar el flujo para este usuario
             initial_state = {
-                "platform": "whatsapp",  # Nueva clave para identificar la plataforma
-                "identifier": {"phone": phone_number},  # Nueva estructura de identificación
+                "phone_number": phone_number,
                 "user_msg": text,
                 "response_data": [],
                 "message_data": message,
@@ -472,87 +467,8 @@ def webhook():
         return jsonify({'message': 'EVENT_RECEIVED'})
     
     except Exception as e:
-        agregar_mensajes_log(f"Error en webhook WhatsApp: {str(e)}")
+        agregar_mensajes_log(f"Error en webhook: {str(e)}")
         return jsonify({'message': 'EVENT_RECEIVED'}), 500
-
-def verificar_token_whatsapp(req):
-    """Verificación del token de WhatsApp (se mantiene igual)"""
-    token = req.args.get('hub.verify_token')
-    challenge = req.args.get('hub.challenge')
-
-    if challenge and token == Config.TOKEN_WEBHOOK_WHATSAPP:
-        return challenge
-    else:
-        return jsonify({'error': 'Token Invalido'}), 401
-    
-# Nuevo webhook para Telegram
-@flask_app.route('/webhook-telegram', methods=['POST'])
-def webhook_telegram():
-    try:
-        data = request.get_json()
-        message = data.get('message', {})
-        
-        initial_state = {
-            "platform": "telegram",
-            "identifier": {"phone": message.get('chat', {}).get('id')},
-            "user_msg": message.get('text', ''),
-            "response_data": [],
-            "message_data": message,
-            "logs": []
-        }
-        
-        app_flow.invoke(initial_state)
-        return jsonify({'status': 'ok'})
-    
-    except Exception as e:
-        agregar_mensajes_log(f"Error en webhook Telegram: {str(e)}")
-        return jsonify({'status': 'error'}), 500
-
-# Nuevo webhook para Messenger
-@flask_app.route('/webhook-messenger', methods=['POST'])
-def webhook_messenger():
-    try:
-        data = request.get_json()
-        entry = data.get('entry', [{}])[0]
-        messaging = entry.get('messaging', [{}])[0]
-        
-        initial_state = {
-            "platform": "messenger",
-            "identifier": {"fb_user_id": messaging.get('sender', {}).get('id')},
-            "user_msg": messaging.get('message', {}).get('text', ''),
-            "response_data": [],
-            "message_data": messaging,
-            "logs": []
-        }
-        
-        app_flow.invoke(initial_state)
-        return jsonify({'status': 'ok'})
-    
-    except Exception as e:
-        agregar_mensajes_log(f"Error en webhook Messenger: {str(e)}")
-        return jsonify({'status': 'error'}), 500
-    
-# Webhook para sitio web (ejemplo)
-@flask_app.route('/api/web-chat', methods=['POST'])
-def web_chat():
-    try:
-        data = request.get_json()
-        
-        initial_state = {
-            "platform": "web",
-            "identifier": {"email": data.get('email')},
-            "user_msg": data.get('message', ''),
-            "response_data": [],
-            "message_data": data,
-            "logs": []
-        }
-        
-        app_flow.invoke(initial_state)
-        return jsonify({'status': 'ok', 'response': initial_state['response_data']})
-    
-    except Exception as e:
-        agregar_mensajes_log(f"Error en web chat: {str(e)}")
-        return jsonify({'status': 'error'}), 500
 
 def verificar_token_whatsapp(req):
     """Verificación del token de WhatsApp"""
