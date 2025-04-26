@@ -28,6 +28,24 @@ model = ChatOpenAI(
     max_tokens=200,
 )
 
+def init_db():
+    """Inicialización robusta de la base de datos"""
+    with flask_app.app_context():
+        try:
+            db.create_all()
+            
+            # 🛠️ Añadir columnas faltantes (para Render)
+            for column in ['email', 'messenger_id', 'last_channel']:
+                try:
+                    db.session.execute(f"ALTER TABLE user_sessions ADD COLUMN {column} TEXT")
+                except:
+                    pass
+                    
+            db.session.commit()
+            agregar_mensajes_log("DB_INIT: Tablas creadas/actualizadas")
+        except Exception as e:
+            agregar_mensajes_log(f"DB_INIT_ERROR: {str(e)}")
+
 # ------------------------------------------
 # Definición del Estado y Modelos
 # ------------------------------------------
@@ -41,6 +59,7 @@ class BotState(TypedDict):
     response_data: List[Dict[str, Any]]
     message_data: Optional[Dict[str, Any]]
     logs: List[str]
+
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
@@ -305,21 +324,33 @@ def send_messages(state: BotState) -> BotState:
 # ------------------------------------------
 
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
-    """Guarda un mensaje en memoria y en la base de datos."""
+    """Versión mejorada con manejo de errores robusto"""
     try:
-        texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
+        texto_str = (
+            json.dumps(texto, ensure_ascii=False, indent=2) 
+            if isinstance(texto, (dict, list)) 
+            else str(texto)
+        )
         
         with db.session.begin():
-            nuevo_registro = Log(texto=texto_str, session_id=session_id)
-            db.session.add(nuevo_registro)
+            log_entry = Log(
+                texto=f"{datetime.utcnow().isoformat()} - {texto_str}",
+                session_id=session_id
+            )
+            db.session.add(log_entry)
+            db.session.commit()  # 🔄 Commit inmediato
+            
     except Exception as e:
-        fallback = f"[ERROR LOG] No se pudo guardar: {str(texto)[:200]}... | Error: {str(e)}"
         try:
+            # 📌 Fallback básico
             with db.session.begin():
-                fallback_registro = Log(texto=fallback, session_id=session_id)
-                db.session.add(fallback_registro)
-        except Exception as e2:
-            pass
+                db.session.add(Log(
+                    texto=f"ERROR_LOG: {str(e)[:200]}... (Original: {str(texto)[:100]})",
+                    session_id=session_id
+                ))
+                db.session.commit()
+        except:
+            pass  # 😅 Último recurso
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp con manejo de errores"""
@@ -437,6 +468,9 @@ flask_app = Flask(__name__)
 flask_app.config.from_object(Config)
 db.init_app(flask_app)
 
+# Llama esta función después de crear la app Flask
+init_db()
+
 @flask_app.route('/')
 def index():
     try:
@@ -467,66 +501,44 @@ def webhook():
     
     try:
         data = request.get_json()
-        agregar_mensajes_log(data)
+        
+        # Extrae datos clave del mensaje
+        message = data['entry'][0]['changes'][0]['value']['messages'][0]
+        message_id = message['id']
+        phone_number = message['from']
+        timestamp = message['timestamp']
 
-        entry = data['entry'][0]
-        changes = entry.get('changes', [])[0]
-        value = changes.get('value', {})
-        messages_list = value.get('messages', [])
+        # 🛡️ Verificación de duplicados MEJORADA
+        if db.session.query(Log).filter(
+            Log.texto.like(f'%MSG_PROCESADO:{message_id}%')
+        ).first():
+            return jsonify({'status': 'duplicate_ignored'}), 200
 
-        if messages_list:
-            message = messages_list[0]
-            phone_number = message.get("from")
-            message_id = message.get("id")  # ⚠️ ID único de WhatsApp
+        # 📝 Registrar recepción ANTES de procesar
+        agregar_mensajes_log(f"INICIO_PROCESO - ID:{message_id} - T:{timestamp}")
 
-            # =============================================
-            # 🛡️ INICIO: Manejo de duplicados (Nuevo código)
-            # =============================================
-            # Verificar si ya procesamos este message_id
-            existing_log = Log.query.filter(
-                Log.texto.like(f'%whatsapp_msg_id:{message_id}%')
-            ).first()
-            
-            if existing_log:
-                agregar_mensajes_log(f"🚫 Mensaje duplicado ignorado (ID: {message_id})")
-                return jsonify({'status': 'ignored_duplicate'}), 200
-            # =============================================
-            # 🛡️ FIN: Manejo de duplicados
-            # =============================================
-            
-            # Determinar el texto del mensaje (código existente)
-            if message.get("type") == "interactive":
-                interactive = message.get("interactive", {})
-                if interactive.get("type") == "button_reply":
-                    text = interactive.get("button_reply", {}).get("id")
-                elif interactive.get("type") == "list_reply":
-                    text = interactive.get("list_reply", {}).get("id")
-                else:
-                    text = ""
-            elif message.get("type") == "text":
-                text = message.get("text", {}).get("body", "")
-            else:
-                text = ""
+        # 📦 Preparar estado inicial
+        initial_state = {
+            "channel": "whatsapp",
+            "channel_id": phone_number,
+            "phone_number": phone_number,  # Compatibilidad
+            "user_msg": message.get('text', {}).get('body', ''),
+            "response_data": [],
+            "message_data": message,
+            "logs": []
+        }
 
-            # Estado actualizado con campo 'channel'
-            initial_state = {
-                "channel": "whatsapp",  # <- Añade esto
-                "channel_id": phone_number,  # Usamos phone_number como ID
-                "phone_number": phone_number,  # Mantén por compatibilidad
-                "user_msg": text,
-                "response_data": [],
-                "message_data": message,
-                "logs": []
-            }
-            
-            app_flow.invoke(initial_state)
-            
-        return jsonify({'message': 'EVENT_RECEIVED'})
-    
+        # ⚙️ Ejecutar flujo
+        app_flow.invoke(initial_state)
+        
+        # ✅ Registrar éxito DESPUÉS de procesar
+        agregar_mensajes_log(f"FIN_PROCESO - ID:{message_id}")
+        return jsonify({'status': 'processed'}), 200
+
     except Exception as e:
-        agregar_mensajes_log(f"Error en webhook: {str(e)}")
-        return jsonify({'message': 'EVENT_RECEIVED'}), 500
-    
+        agregar_mensajes_log(f"ERROR_GRAVE: {str(e)}")
+        return jsonify({'status': 'error'}), 500
+     
 @flask_app.route('/webhook/telegram', methods=['POST'])
 def webhook_telegram():
     try:
