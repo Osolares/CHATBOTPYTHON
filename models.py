@@ -5,15 +5,26 @@ class UserSession(db.Model):
     __tablename__ = 'user_sessions'
 
     idUser = db.Column(db.Integer, primary_key=True)
-    #phone_number = db.Column(db.String(20), unique=True)  # Asegúrate de que sea único si lo usas como ForeignKey
-    phone_number = db.Column(db.String(20))  # Asegúrate de que sea único si lo usas como ForeignKey
+    phone_number = db.Column(db.String(20), index=True)  # Para WhatsApp/Telegram
+    email = db.Column(db.String(120), index=True)  # Para sitio web
+    messenger_id = db.Column(db.String(50), index=True)  # Para Facebook Messenger
     nombre = db.Column(db.String(25))
     apellido = db.Column(db.String(25))
     last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
+    last_channel = db.Column(db.String(20))  # 'whatsapp', 'telegram', 'messenger', 'web'
 
-    logs = db.relationship('Log', backref='session', lazy=True)  # Relación 1-a-muchos
-    model_products = db.relationship('ProductModel', backref='session', lazy=True)  # FIX: nombre de la clase correcto
+    logs = db.relationship('Log', backref='session', lazy=True)
+    model_products = db.relationship('ProductModel', backref='session', lazy=True)
 
+class MessageSource(db.Model):
+    __tablename__ = 'message_sources'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'))
+    channel = db.Column(db.String(20))  # 'whatsapp', 'telegram', 'messenger', 'web'
+    channel_id = db.Column(db.String(120))  # ID único en ese canal
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
 class ProductModel(db.Model):
     __tablename__ = 'model_products'
 
