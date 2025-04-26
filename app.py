@@ -28,31 +28,12 @@ model = ChatOpenAI(
     max_tokens=200,
 )
 
-def init_db():
-    """Inicialización robusta de la base de datos"""
-    with flask_app.app_context():
-        try:
-            db.create_all()
-            
-            # 🛠️ Añadir columnas faltantes (para Render)
-            for column in ['email', 'messenger_id', 'last_channel']:
-                try:
-                    db.session.execute(f"ALTER TABLE user_sessions ADD COLUMN {column} TEXT")
-                except:
-                    pass
-                    
-            db.session.commit()
-            agregar_mensajes_log("DB_INIT: Tablas creadas/actualizadas")
-        except Exception as e:
-            agregar_mensajes_log(f"DB_INIT_ERROR: {str(e)}")
-
 # ------------------------------------------
 # Definición del Estado y Modelos
 # ------------------------------------------
 
 class BotState(TypedDict):
-    channel: str  # 'whatsapp', 'telegram', 'messenger', 'web'
-    channel_id: str  # Identificador único en ese canal
+    phone_number: str
     user_msg: str
     session: Optional[UserSession]
     flujo_producto: Optional[ProductModel]
@@ -65,51 +46,18 @@ class BotState(TypedDict):
 # ------------------------------------------
 
 def load_or_create_session(state: BotState) -> BotState:
-    """Carga o crea una sesión de usuario, compatible con múltiples canales"""
-    channel = state["channel"]  # Nuevo campo en el estado
-    channel_id = state["channel_id"]  # ID único en ese canal
+    """Carga o crea una sesión de usuario, compatible con múltiples usuarios"""
+    phone_number = state["phone_number"]
     
     with db.session.begin():
-        # Buscar por identificador específico del canal
-        if channel == 'whatsapp' or channel == 'telegram':
-            session = db.session.query(UserSession).filter_by(phone_number=channel_id).first()
-        elif channel == 'messenger':
-            session = db.session.query(UserSession).filter_by(messenger_id=channel_id).first()
-        elif channel == 'web':
-            session = db.session.query(UserSession).filter_by(email=channel_id).first()
+        session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
         
         if not session:
-            session = UserSession()
-            if channel in ['whatsapp', 'telegram']:
-                session.phone_number = channel_id
-            elif channel == 'messenger':
-                session.messenger_id = channel_id
-            elif channel == 'web':
-                session.email = channel_id
-            
-            session.last_channel = channel
+            session = UserSession(phone_number=phone_number)
             db.session.add(session)
-            db.session.flush()
+            db.session.flush()  # Para obtener el ID si es necesario
         
-        # Actualizar información de última interacción
         session.last_interaction = datetime.utcnow()
-        session.last_channel = channel
-        
-        # Registrar la fuente del mensaje si no existe
-        source = db.session.query(MessageSource).filter_by(
-            session_id=session.idUser,
-            channel=channel,
-            channel_id=channel_id
-        ).first()
-        
-        if not source:
-            source = MessageSource(
-                session_id=session.idUser,
-                channel=channel,
-                channel_id=channel_id
-            )
-            db.session.add(source)
-        
         state["session"] = session
     
     return state
@@ -272,6 +220,7 @@ def handle_special_commands(state: BotState) -> BotState:
             generar_list_menu(number)
         ]
 
+
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
     
@@ -292,48 +241,21 @@ def asistente(state: BotState) -> BotState:
     
     return state
 
-#def send_messages(state: BotState) -> BotState:
-#    """Envía mensajes por el canal correspondiente"""
-#    channel = state["channel"]
-#    
-#    for mensaje in state["response_data"]:
-#        try:
-#            if channel == 'whatsapp':
-#                bot_enviar_mensaje_whatsapp(mensaje)
-#            elif channel == 'telegram':
-#                bot_enviar_mensaje_telegram(mensaje)
-#            elif channel == 'messenger':
-#                bot_enviar_mensaje_messenger(mensaje)
-#            elif channel == 'web':
-#                bot_enviar_mensaje_web(mensaje)
-#            
-#            agregar_mensajes_log(
-#                json.dumps(mensaje), 
-#                state["session"].idUser if state["session"] else None
-#            )
-#            time.sleep(1)
-#        except Exception as e:
-#            agregar_mensajes_log(
-#                f"Error enviando mensaje a {state['channel_id']}: {str(e)}",
-#                state["session"].idUser if state["session"] else None
-#            )
-#    return state
-
 def send_messages(state: BotState) -> BotState:
-    channel = state["channel"]
-    
+    """Envía mensajes a WhatsApp con manejo seguro para múltiples usuarios"""
     for mensaje in state["response_data"]:
         try:
-            # Envío por canal
-            if channel == 'whatsapp':
-                response = bot_enviar_mensaje_whatsapp(mensaje)
-                agregar_mensajes_log(f"WHATSAPP_ENVIADO - Respuesta: {response.decode()}")
-            
-            agregar_mensajes_log(f"MSG_ENVIADO - Contenido: {json.dumps(mensaje)}")
-            
+            bot_enviar_mensaje_whatsapp(mensaje)
+            agregar_mensajes_log(
+                json.dumps(mensaje), 
+                state["session"].idUser if state["session"] else None
+            )
+            time.sleep(1)
         except Exception as e:
-            agregar_mensajes_log(f"ERROR_ENVIO: {str(e)}")
-    
+            agregar_mensajes_log(
+                f"Error enviando mensaje a {state['phone_number']}: {str(e)}",
+                state["session"].idUser if state["session"] else None
+            )
     return state
 
 # ------------------------------------------
@@ -341,33 +263,21 @@ def send_messages(state: BotState) -> BotState:
 # ------------------------------------------
 
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
-    """Versión mejorada con manejo de errores robusto"""
+    """Guarda un mensaje en memoria y en la base de datos."""
     try:
-        texto_str = (
-            json.dumps(texto, ensure_ascii=False, indent=2) 
-            if isinstance(texto, (dict, list)) 
-            else str(texto)
-        )
+        texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
         
         with db.session.begin():
-            log_entry = Log(
-                texto=f"{datetime.utcnow().isoformat()} - {texto_str}",
-                session_id=session_id
-            )
-            db.session.add(log_entry)
-            db.session.commit()  # 🔄 Commit inmediato
-            
+            nuevo_registro = Log(texto=texto_str, session_id=session_id)
+            db.session.add(nuevo_registro)
     except Exception as e:
+        fallback = f"[ERROR LOG] No se pudo guardar: {str(texto)[:200]}... | Error: {str(e)}"
         try:
-            # 📌 Fallback básico
             with db.session.begin():
-                db.session.add(Log(
-                    texto=f"ERROR_LOG: {str(e)[:200]}... (Original: {str(texto)[:100]})",
-                    session_id=session_id
-                ))
-                db.session.commit()
-        except:
-            pass  # 😅 Último recurso
+                fallback_registro = Log(texto=fallback, session_id=session_id)
+                db.session.add(fallback_registro)
+        except Exception as e2:
+            pass
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp con manejo de errores"""
@@ -485,9 +395,6 @@ flask_app = Flask(__name__)
 flask_app.config.from_object(Config)
 db.init_app(flask_app)
 
-# Llama esta función después de crear la app Flask
-init_db()
-
 @flask_app.route('/')
 def index():
     try:
@@ -513,81 +420,52 @@ def index():
 @flask_app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'GET':
-        return verificar_token_whatsapp(request)
+        challenge = verificar_token_whatsapp(request)
+        return challenge
     
-    try:
-        data = request.get_json()
-        message = data['entry'][0]['changes'][0]['value']['messages'][0]
-        message_id = message['id']
-        phone_number = message['from']
-        
-        # 🛡️ Verificación de duplicados MEJORADA (usa texto exacto)
-        existing_log = db.session.query(Log).filter(
-            Log.texto.contains(f'MSG_INICIADO:{message_id}')
-        ).first()
-        
-        if existing_log:
-            return jsonify({'status': 'duplicate_ignored'}), 200
-
-        # 📝 Registrar INICIO de procesamiento (ANTES de procesar)
-        agregar_mensajes_log(f"MSG_INICIADO:{message_id}")
-        
-        # Procesar mensaje
-        initial_state = {
-            "channel": "whatsapp",
-            "channel_id": phone_number,
-            "phone_number": phone_number,
-            "user_msg": message.get('text', {}).get('body', ''),
-            "response_data": [],
-            "message_data": message,
-            "logs": []
-        }
-        
-        app_flow.invoke(initial_state)
-        
-        # Registrar finalización
-        agregar_mensajes_log(f"MSG_COMPLETADO:{message_id}")
-        return jsonify({'status': 'success'}), 200
-
-    except Exception as e:
-        agregar_mensajes_log(f"ERROR_WEBHOOK: {str(e)}")
-        return jsonify({'status': 'error'}), 500
-     
-@flask_app.route('/webhook/telegram', methods=['POST'])
-def webhook_telegram():
     try:
         data = request.get_json()
         agregar_mensajes_log(data)
 
-        # Extraer información del mensaje de Telegram
-        message = data.get('message', {})
-        phone_number = message.get('from', {}).get('id')  # O el identificador que uses
-        
-        initial_state = {
-            "channel": "telegram",
-            "channel_id": phone_number,
-            "user_msg": message.get('text', ''),
-            "response_data": [],
-            "message_data": message,
-            "logs": []
-        }
-        
-        app_flow.invoke(initial_state)
-        return jsonify({'status': 'success'})
+        entry = data['entry'][0]
+        changes = entry.get('changes', [])[0]
+        value = changes.get('value', {})
+        messages_list = value.get('messages', [])
+
+        if messages_list:
+            message = messages_list[0]
+            phone_number = message.get("from")
+            
+            # Determinar el texto del mensaje
+            if message.get("type") == "interactive":
+                interactive = message.get("interactive", {})
+                if interactive.get("type") == "button_reply":
+                    text = interactive.get("button_reply", {}).get("id")
+                elif interactive.get("type") == "list_reply":
+                    text = interactive.get("list_reply", {}).get("id")
+                else:
+                    text = ""
+            elif message.get("type") == "text":
+                text = message.get("text", {}).get("body", "")
+            else:
+                text = ""
+
+            # Ejecutar el flujo para este usuario
+            initial_state = {
+                "phone_number": phone_number,
+                "user_msg": text,
+                "response_data": [],
+                "message_data": message,
+                "logs": []
+            }
+            
+            app_flow.invoke(initial_state)
+            
+        return jsonify({'message': 'EVENT_RECEIVED'})
     
     except Exception as e:
-        agregar_mensajes_log(f"Error en webhook Telegram: {str(e)}")
-        return jsonify({'status': 'error'}), 500
-
-@flask_app.route('/webhook/messenger', methods=['POST'])
-def webhook_messenger():
-    # Implementación similar para Messenger
-    pass
-
-@flask_app.route('/webhook/web', methods=['POST'])
-def webhook_web():
-    # Implementación similar para el sitio web
-    pass
+        agregar_mensajes_log(f"Error en webhook: {str(e)}")
+        return jsonify({'message': 'EVENT_RECEIVED'}), 500
 
 def verificar_token_whatsapp(req):
     """Verificación del token de WhatsApp"""
@@ -599,19 +477,6 @@ def verificar_token_whatsapp(req):
     else:
         return jsonify({'error': 'Token Invalido'}), 401
 
-
-def bot_enviar_mensaje_telegram(data: Dict[str, Any]) -> Optional[bytes]:
-    """Envía un mensaje a Telegram"""
-    # Implementación específica para Telegram
-    pass
-
-def bot_enviar_mensaje_messenger(data: Dict[str, Any]) -> Optional[bytes]:
-    """Envía un mensaje a Facebook Messenger"""
-    pass
-
-def bot_enviar_mensaje_web(data: Dict[str, Any]) -> Optional[bytes]:
-    """Envía un mensaje al sitio web (puede ser via WebSocket o API)"""
-    pass
 # ------------------------------------------
 # Inicialización
 # ------------------------------------------
