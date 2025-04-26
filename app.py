@@ -478,7 +478,7 @@ def webhook():
             message = messages_list[0]
             phone_number = message.get("from")
             
-            # Determinar el texto del mensaje
+            # Determinar el texto del mensaje (código existente)
             if message.get("type") == "interactive":
                 interactive = message.get("interactive", {})
                 if interactive.get("type") == "button_reply":
@@ -492,9 +492,11 @@ def webhook():
             else:
                 text = ""
 
-            # Ejecutar el flujo para este usuario
+            # Estado actualizado con campo 'channel'
             initial_state = {
-                "phone_number": phone_number,
+                "channel": "whatsapp",  # <- Añade esto
+                "channel_id": phone_number,  # Usamos phone_number como ID
+                "phone_number": phone_number,  # Mantén por compatibilidad
                 "user_msg": text,
                 "response_data": [],
                 "message_data": message,
@@ -508,7 +510,7 @@ def webhook():
     except Exception as e:
         agregar_mensajes_log(f"Error en webhook: {str(e)}")
         return jsonify({'message': 'EVENT_RECEIVED'}), 500
-
+    
 @flask_app.route('/webhook/telegram', methods=['POST'])
 def webhook_telegram():
     try:
