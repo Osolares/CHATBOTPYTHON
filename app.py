@@ -500,6 +500,8 @@ def webhook():
         return challenge
     
     try:
+        agregar_mensajes_log("📥 Webhook WhatsApp recibido")
+
         data = request.get_json()
         
         # Extrae datos clave del mensaje
