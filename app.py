@@ -282,25 +282,29 @@ def asistente(state: BotState) -> BotState:
     return state
 
 
-def send_messages(state: BotState) -> BotState:
-    """Envía mensajes al canal correcto según la fuente"""
-    for mensaje in state["response_data"]:
-        try:
-            if state["source"] == "whatsapp":
-                bot_enviar_mensaje_whatsapp(mensaje)
-            elif state["source"] == "telegram":
-                bot_enviar_mensaje_telegram(mensaje)
-            elif state["source"] == "messenger":
-                bot_enviar_mensaje_messenger(mensaje)
-            elif state["source"] == "web":
-                bot_enviar_mensaje_web(mensaje)
+def send_messages(state, messages_to_send=None):
+    """
+    Envía mensajes al usuario según la plataforma y canal.
+    Si no se proporcionan mensajes específicos, usa los mensajes en 'response_data'.
+    """
+    phone_number = state.get("phone_number")
+    source = state.get("source", "whatsapp")  # Fuente: whatsapp, telegram, etc.
 
-            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
-            time.sleep(1)
+    # 🔥 Mensajes a enviar
+    messages = messages_to_send if messages_to_send else state.get("response_data", [])
+
+    for msg in messages:
+        try:
+            if source == "whatsapp":
+                send_whatsapp_message(phone_number, msg)
+            elif source == "telegram":
+                send_telegram_message(phone_number, msg)
+            elif source == "messenger":
+                send_messenger_message(phone_number, msg)
+            else:
+                agregar_mensajes_log(f"Plataforma desconocida: {source}")
         except Exception as e:
-            agregar_mensajes_log(f"Error enviando mensaje ({state['source']}) a {state.get('phone_number') or state.get('email')}: {str(e)}",
-                                 state["session"].idUser if state["session"] else None)
-    return state
+            agregar_mensajes_log(f"Error enviando mensaje a {source}: {str(e)}")
 
 
 # ------------------------------------------
