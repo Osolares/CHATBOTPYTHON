@@ -527,36 +527,58 @@ def webhook_whatsapp():
         value = changes.get('value', {})
         field = changes.get('field', '')
 
-        # 🔥 FILTRAR: solo procesamos si el evento es de tipo "messages"
+        # 🔥 FILTRAR: solo eventos field = "messages"
         if field != "messages":
             return jsonify({'message': 'EVENT_RECEIVED'})
 
         messages_list = value.get('messages', [])
 
-        if messages_list:
-            message = messages_list[0]
-            phone_number = message.get("from")
-            text = ""
+        if not messages_list:
+            return jsonify({'message': 'EVENT_RECEIVED'})
 
-            if message.get("type") == "interactive":
-                interactive = message.get("interactive", {})
-                if interactive.get("type") == "button_reply":
-                    text = interactive.get("button_reply", {}).get("id")
-                elif interactive.get("type") == "list_reply":
-                    text = interactive.get("list_reply", {}).get("id")
-            elif message.get("type") == "text":
-                text = message.get("text", {}).get("body", "")
-            
-            initial_state = {
-                "phone_number": phone_number,
-                "user_msg": text,
-                "response_data": [],
-                "message_data": message,
-                "logs": [],
-                "source": "whatsapp"
-            }
-            
-            app_flow.invoke(initial_state)
+        message = messages_list[0]
+
+        # 🔥 FILTRAR mensajes que no son de humanos
+        if not is_human_message(message):
+            agregar_mensajes_log(f"Mensaje no humano ignorado: {message}")
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        phone_number = message.get("from")
+        text = ""
+
+        message_type = message.get("type")
+
+        if message_type == "interactive":
+            interactive = message.get("interactive", {})
+            if interactive.get("type") == "button_reply":
+                text = interactive.get("button_reply", {}).get("id")
+            elif interactive.get("type") == "list_reply":
+                text = interactive.get("list_reply", {}).get("id")
+        elif message_type == "text":
+            text = message.get("text", {}).get("body", "")
+
+        if not text.strip():
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        initial_state = {
+            "phone_number": phone_number,
+            "user_msg": text,
+            "response_data": [],
+            "message_data": message,
+            "logs": [],
+            "source": "whatsapp"
+        }
+
+        # 🔥 Nueva lógica: primero intentar comandos especiales
+        special_response = handle_special_commands(initial_state)
+
+        if special_response:
+            # Si hay respuesta especial, respondemos inmediatamente
+            send_messages(initial_state, special_response)
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        # 🔥 Si no hay respuesta especial, sigue flujo normal
+        app_flow.invoke(initial_state)
         
         return jsonify({'message': 'EVENT_RECEIVED'})
 
@@ -647,6 +669,14 @@ def webhook_web():
         agregar_mensajes_log(f"Error en webhook_web: {str(e)}")
         return jsonify({'message': 'EVENT_RECEIVED'}), 500
 
+def is_human_message(message):
+    """
+    Detecta si el mensaje recibido es de un humano real.
+    Solo procesa mensajes de tipo "text" o "interactive".
+    """
+    valid_types = ["text", "interactive"]
+    message_type = message.get("type")
+    return message_type in valid_types
 
 
 def verificar_token_whatsapp(req):
