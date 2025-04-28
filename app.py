@@ -512,7 +512,7 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
-@flask_app.route('/webhook/whatsapp', methods=['GET', 'POST'])
+@flask_app.route('/webhook', methods=['GET', 'POST'])
 def webhook_whatsapp():
     if request.method == 'GET':
         challenge = verificar_token_whatsapp(request)
