@@ -125,6 +125,15 @@ def handle_special_commands(state: BotState) -> BotState:
         if source in ["whatsapp", "telegram", "messenger", "web"]:
             state["response_data"] = [
                 {
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": number,
+                    "type": "image",
+                    "image": {
+                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                    }
+                },
+                {
                     "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                     "recipient_type": "individual",
                     "to": number,
@@ -154,7 +163,19 @@ def handle_special_commands(state: BotState) -> BotState:
                     "name": "Intermotores",
                     "address": "Importadora Internacional de Motores Japoneses, s.a."
                 }
-            }
+            },
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
+                }
+            },
+            generar_list_menu(number)
+
         ]
 
     elif texto == "4":
@@ -174,29 +195,38 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "5":
         state["response_data"] = [
             {
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "messaging_product": "whatsapp",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "☎*Comunícate con nosotros será un placer atenderte*\n\n 📞 6637-9834\n 📞 6646-6137\n 📱 5510-5350\n\n 🌐 www.intermotores.com\n 📧 intermotores.ventas@gmail.com\n\n *Facebook*: Intermotores GT\n *Instagram*: Intermotores GT"
-                }
-            }
+                    "body": "☎*Comunícate con nosotros será un placer atenderte* \n\n 📞 6637-9834 \n\n 📞 6646-6137 \n\n 📱 5510-5350 \n\n 🌐 www.intermotores.com  \n\n 📧 intermotores.ventas@gmail.com \n\n *Facebook* \n Intermotores GT\n\n *Instagram* \n Intermotores GT "}
+            },
+            generar_list_menu(number)
         ]
 
     elif texto == "6":
         state["response_data"] = [
             {
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
+                }
+            }, 
+            {
+                "messaging_product": "whatsapp",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "*💲Medios de pago:* \n\n💵 Efectivo.\n🏦 Depósitos o transferencias.\n📦 Pago contra Entrega.\n💳 Visa Cuotas.\n💳 Cuotas Credomatic.\n🔗 Neo Link."
-                }
-            }
+                    "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"}
+            },
+            generar_list_menu(number)
         ]
 
     elif texto == "7":
@@ -216,15 +246,15 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "8":
         state["response_data"] = [
             {
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "messaging_product": "whatsapp",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🏠*Envíos a domicilio disponibles.*\n\n🛵 Capital\n🚚 Departamentos\n⏳ Tiempo: 24-48h según destino."
-                }
-            }
+                    "body": "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
+            },
+            generar_list_menu(number)
         ]
 
     elif texto == "0":
@@ -482,7 +512,7 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
-@flask_app.route('/webhook', methods=['GET', 'POST'])
+@flask_app.route('/webhook/whatsapp', methods=['GET', 'POST'])
 def webhook_whatsapp():
     if request.method == 'GET':
         challenge = verificar_token_whatsapp(request)
@@ -495,6 +525,12 @@ def webhook_whatsapp():
         entry = data['entry'][0]
         changes = entry.get('changes', [])[0]
         value = changes.get('value', {})
+        field = changes.get('field', '')
+
+        # 🔥 FILTRAR: solo procesamos si el evento es de tipo "messages"
+        if field != "messages":
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
         messages_list = value.get('messages', [])
 
         if messages_list:
@@ -521,9 +557,9 @@ def webhook_whatsapp():
             }
             
             app_flow.invoke(initial_state)
-            
+        
         return jsonify({'message': 'EVENT_RECEIVED'})
-    
+
     except Exception as e:
         agregar_mensajes_log(f"Error en webhook_whatsapp: {str(e)}")
         return jsonify({'message': 'EVENT_RECEIVED'}), 500
