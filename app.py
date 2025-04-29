@@ -45,6 +45,14 @@ class BotState(TypedDict):
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
+def is_human_message(message):
+    """
+    Detecta si el mensaje recibido es de un humano real.
+    Solo procesa mensajes de tipo "text" o "interactive".
+    """
+    valid_types = ["text", "interactive"]
+    message_type = message.get("type")
+    return message_type in valid_types
 
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
@@ -124,8 +132,18 @@ def handle_special_commands(state: BotState) -> BotState:
     if "hola" in texto:
         if source in ["whatsapp", "telegram", "messenger", "web"]:
             state["response_data"] = [
+
                 {
-                    "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": number,
+                    "type": "image",
+                    "image": {
+                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                    }
+                },
+                {
+                    "messaging_product": "whatsapp",
                     "recipient_type": "individual",
                     "to": number,
                     "type": "text",
@@ -134,6 +152,7 @@ def handle_special_commands(state: BotState) -> BotState:
                         "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
                     }
                 }
+
             ]
     elif texto == "1":
         state["response_data"] = formulario_motor(number)
@@ -252,8 +271,11 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
 
-    return state
+    response = handle_special_commands(state)
 
+    if response:  # Si encontró una respuesta predefinida
+        send_messages(state, response)
+        return jsonify({'message': 'EVENT_RECEIVED'})  # Termina ahí el flujo
 
 def asistente(state: BotState) -> BotState:
     """Maneja mensajes no reconocidos usando DeepSeek"""
@@ -273,25 +295,24 @@ def asistente(state: BotState) -> BotState:
     
     return state
 
-def send_messages(state: BotState) -> BotState:
-    """Envía mensajes al canal correcto según la fuente"""
-    for mensaje in state["response_data"]:
-        try:
-            if state["source"] == "whatsapp":
-                bot_enviar_mensaje_whatsapp(mensaje)
-            elif state["source"] == "telegram":
-                bot_enviar_mensaje_telegram(mensaje)
-            elif state["source"] == "messenger":
-                bot_enviar_mensaje_messenger(mensaje)
-            elif state["source"] == "web":
-                bot_enviar_mensaje_web(mensaje)
+def send_messages(state, messages_to_send=None):
+    phone_number = state.get("phone_number")
+    source = state.get("source", "whatsapp")
 
-            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
-            time.sleep(1)
+    messages = messages_to_send if messages_to_send else state.get("response_data", [])
+
+    for msg in messages:
+        try:
+            if source == "whatsapp":
+                bot_enviar_mensaje_whatsapp(phone_number, msg)  # 🔥 Aquí corregido
+            elif source == "telegram":
+                bot_enviar_mensaje_telegram(phone_number, msg)
+            elif source == "messenger":
+                bot_enviar_mensaje_messenger(phone_number, msg)
+            else:
+                agregar_mensajes_log(f"Plataforma desconocida: {source}")
         except Exception as e:
-            agregar_mensajes_log(f"Error enviando mensaje ({state['source']}) a {state.get('phone_number') or state.get('email')}: {str(e)}",
-                                 state["session"].idUser if state["session"] else None)
-    return state
+            agregar_mensajes_log(f"Error enviando mensaje a {source}: {str(e)}")
 
 # ------------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
@@ -516,35 +537,63 @@ def webhook_whatsapp():
         entry = data['entry'][0]
         changes = entry.get('changes', [])[0]
         value = changes.get('value', {})
+        field = changes.get('field', '')
+
+        # 🔥 FILTRAR: solo eventos field = "messages"
+        if field != "messages":
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
         messages_list = value.get('messages', [])
 
-        if messages_list:
-            message = messages_list[0]
-            phone_number = message.get("from")
-            text = ""
+        if not messages_list:
+            return jsonify({'message': 'EVENT_RECEIVED'})
 
-            if message.get("type") == "interactive":
-                interactive = message.get("interactive", {})
-                if interactive.get("type") == "button_reply":
-                    text = interactive.get("button_reply", {}).get("id")
-                elif interactive.get("type") == "list_reply":
-                    text = interactive.get("list_reply", {}).get("id")
-            elif message.get("type") == "text":
-                text = message.get("text", {}).get("body", "")
-            
-            initial_state = {
-                "phone_number": phone_number,
-                "user_msg": text,
-                "response_data": [],
-                "message_data": message,
-                "logs": [],
-                "source": "whatsapp"
-            }
-            
-            app_flow.invoke(initial_state)
-            
+        message = messages_list[0]
+
+        # 🔥 FILTRAR mensajes que no son de humanos
+        if not is_human_message(message):
+            agregar_mensajes_log(f"Mensaje no humano ignorado: {message}")
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        phone_number = message.get("from")
+        text = ""
+
+        message_type = message.get("type")
+
+        if message_type == "interactive":
+            interactive = message.get("interactive", {})
+            if interactive.get("type") == "button_reply":
+                text = interactive.get("button_reply", {}).get("id")
+            elif interactive.get("type") == "list_reply":
+                text = interactive.get("list_reply", {}).get("id")
+        elif message_type == "text":
+            text = message.get("text", {}).get("body", "")
+
+        if not text.strip():
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        initial_state = {
+            "phone_number": phone_number,
+            "user_msg": text,
+            "response_data": [],
+            "message_data": message,
+            "logs": [],
+            "source": "whatsapp"
+        }
+
+        # 🔥 Nueva lógica: primero intentar comandos especiales
+        special_response = handle_special_commands(initial_state)
+
+        if special_response:
+            # Si hay respuesta especial, respondemos inmediatamente
+            send_messages(initial_state, special_response)
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        # 🔥 Si no hay respuesta especial, sigue flujo normal
+        app_flow.invoke(initial_state)
+        
         return jsonify({'message': 'EVENT_RECEIVED'})
-    
+
     except Exception as e:
         agregar_mensajes_log(f"Error en webhook_whatsapp: {str(e)}")
         return jsonify({'message': 'EVENT_RECEIVED'}), 500
