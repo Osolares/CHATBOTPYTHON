@@ -59,33 +59,35 @@ def pre_validaciones(state: BotState) -> BotState:
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
 
+    state["alertas"] = []  # ← Aquí guardaremos mensajes adicionales
+
     # --- BLOQUEO DE USUARIOS ---
     BLOQUEADOS = {
-        "whatsapp": ["50211112222", "50233334444"],
-        "telegram": ["123456789"],
-        "web": ["correo@ejemplo.com"]
+        "whatsapp": ["50211112222"],
+        "telegram": [],
+        "web": []
     }
 
     if phone_or_id in BLOQUEADOS.get(source, []):
         state["response_data"] = [{
-            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+            "messaging_product": "whatsapp",
             "to": phone_or_id,
             "type": "text",
             "text": {
-                "body": "⚠️ Este canal no está habilitado para usted. Gracias por su comprensión."
+                "body": "⚠️ Este canal no está habilitado para usted."
             }
         }]
-        return state  # Aquí sí terminamos el flujo por completo
+        return state  # 💥 aquí sí termina el flujo
 
     # --- HORARIO DE ATENCIÓN ---
     HORARIO = {
-        0: ("08:00", "17:00"),  # Lunes
+        0: ("08:00", "17:00"),
         1: ("08:00", "17:00"),
         2: ("08:00", "17:00"),
         3: ("08:00", "17:00"),
         4: ("08:00", "17:00"),
         5: ("08:00", "12:00"),
-        6: (None, None)         # Domingo cerrado
+        6: (None, None)  # Domingo cerrado
     }
 
     dia = ahora.weekday()
@@ -97,38 +99,36 @@ def pre_validaciones(state: BotState) -> BotState:
         h_fin = datetime.strptime(h_fin_str, "%H:%M").time()
         dentro_horario = h_ini <= ahora.time() <= h_fin
 
-    # --- ALERTA: FUERA DE HORARIO ---
+    # Alerta de fuera de horario, solo si no se mostró recientemente
     if not dentro_horario:
-        debe_alertar = False
+        mostrar = False
         if not session or not session.ultima_alerta_horario:
-            debe_alertar = True
+            mostrar = True
         elif ahora - session.ultima_alerta_horario > timedelta(hours=1):
-            debe_alertar = True
+            mostrar = True
 
-        if debe_alertar:
-            state.setdefault("response_data", []).append({
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+        if mostrar:
+            state["alertas"].append({
+                "messaging_product": "whatsapp",
                 "to": phone_or_id,
                 "type": "text",
                 "text": {
-                    "body": "🕒 En este momento estamos fuera de nuestro horario de atención.\nNuestro equipo le responderá en el siguiente horario disponible.\n\nPuede continuar usando el asistente automático mientras tanto."
+                    "body": "🕒 Estamos fuera de horario. Un asistente automático le responderá ahora. El equipo humano le atenderá en cuanto abra el horario."
                 }
             })
             if session:
                 session.ultima_alerta_horario = ahora
 
-    # --- MENSAJE DE BIENVENIDA ---
+    # Bienvenida solo si nunca se mostró o pasaron 24 horas
     mostrar_bienvenida = False
     if not session:
         mostrar_bienvenida = True
-    elif not session.mostro_bienvenida:
-        mostrar_bienvenida = True
-    elif ahora - session.last_interaction > timedelta(hours=24):
+    elif not session.mostro_bienvenida or (ahora - session.last_interaction > timedelta(hours=24)):
         mostrar_bienvenida = True
 
     if mostrar_bienvenida:
-        state.setdefault("response_data", []).append({
-            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+        state["alertas"].append({
+            "messaging_product": "whatsapp",
             "to": phone_or_id,
             "type": "text",
             "text": {
@@ -138,7 +138,7 @@ def pre_validaciones(state: BotState) -> BotState:
         if session:
             session.mostro_bienvenida = True
 
-    # ✅ ACTUALIZAR last_interaction (muy importante para evitar repeticiones)
+    # Actualiza last_interaction
     if session:
         session.last_interaction = ahora
         db.session.commit()
@@ -389,25 +389,42 @@ def asistente(state: BotState) -> BotState:
 
     return state
 
+#def send_messages(state: BotState) -> BotState:
+#    """Envía mensajes al canal correcto según la fuente"""
+#    for mensaje in state["response_data"]:
+#        try:
+#            if state["source"] == "whatsapp":
+#                bot_enviar_mensaje_whatsapp(mensaje)
+#            elif state["source"] == "telegram":
+#                bot_enviar_mensaje_telegram(mensaje)
+#            elif state["source"] == "messenger":
+#                bot_enviar_mensaje_messenger(mensaje)
+#            elif state["source"] == "web":
+#                bot_enviar_mensaje_web(mensaje)
+#
+#            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
+#            time.sleep(1)
+#        except Exception as e:
+#            agregar_mensajes_log(f"Error enviando mensaje ({state['source']}) a {state.get('phone_number') or state.get('email')}: {str(e)}",
+#                                 state["session"].idUser if state["session"] else None)
+#    return state
+
 def send_messages(state: BotState) -> BotState:
-    """Envía mensajes al canal correcto según la fuente"""
-    for mensaje in state["response_data"]:
+    mensajes = state.get("response_data", [])
+    alertas = state.get("alertas", [])
+
+    todos = alertas + mensajes  # 👈 Combina alertas con respuesta del asistente
+
+    for mensaje in todos:
         try:
             if state["source"] == "whatsapp":
-                bot_enviar_mensaje_whatsapp(mensaje)
-            elif state["source"] == "telegram":
-                bot_enviar_mensaje_telegram(mensaje)
-            elif state["source"] == "messenger":
-                bot_enviar_mensaje_messenger(mensaje)
-            elif state["source"] == "web":
-                bot_enviar_mensaje_web(mensaje)
-
-            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
-            time.sleep(1)
+                bot_enviar_mensaje_whatsapp(mensaje["text"]["body"], mensaje["to"])
+            # puedes agregar Telegram, Messenger, etc.
         except Exception as e:
-            agregar_mensajes_log(f"Error enviando mensaje ({state['source']}) a {state.get('phone_number') or state.get('email')}: {str(e)}",
-                                 state["session"].idUser if state["session"] else None)
+            agregar_mensajes_log(f"❌ Error enviando mensaje: {str(e)}")
+
     return state
+
 
 # ------------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
