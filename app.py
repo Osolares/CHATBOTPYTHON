@@ -605,7 +605,7 @@ def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
 workflow = StateGraph(BotState)
 
 # --- 1. Nodos ---
-workflow.add_node("pre_validaciones", pre_validaciones)        # <<<< Nuevo primer middleware
+workflow.add_node("pre_validaciones", pre_validaciones)
 workflow.add_node("load_session", load_or_create_session)
 workflow.add_node("load_product_flow", load_product_flow)
 workflow.add_node("handle_product_flow", handle_product_flow)
@@ -614,12 +614,12 @@ workflow.add_node("asistente", asistente)
 workflow.add_node("send_messages", send_messages)
 
 # --- 2. Enlaces (Edges) ---
-workflow.add_edge("pre_validaciones", "load_session")              # Primero pre_validaciones
+workflow.add_edge("pre_validaciones", "load_session")
 workflow.add_edge("load_session", "load_product_flow")
 workflow.add_edge("load_product_flow", "handle_product_flow")
 workflow.add_edge("handle_product_flow", "handle_special_commands")
 
-# Aquí usamos enrutamiento condicional: ¿hay respuesta o pasamos al asistente?
+# Condicional entre comandos y asistente
 def enrutar_despues_comandos(state: BotState) -> str:
     if state.get("response_data"):
         return "send_messages"
@@ -628,13 +628,14 @@ def enrutar_despues_comandos(state: BotState) -> str:
 workflow.add_conditional_edges("handle_special_commands", enrutar_despues_comandos)
 workflow.add_edge("asistente", "send_messages")
 
-# --- 3. Configurar entrada y salida ---
+# --- 3. ¡Aquí enlazamos el final!
+workflow.add_edge("send_messages", END)   # 👈
+
+# --- 4. Configurar punto de entrada
 workflow.set_entry_point("pre_validaciones")
-workflow.set_finish_point(END)
 
-# --- 4. Compilar ---
+# --- 5. Compilar
 app_flow = workflow.compile()
-
 
 # ------------------------------------------
 # Configuración de Flask y Rutas
