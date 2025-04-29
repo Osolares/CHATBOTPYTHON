@@ -592,29 +592,6 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
-
-# webhook dentro de app.py o donde antes lo tenías
-
-from flask import Flask, request, jsonify
-from datetime import datetime, timedelta
-from config import Config, db, migrate
-from app_flow import app_flow  # Tu flujo normal
-from send_messages import send_messages  # Función corregida
-from utils import (
-    is_human_message,
-    verificar_middleware_usuario,
-    enviar_mensaje_bienvenida,
-    verificar_fuera_horario,
-    handle_special_commands,
-)
-import logging
-
-app = Flask(__name__)
-app.config.from_object(Config)
-
-db.init_app(app)
-migrate.init_app(app, db)
-
 # --- AQUÍ EL WEBHOOK SIN BLUEPRINT ---
 
 @app.route('/webhook', methods=['GET', 'POST'])
