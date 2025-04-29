@@ -593,15 +593,37 @@ def index():
     return render_template('index.html', registros=registros, users=users, products=products)
 
 
-webhook = Blueprint('webhook', __name__)
+# webhook dentro de app.py o donde antes lo tenías
 
-@webhook.route('/webhook', methods=['GET', 'POST'])
+from flask import Flask, request, jsonify
+from datetime import datetime, timedelta
+from config import Config, db, migrate
+from app_flow import app_flow  # Tu flujo normal
+from send_messages import send_messages  # Función corregida
+from utils import (
+    is_human_message,
+    verificar_middleware_usuario,
+    enviar_mensaje_bienvenida,
+    verificar_fuera_horario,
+    handle_special_commands,
+)
+import logging
+
+app = Flask(__name__)
+app.config.from_object(Config)
+
+db.init_app(app)
+migrate.init_app(app, db)
+
+# --- AQUÍ EL WEBHOOK SIN BLUEPRINT ---
+
+@app.route('/webhook', methods=['GET', 'POST'])
 def webhook_whatsapp():
     if request.method == 'GET':
         mode = request.args.get('hub.mode')
         token = request.args.get('hub.verify_token')
         challenge = request.args.get('hub.challenge')
-        if mode == 'subscribe' and token == 'TOKEN_WEBHOOK_WHATSAPP':  # <-- Asegúrate que este token es correcto
+        if mode == 'subscribe' and token == 'TOKEN_WEBHOOK_WHATSAPP':  # Asegúrate que el token sea correcto
             return challenge, 200
         else:
             return 'Error de verificación', 403
@@ -609,23 +631,22 @@ def webhook_whatsapp():
     if request.method == 'POST':
         try:
             data = request.get_json()
-            logging.info(data)  # Opcional: para ver lo que llega en los logs
+            logging.info(data)  # Opcional para debug
 
-            # ✅ Detectar si el mensaje recibido es un mensaje humano válido
+            # ✅ Procesar mensajes
             entry = data.get('entry', [])[0]
             changes = entry.get('changes', [])[0]
             value = changes.get('value', {})
             messages = value.get('messages')
 
             if not messages:
-                return jsonify({'message': 'EVENT_RECEIVED'})  # Si no hay mensajes, ignorar
+                return jsonify({'message': 'EVENT_RECEIVED'})  # Si no hay mensajes, terminar
 
             message = messages[0]
             phone_number = message['from']
             text = message['text']['body'] if message['type'] == 'text' else ''
             current_time = datetime.utcnow()
 
-            # Construimos el "estado inicial" que se pasa a los flujos
             initial_state = {
                 'source': 'whatsapp',
                 'user_id': phone_number,
@@ -635,27 +656,27 @@ def webhook_whatsapp():
                 'metadata': value.get('metadata', {}),
             }
 
-            # ✅ Filtro de mensajes automáticos (sólo procesamos humanos)
+            # ✅ Verificar si el mensaje es de humano
             if not is_human_message(message):
                 return jsonify({'message': 'EVENT_RECEIVED'})
 
-            # ✅ Middleware de usuarios bloqueados (No seguir si está bloqueado)
+            # ✅ Middleware usuarios bloqueados
             if not verificar_middleware_usuario(initial_state):
                 return jsonify({'message': 'EVENT_RECEIVED'})
 
-            # ✅ Middleware de bienvenida (si es nuevo o inactivo mucho tiempo)
+            # ✅ Mensaje de bienvenida (si aplica)
             enviar_mensaje_bienvenida(initial_state)
 
-            # ✅ Middleware fuera de horario (si aplica, enviar alerta una vez)
+            # ✅ Mensaje fuera de horario (solo una vez)
             verificar_fuera_horario(initial_state)
 
-            # ✅ Intentar manejar comandos especiales (respuestas predefinidas)
+            # ✅ Comandos especiales
             special_response = handle_special_commands(initial_state)
             if special_response:
                 send_messages(initial_state, special_response)
                 return jsonify({'message': 'EVENT_RECEIVED'})
 
-            # ✅ Si no hay respuesta especial, sigue el flujo normal
+            # ✅ Flujo normal
             app_flow.invoke(initial_state)
 
             return jsonify({'message': 'EVENT_RECEIVED'})
@@ -663,6 +684,8 @@ def webhook_whatsapp():
         except Exception as e:
             logging.error(f"Error en webhook_whatsapp: {e}")
             return jsonify({'error': str(e)}), 500
+
+# --- FIN DEL WEBHOOK NORMAL ---
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
 def webhook_telegram():
