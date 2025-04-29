@@ -59,7 +59,6 @@ def load_or_create_session(state: BotState) -> BotState:
     phone_number = state.get("phone_number")
     source = state.get("source")
     message_data = state.get("message_data", {})
-
     session = None
 
     with db.session.begin():
@@ -271,11 +270,7 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
 
-    response = handle_special_commands(state)
-
-    if response:  # Si encontró una respuesta predefinida
-        send_messages(state, response)
-        return jsonify({'message': 'EVENT_RECEIVED'})  # Termina ahí el flujo
+    return state
 
 def asistente(state: BotState) -> BotState:
     """Maneja mensajes no reconocidos usando DeepSeek"""
@@ -313,8 +308,7 @@ def send_messages(state, messages_to_send=None):
                 agregar_mensajes_log(f"Plataforma desconocida: {source}")
         except Exception as e:
             agregar_mensajes_log(f"Error enviando mensaje a {source}: {str(e)}")
-
-# ------------------------------------------
+#-------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
 # ------------------------------------------
 
