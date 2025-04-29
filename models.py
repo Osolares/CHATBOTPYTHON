@@ -5,18 +5,15 @@ class UserSession(db.Model):
     __tablename__ = 'user_sessions'
 
     idUser = db.Column(db.Integer, primary_key=True)
-    phone_number = db.Column(db.String(20))
-    email = db.Column(db.String(120), unique=True)  # NUEVO: correo para usuarios Web o Messenger
-    telegram_id = db.Column(db.String(50), unique=True)  # NUEVO: para identificar usuarios de Telegram
-    messenger_id = db.Column(db.String(50), unique=True)  # NUEVO: para identificar usuarios de Messenger
-    nombre = db.Column(db.String(25))
-    apellido = db.Column(db.String(25))
+    phone_number = db.Column(db.String(20))  # Para WhatsApp/Telegram
+    email = db.Column(db.String(100))       # Para sitio web/Messenger
+    messenger_id = db.Column(db.String(50)) # ID único de Messenger
     last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
-    fuera_horario_notificado = db.Column(db.Boolean, default=False)
+    last_channel = db.Column(db.String(20)) # Ej: "whatsapp", "telegram", "messenger", "web"
 
     logs = db.relationship('Log', backref='session', lazy=True)
     model_products = db.relationship('ProductModel', backref='session', lazy=True)
-
+    
 class ProductModel(db.Model):
     __tablename__ = 'model_products'
 
@@ -29,7 +26,7 @@ class ProductModel(db.Model):
     tipo_repuesto = db.Column(db.String(50))
     estado = db.Column(db.String(100))
     
-    session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'), nullable=False)  # FIX: Integer
+    session_id = db.Column(db.String(20), db.ForeignKey('user_sessions.idUser'), nullable=False)
 
 class Log(db.Model):
     __tablename__ = 'logs'
@@ -38,4 +35,4 @@ class Log(db.Model):
     fecha_y_hora = db.Column(db.DateTime, default=datetime.utcnow)
     texto = db.Column(db.Text)
     
-    session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'))
+    session_id = db.Column(db.String(20), db.ForeignKey('user_sessions.idUser'))

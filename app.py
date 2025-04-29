@@ -10,13 +10,10 @@ import json
 import time
 import http.client
 import os
-from flask import Flask, request, jsonify, render_template, Blueprint
-
+from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
-from datetime import datetime, timedelta
-import logging
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -34,66 +31,52 @@ model = ChatOpenAI(
 # ------------------------------------------
 # Definición del Estado y Modelos
 # ------------------------------------------
-
 class BotState(TypedDict):
-    phone_number: str
+    phone_number: Optional[str]
+    messenger_id: Optional[str]
+    email: Optional[str]
+    channel: str  # Nuevo campo: "whatsapp", "telegram", "messenger", "web"
     user_msg: str
     session: Optional[UserSession]
     flujo_producto: Optional[ProductModel]
     response_data: List[Dict[str, Any]]
-    message_data: Optional[Dict[str, Any]]
     logs: List[str]
-    source: str  # NUEVO: whatsapp, telegram, messenger, web, etc
 
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
 
 def load_or_create_session(state: BotState) -> BotState:
-    """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
-    phone_number = state.get("phone_number")
-    source = state.get("source")
-    message_data = state.get("message_data", {})
-
-    session = None
-
+    """Carga o crea sesión basada en phone_number, email o messenger_id"""
     with db.session.begin():
-        if source == "whatsapp":
-            session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
-            if not session:
-                session = UserSession(phone_number=phone_number)
-                db.session.add(session)
-                db.session.flush()
-
-        elif source == "telegram":
-            chat_id = message_data.get("chat_id")
-            session = db.session.query(UserSession).filter_by(telegram_id=chat_id).first()
-            if not session:
-                session = UserSession(telegram_id=chat_id)
-                db.session.add(session)
-                db.session.flush()
-
-        elif source == "messenger":
-            messenger_id = message_data.get("recipient", {}).get("id")
-            session = db.session.query(UserSession).filter_by(messenger_id=messenger_id).first()
-            if not session:
-                session = UserSession(messenger_id=messenger_id)
-                db.session.add(session)
-                db.session.flush()
-
-        elif source == "web":
-            email = message_data.get("email")
-            session = db.session.query(UserSession).filter_by(email=email).first()
-            if not session and email:
-                session = UserSession(email=email)
-                db.session.add(session)
-                db.session.flush()
-
-        if session:
-            session.last_interaction = datetime.utcnow()
+        session = None
         
-        state["session"] = session
+        # Buscar por teléfono (WhatsApp/Telegram)
+        if state.get("phone_number"):
+            session = db.session.query(UserSession).filter_by(phone_number=state["phone_number"]).first()
+        
+        # Buscar por ID de Messenger
+        elif state.get("messenger_id"):
+            session = db.session.query(UserSession).filter_by(messenger_id=state["messenger_id"]).first()
+        
+        # Buscar por email (sitio web)
+        elif state.get("email"):
+            session = db.session.query(UserSession).filter_by(email=state["email"]).first()
 
+        # Crear nueva sesión si no existe
+        if not session:
+            session = UserSession(
+                phone_number=state.get("phone_number"),
+                email=state.get("email"),
+                messenger_id=state.get("messenger_id"),
+                last_channel=state["channel"]
+            )
+            db.session.add(session)
+        
+        session.last_interaction = datetime.utcnow()
+        session.last_channel = state["channel"]
+        state["session"] = session
+    
     return state
 
 def load_product_flow(state: BotState) -> BotState:
@@ -109,44 +92,39 @@ def handle_product_flow(state: BotState) -> BotState:
     """Maneja el flujo de producto si existe para el usuario"""
     if state["flujo_producto"]:
         response = manejar_paso_actual(
-            state["phone_number"],
+            state["phone_number"], 
             state["user_msg"]
         )
-        # FUTURO: Aquí podríamos modificar 'response' si quisiéramos respuestas distintas por source.
         state["response_data"] = response
     return state
 
-
 def handle_special_commands(state: BotState) -> BotState:
-    """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
+    """Maneja comandos especiales (1-8, 0, hola) para cada usuario"""
     texto = state["user_msg"].lower().strip()
-    number = state.get("phone_number")
-    source = state.get("source")
-
-    # Dependiendo del source, podrías en el futuro mandar menús diferentes.
+    number = state["phone_number"]
+    
     if "hola" in texto:
-        if source in ["whatsapp", "telegram", "messenger", "web"]:
-            state["response_data"] = [
-                {
-                    "messaging_product": "whatsapp",
-                    "recipient_type": "individual",
-                    "to": number,
-                    "type": "image",
-                    "image": {
-                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                    }
-                },
-                {
-                    "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                    "recipient_type": "individual",
-                    "to": number,
-                    "type": "text",
-                    "text": {
-                        "preview_url": False,
-                        "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
-                    }
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
                 }
-            ]
+            },
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
+                }
+            },
+        ]
     elif texto == "1":
         state["response_data"] = formulario_motor(number)
 
@@ -156,7 +134,7 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "3":
         state["response_data"] = [
             {
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "messaging_product": "whatsapp",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "location",
@@ -174,23 +152,22 @@ def handle_special_commands(state: BotState) -> BotState:
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
+                    "body": "📍 Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
                 }
             },
             generar_list_menu(number)
-
         ]
 
     elif texto == "4":
         state["response_data"] = [
             {
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "messaging_product": "whatsapp",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "📅 Horario de Atención:\n\n Lunes a Viernes\n🕜 8:00 am a 5:00 pm\n\nSábado\n🕜 8:00 am a 12:00 pm\n\nDomingo Cerrado 🤓"
+                    "body": "📅 Horario de Atención: \n\n Lunes a Viernes. \n🕜 Horario : 8:00 am a 5:00 pm \n\n Sábado. \n🕜 Horario : 8:00 am a 12:00 pm \n\n Domingo. Cerrado 🤓"
                 }
             }
         ]
@@ -207,6 +184,7 @@ def handle_special_commands(state: BotState) -> BotState:
                     "body": "☎*Comunícate con nosotros será un placer atenderte* \n\n 📞 6637-9834 \n\n 📞 6646-6137 \n\n 📱 5510-5350 \n\n 🌐 www.intermotores.com  \n\n 📧 intermotores.ventas@gmail.com \n\n *Facebook* \n Intermotores GT\n\n *Instagram* \n Intermotores GT "}
             },
             generar_list_menu(number)
+
         ]
 
     elif texto == "6":
@@ -230,20 +208,22 @@ def handle_special_commands(state: BotState) -> BotState:
                     "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"}
             },
             generar_list_menu(number)
+
         ]
 
     elif texto == "7":
         state["response_data"] = [
             {
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "messaging_product": "whatsapp",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🤝 Gracias por esperar, indique *¿cómo podemos apoyarle?*"
+                    "body": "🤝 Gracias por esperar es un placer atenderle, indíquenos *¿cómo podemos apoyarle?* pronto será atendido por nuestro personal de atención al cliente. 🤵‍♂"
                 }
             }
+
         ]
 
     elif texto == "8":
@@ -258,56 +238,47 @@ def handle_special_commands(state: BotState) -> BotState:
                     "body": "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
             },
             generar_list_menu(number)
+
         ]
+
 
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
-
+    
     return state
 
-
 def asistente(state: BotState) -> BotState:
-    """Maneja mensajes no reconocidos usando DeepSeek"""
+    """Maneja mensajes no reconocidos usando DeepSeek para cada usuario"""
     if not state.get("response_data"):
         user_msg = state["user_msg"]
         response = model.invoke([HumanMessage(content=user_msg)])
         
-        body = response.content
-
-        if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
-            state["response_data"] = [{
-                "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
-                "to": state.get("phone_number") or state.get("email"),
-                "type": "text",
-                "text": {"body": body}
-            }]
+        state["response_data"] = [{
+            "messaging_product": "whatsapp",
+            "to": state["phone_number"],
+            "type": "text",
+            "text": {"body": response.content}
+        }]
     
     return state
 
-def send_messages(state, messages_to_send=None):
-    """
-    Envía mensajes al usuario según la plataforma y canal.
-    Si no se proporcionan mensajes específicos, usa los mensajes en 'response_data'.
-    """
-    phone_number = state.get("phone_number")
-    source = state.get("source", "whatsapp")  # Fuente: whatsapp, telegram, etc.
-
-    # 🔥 Mensajes a enviar
-    messages = messages_to_send if messages_to_send else state.get("response_data", [])
-
-    for msg in messages:
+def send_messages(state: BotState) -> BotState:
+    """Envía mensajes al canal correcto"""
+    channel = state["channel"]
+    for mensaje in state["response_data"]:
         try:
-            if source == "whatsapp":
-                bot_enviar_mensaje_whatsapp(phone_number, msg)
-            elif source == "telegram":
-                bot_enviar_mensaje_telegram(phone_number, msg)
-            elif source == "messenger":
-                bot_enviar_mensaje_messenger(phone_number, msg)
-            else:
-                agregar_mensajes_log(f"Plataforma desconocida: {source}")
+            if channel == "whatsapp":
+                bot_enviar_mensaje_whatsapp(mensaje)
+            elif channel == "telegram":
+                bot_enviar_mensaje_telegram(mensaje)
+            elif channel == "messenger":
+                bot_enviar_mensaje_messenger(mensaje)
+            
+            agregar_mensajes_log(mensaje, state["session"].idUser if state["session"] else None)
+            time.sleep(1)
         except Exception as e:
-            agregar_mensajes_log(f"Error enviando mensaje a {source}: {str(e)}")
-
+            agregar_mensajes_log(f"Error enviando mensaje: {str(e)}")
+    return state
 
 # ------------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
@@ -330,153 +301,52 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
         except Exception as e2:
             pass
 
-
-def verificar_middleware_usuario(state):
-    phone_number = state.get("phone_number")
-
-    # 📋 Lista de usuarios bloqueados
-    usuarios_bloqueados = [
-        "50212345678",  # Ejemplo
-        "50287654321",
-    ]
-
-    if phone_number in usuarios_bloqueados:
-        agregar_mensajes_log(f"Usuario bloqueado: {phone_number}")
-        return False
-
-    # 📋 Definir horarios de atención
-    horarios = {
-        "lunes": ("08:00", "17:00"),
-        "martes": ("08:00", "17:00"),
-        "miércoles": ("08:00", "17:00"),
-        "jueves": ("08:00", "17:00"),
-        "viernes": ("08:00", "17:00"),
-        "sábado": ("08:00", "12:00"),
-        "domingo": None,
-    }
-
-    ahora = datetime.now()
-    dia_actual = ahora.strftime('%A').lower()
-    hora_actual = ahora.strftime('%H:%M')
-
-    horario = horarios.get(dia_actual)
-
-    # 📋 Obtener o crear sesión
-    session = UserSession.query.filter_by(phone_number=phone_number).first()
-    if not session:
-        session = UserSession(phone_number=phone_number)
-        db.session.add(session)
-        db.session.commit()
-
-    # 📋 Evaluar si está fuera de horario
-    if horario:
-        inicio, fin = horario
-        if not (inicio <= hora_actual <= fin):
-            if not getattr(session, 'fuera_horario_notificado', False):
-                bot_enviar_mensaje_whatsapp(phone_number, f"🕔 Hola, estamos fuera de nuestro horario de atención ({inicio}-{fin}). Te responderemos en cuanto sea posible.")
-                session.fuera_horario_notificado = True
-                db.session.commit()
-    else:
-        # 📋 Día cerrado
-        if not getattr(session, 'fuera_horario_notificado', False):
-            bot_enviar_mensaje_whatsapp(phone_number, "🕔 Hoy estamos cerrados. Te responderemos en nuestro horario habitual.")
-            session.fuera_horario_notificado = True
-            db.session.commit()
-
-    return True
-
-def enviar_mensaje_bienvenida(state):
-    phone_number = state.get("phone_number")
-    ahora = datetime.utcnow()
-    tiempo_limite = timedelta(hours=4)  # Puede ser 4 horas o lo que prefieras
-
-    session = UserSession.query.filter_by(phone_number=phone_number).first()
-
-    if not session:
-        session = UserSession(phone_number=phone_number)
-        db.session.add(session)
-        db.session.commit()
-        bot_enviar_mensaje_whatsapp(phone_number, "👋 ¡Bienvenido! ¿En qué podemos ayudarte hoy?")
-        return
-
-    ultima_interaccion = session.last_interaction or ahora
-    if ahora - ultima_interaccion > tiempo_limite:
-        bot_enviar_mensaje_whatsapp(phone_number, "👋 ¡Hola de nuevo! ¿En qué podemos ayudarte hoy?")
-
-    # 📋 Actualizar sesión
-    session.last_interaction = ahora
-    session.fuera_horario_notificado = False  # Reiniciar advertencia
-    db.session.commit()
-
-
-
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
-    """Envía un mensaje a WhatsApp"""
+    """
+    Envía mensajes a WhatsApp Business API.
+    Soporta: texto, imágenes, ubicación, botones interactivos y listas.
+    """
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"{Config.WHATSAPP_TOKEN}"
+        "Authorization": f"Bearer {Config.WHATSAPP_TOKEN}"
     }
-    
+
     try:
         connection = http.client.HTTPSConnection("graph.facebook.com")
-        json_data = json.dumps(data)
-        connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
+        json_data = json.dumps(data, ensure_ascii=False)
+        
+        # Endpoint para la API de WhatsApp (v17.0 o superior)
+        endpoint = f"/v17.0/{Config.PHONE_NUMBER_ID}/messages"
+        connection.request("POST", endpoint, json_data, headers)
+        
         response = connection.getresponse()
-        return response.read()
+        response_data = response.read()
+        
+        # Log de la respuesta (útil para depuración)
+        agregar_mensajes_log(f"Respuesta WhatsApp API: {response_data.decode('utf-8')}")
+        
+        return response_data
+
     except Exception as e:
         agregar_mensajes_log(f"Error enviando a WhatsApp: {str(e)}")
         return None
-    finally:
-        connection.close()
 
+    finally:
+        connection.close() if 'connection' in locals() else None
+        
 def bot_enviar_mensaje_telegram(data: Dict[str, Any]) -> Optional[bytes]:
-    """Envía un mensaje a Telegram"""
+    """Envía mensajes a Telegram"""
+    token = Config.TELEGRAM_TOKEN
+    chat_id = data["to"]
+    text = data["text"]["body"]
+    
     try:
-        telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
-        chat_id = data.get("chat_id")
-        text = data.get("text")
-        payload = {
-            "chat_id": chat_id,
-            "text": text
-        }
-        headers = {
-            "Content-Type": "application/json"
-        }
-        connection = http.client.HTTPSConnection("api.telegram.org")
-        connection.request("POST", f"/bot{telegram_token}/sendMessage", json.dumps(payload), headers)
-        response = connection.getresponse()
-        return response.read()
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {"chat_id": chat_id, "text": text}
+        response = requests.post(url, json=payload)
+        return response.json()
     except Exception as e:
         agregar_mensajes_log(f"Error enviando a Telegram: {str(e)}")
-        return None
-    finally:
-        connection.close()
-
-def bot_enviar_mensaje_messenger(data: Dict[str, Any]) -> Optional[bytes]:
-    """Envía un mensaje a Messenger"""
-    try:
-        page_access_token = os.getenv('FACEBOOK_PAGE_ACCESS_TOKEN')
-        headers = {
-            "Content-Type": "application/json"
-        }
-        connection = http.client.HTTPSConnection("graph.facebook.com")
-        connection.request("POST", f"/v16.0/me/messages?access_token={page_access_token}", json.dumps(data), headers)
-        response = connection.getresponse()
-        return response.read()
-    except Exception as e:
-        agregar_mensajes_log(f"Error enviando a Messenger: {str(e)}")
-        return None
-    finally:
-        connection.close()
-
-def bot_enviar_mensaje_web(data: Dict[str, Any]) -> Optional[bytes]:
-    """Envía un mensaje a la Web (puedes implementarlo como un correo o notificación interna)"""
-    try:
-        # Por ahora simulamos que enviamos un correo o notificación
-        agregar_mensajes_log(f"Mensaje Web enviado: {json.dumps(data)}")
-        return b"ok"
-    except Exception as e:
-        agregar_mensajes_log(f"Error enviando a Web: {str(e)}")
         return None
 
 def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
@@ -598,7 +468,7 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
-@flask_app.route('/webhook', methods=['GET', 'POST'])
+@flask_app.route('/webhook/whatsapp', methods=['GET', 'POST'])
 def webhook_whatsapp():
     if request.method == 'GET':
         challenge = verificar_token_whatsapp(request)
@@ -606,175 +476,47 @@ def webhook_whatsapp():
 
     try:
         data = request.get_json()
-        agregar_mensajes_log(data)
+        agregar_mensajes_log(data)  # Log del mensaje entrante
 
         entry = data['entry'][0]
         changes = entry.get('changes', [])[0]
         value = changes.get('value', {})
-        field = changes.get('field', '')
-
-        # 🔥 FILTRAR: solo eventos "messages"
-        if field != "messages":
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
         messages_list = value.get('messages', [])
 
-        if not messages_list:
-            return jsonify({'message': 'EVENT_RECEIVED'})
+        if messages_list:
+            message = messages_list[0]
+            phone_number = message.get("from")  # Número de teléfono del remitente
+            
+            # Determinar el texto del mensaje (soporta interactivos y texto plano)
+            if message.get("type") == "interactive":
+                interactive = message.get("interactive", {})
+                if interactive.get("type") == "button_reply":
+                    text = interactive.get("button_reply", {}).get("id")
+                elif interactive.get("type") == "list_reply":
+                    text = interactive.get("list_reply", {}).get("id")
+                else:
+                    text = ""
+            else:
+                text = message.get("text", {}).get("body", "")
 
-        message = messages_list[0]
+            # Ejecutar el flujo para este usuario
+            initial_state = {
+                "phone_number": phone_number,
+                "user_msg": text,
+                "channel": "whatsapp",  # Identificador del canal
+                "response_data": [],
+                "message_data": message,
+                "logs": []
+            }
+            
+            app_flow.invoke(initial_state)
 
-        # 🔥 FILTRAR mensajes que no son de humanos
-        if not is_human_message(message):
-            agregar_mensajes_log(f"Mensaje no humano ignorado: {message}")
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
-        phone_number = message.get("from")
-        text = ""
-
-        message_type = message.get("type")
-
-        if message_type == "interactive":
-            interactive = message.get("interactive", {})
-            if interactive.get("type") == "button_reply":
-                text = interactive.get("button_reply", {}).get("id")
-            elif interactive.get("type") == "list_reply":
-                text = interactive.get("list_reply", {}).get("id")
-        elif message_type == "text":
-            text = message.get("text", {}).get("body", "")
-
-        if not text.strip():
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
-        # 🔥 Crear el estado inicial
-        initial_state = {
-            "phone_number": phone_number,
-            "user_msg": text,
-            "response_data": [],
-            "message_data": message,
-            "logs": [],
-            "source": "whatsapp",
-        }
-
-        # 🔥 Verificar usuario bloqueado y fuera de horario
-        if not verificar_middleware_usuario(initial_state):
-            return jsonify({'message': 'EVENT_RECEIVED'})  # Usuario bloqueado
-
-        # 🔥 Enviar mensaje de bienvenida si aplica
-        enviar_mensaje_bienvenida(initial_state)
-
-        # 🔥 Intentar manejar comandos especiales
-        special_response = handle_special_commands(initial_state)
-
-        if special_response:
-            send_messages(initial_state, special_response)
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
-        # 🔥 Flujo normal de conversación
-        app_flow.invoke(initial_state)
-
-        return jsonify({'message': 'EVENT_RECEIVED'})
+        return jsonify({'message': 'EVENT_RECEIVED'}), 200
 
     except Exception as e:
-        agregar_mensajes_log(f"Error en webhook_whatsapp: {str(e)}")
-        return jsonify({'message': 'EVENT_RECEIVED'}), 500
-
-
-# --- FIN DEL WEBHOOK NORMAL ---
-
-@flask_app.route('/webhook/telegram', methods=['POST'])
-def webhook_telegram():
-    try:
-        data = request.get_json()
-        agregar_mensajes_log(data)
-
-        message = data.get("message", {})
-        chat = message.get("chat", {})
-        phone_number = None  # En Telegram puro no se obtiene el número directamente
-        chat_id = chat.get("id")
-        text = message.get("text", "")
-
-        initial_state = {
-            "phone_number": "",  # En Telegram puro no tienes el número
-            "user_msg": text,
-            "response_data": [],
-            "message_data": {"chat_id": chat_id},
-            "logs": [],
-            "source": "telegram"
-        }
-        
-        app_flow.invoke(initial_state)
-        
-        return jsonify({'message': 'EVENT_RECEIVED'})
+        agregar_mensajes_log(f"Error en webhook WhatsApp: {str(e)}")
+        return jsonify({'error': 'SERVER_ERROR'}), 500
     
-    except Exception as e:
-        agregar_mensajes_log(f"Error en webhook_telegram: {str(e)}")
-        return jsonify({'message': 'EVENT_RECEIVED'}), 500
-
-@flask_app.route('/webhook/messenger', methods=['POST'])
-def webhook_messenger():
-    try:
-        data = request.get_json()
-        agregar_mensajes_log(data)
-
-        entry = data['entry'][0]
-        messaging = entry.get('messaging', [])[0]
-        sender_id = messaging['sender']['id']
-        text = messaging['message']['text']
-
-        initial_state = {
-            "phone_number": "",  # No hay teléfono en Messenger
-            "user_msg": text,
-            "response_data": [],
-            "message_data": {"recipient": {"id": sender_id}},
-            "logs": [],
-            "source": "messenger"
-        }
-        
-        app_flow.invoke(initial_state)
-        
-        return jsonify({'message': 'EVENT_RECEIVED'})
-    
-    except Exception as e:
-        agregar_mensajes_log(f"Error en webhook_messenger: {str(e)}")
-        return jsonify({'message': 'EVENT_RECEIVED'}), 500
-
-@flask_app.route('/webhook/web', methods=['POST'])
-def webhook_web():
-    try:
-        data = request.get_json()
-        agregar_mensajes_log(data)
-
-        email = data.get("email")
-        text = data.get("message", "")
-
-        initial_state = {
-            "phone_number": "", 
-            "user_msg": text,
-            "response_data": [],
-            "message_data": {"email": email},
-            "logs": [],
-            "source": "web"
-        }
-        
-        app_flow.invoke(initial_state)
-        
-        return jsonify({'message': 'EVENT_RECEIVED'})
-    
-    except Exception as e:
-        agregar_mensajes_log(f"Error en webhook_web: {str(e)}")
-        return jsonify({'message': 'EVENT_RECEIVED'}), 500
-
-def is_human_message(message):
-    """
-    Detecta si el mensaje recibido es de un humano real.
-    Solo procesa mensajes de tipo "text" o "interactive".
-    """
-    valid_types = ["text", "interactive"]
-    message_type = message.get("type")
-    return message_type in valid_types
-
-
 def verificar_token_whatsapp(req):
     """Verificación del token de WhatsApp"""
     token = req.args.get('hub.verify_token')
