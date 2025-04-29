@@ -291,24 +291,25 @@ def asistente(state: BotState) -> BotState:
     return state
 
 def send_messages(state, messages_to_send=None):
-    """Envía mensajes manteniendo ambos formatos de mensaje"""
+    """Envía mensajes manteniendo compatibilidad con ambos formatos"""
     source = state.get("source", "whatsapp")
     messages = messages_to_send if messages_to_send else state.get("response_data", [])
+    phone_number = state.get("phone_number")
 
     for msg in messages:
         try:
             if source == "whatsapp":
-                # Maneja ambos casos:
-                # 1. Mensajes con 'to' incluido
-                # 2. Mensajes sin 'to' (usa phone_number del estado)
-                if 'to' in msg:
+                # Maneja ambos formatos:
+                # 1. Mensajes con estructura completa (incluyen 'to')
+                # 2. Mensajes que necesitan phone_number del estado
+                if isinstance(msg, dict) and 'to' in msg:
                     bot_enviar_mensaje_whatsapp(msg)
                 else:
-                    bot_enviar_mensaje_whatsapp(msg, state["phone_number"])
+                    bot_enviar_mensaje_whatsapp(msg, phone_number)
             elif source == "telegram":
-                bot_enviar_mensaje_telegram(state["phone_number"], msg)
+                bot_enviar_mensaje_telegram (phone_number, msg)
             elif source == "messenger":
-                bot_enviar_mensaje_messenger(state["phone_number"], msg)
+                bot_enviar_mensaje_messenger(phone_number, msg)
             else:
                 agregar_mensajes_log(f"Plataforma desconocida: {source}")
         except Exception as e:
@@ -334,10 +335,10 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
         except Exception as e2:
             pass
 
-def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], phone_number: str = None) -> Optional[bytes]:
-    """Envía un mensaje a WhatsApp, ahora compatible con ambos formatos"""
-    # Si recibe solo el número (para backward compatibility)
-    if isinstance(data, str) and phone_number is None:
+def bot_enviar_mensaje_whatsapp(data: Union[Dict[str, Any], str], phone_number: str = None) -> Optional[bytes]:
+    """Envía mensajes a WhatsApp, ahora compatible con ambos formatos"""
+    # Si recibe el número como primer parámetro (para backward compatibility)
+    if isinstance(data, str):
         phone_number = data
         data = {}
     
