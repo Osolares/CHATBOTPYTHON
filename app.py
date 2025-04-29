@@ -50,14 +50,10 @@ class BotState(TypedDict):
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
+from datetime import datetime, timedelta
+from utils.timezone import now  # Asegúrate de tener now() definido en utils/timezone.py
+
 def pre_validaciones(state: BotState) -> BotState:
-    """
-    Middleware que valida:
-    - Usuarios bloqueados
-    - Horario de atención (zona horaria de Guatemala)
-    - Bienvenida con control de frecuencia
-    """
-    #ahora = datetime.now(GUATEMALA_TZ)
     ahora = now()
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
@@ -79,7 +75,7 @@ def pre_validaciones(state: BotState) -> BotState:
                 "body": "⚠️ Este canal no está habilitado para usted. Gracias por su comprensión."
             }
         }]
-        return state
+        return state  # Aquí sí terminamos el flujo por completo
 
     # --- HORARIO DE ATENCIÓN ---
     HORARIO = {
@@ -101,14 +97,15 @@ def pre_validaciones(state: BotState) -> BotState:
         h_fin = datetime.strptime(h_fin_str, "%H:%M").time()
         dentro_horario = h_ini <= ahora.time() <= h_fin
 
+    # --- ALERTA: FUERA DE HORARIO ---
     if not dentro_horario:
-        mostrar_alerta = False
+        debe_alertar = False
         if not session or not session.ultima_alerta_horario:
-            mostrar_alerta = True
+            debe_alertar = True
         elif ahora - session.ultima_alerta_horario > timedelta(hours=1):
-            mostrar_alerta = True
+            debe_alertar = True
 
-        if mostrar_alerta:
+        if debe_alertar:
             state.setdefault("response_data", []).append({
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "to": phone_or_id,
@@ -119,9 +116,8 @@ def pre_validaciones(state: BotState) -> BotState:
             })
             if session:
                 session.ultima_alerta_horario = ahora
-                db.session.commit()
 
-    # --- BIENVENIDA CONTROLADA ---
+    # --- MENSAJE DE BIENVENIDA ---
     mostrar_bienvenida = False
     if not session:
         mostrar_bienvenida = True
@@ -141,10 +137,13 @@ def pre_validaciones(state: BotState) -> BotState:
         })
         if session:
             session.mostro_bienvenida = True
-            db.session.commit()
+
+    # ✅ ACTUALIZAR last_interaction (muy importante para evitar repeticiones)
+    if session:
+        session.last_interaction = ahora
+        db.session.commit()
 
     return state
-
 
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
