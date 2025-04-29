@@ -598,23 +598,7 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
-# --- AQUÍ EL WEBHOOK SIN BLUEPRINT ---
-
-from flask import request, jsonify
-from datetime import datetime
-from app import flask_app, db
-from models import UserSession
-from helpers import (
-    agregar_mensajes_log,
-    verificar_token_whatsapp,
-    is_human_message,
-    handle_special_commands,
-    send_messages,
-    app_flow,
-    bot_enviar_mensaje_whatsapp,
-)
-
-@flask_app.route('/webhook/whatsapp', methods=['GET', 'POST'])
+@flask_app.route('/webhook', methods=['GET', 'POST'])
 def webhook_whatsapp():
     if request.method == 'GET':
         challenge = verificar_token_whatsapp(request)
