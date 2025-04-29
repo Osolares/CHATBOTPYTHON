@@ -10,10 +10,12 @@ import json
 import time
 import http.client
 import os
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, Blueprint
+
 from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
+from datetime import datetime, timedelta
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -281,7 +283,6 @@ def asistente(state: BotState) -> BotState:
     
     return state
 
-
 def send_messages(state, messages_to_send=None):
     """
     Envía mensajes al usuario según la plataforma y canal.
@@ -296,11 +297,11 @@ def send_messages(state, messages_to_send=None):
     for msg in messages:
         try:
             if source == "whatsapp":
-                send_whatsapp_message(phone_number, msg)
+                bot_enviar_mensaje_whatsapp(phone_number, msg)
             elif source == "telegram":
-                send_telegram_message(phone_number, msg)
+                bot_enviar_mensaje_telegram(phone_number, msg)
             elif source == "messenger":
-                send_messenger_message(phone_number, msg)
+                bot_enviar_mensaje_messenger(phone_number, msg)
             else:
                 agregar_mensajes_log(f"Plataforma desconocida: {source}")
         except Exception as e:
@@ -327,6 +328,80 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
                 db.session.add(fallback_registro)
         except Exception as e2:
             pass
+
+def verificar_middleware_usuario(state):
+    phone_number = state.get("phone_number")
+
+    usuarios_bloqueados = [
+        "50212345678",  # Ejemplo
+        "50287654321",
+    ]
+
+    if phone_number in usuarios_bloqueados:
+        agregar_mensajes_log(f"Usuario bloqueado: {phone_number}")
+        return False
+
+    # Horarios
+    horarios = {
+        "lunes": ("08:00", "17:30"),
+        "martes": ("08:00", "17:30"),
+        "miércoles": ("08:00", "17:30"),
+        "jueves": ("08:00", "17:30"),
+        "viernes": ("08:00", "17:30"),
+        "sábado": ("08:00", "12:30"),
+        "domingo": None,
+    }
+
+    ahora = datetime.now()
+    dia_actual = ahora.strftime('%A').lower()
+    hora_actual = ahora.strftime('%H:%M')
+
+    horario = horarios.get(dia_actual)
+    session = UserSession.query.filter_by(phone_number=phone_number).first()
+
+    if not session:
+        session = UserSession(phone_number=phone_number)
+        db.session.add(session)
+        db.session.commit()
+
+    if horario:
+        inicio, fin = horario
+        if not (inicio <= hora_actual <= fin):
+            if not getattr(session, 'fuera_horario_notificado', False):
+                bot_enviar_mensaje_whatsapp(phone_number, f"🕔 Hola, estamos fuera de nuestro horario de atención, *Envíanos tu consulta o revisa nuestro menú* ({inicio}-{fin}). Te responderemos lo mas pronto posible.")
+                session.fuera_horario_notificado = True
+                db.session.commit()
+    else:
+        if not getattr(session, 'fuera_horario_notificado', False):
+            bot_enviar_mensaje_whatsapp(phone_number,f"🕔 Hola, estamos fuera de nuestro horario de atención, *Envíanos tu consulta o revisa nuestro menú* ({inicio}-{fin}). Te responderemos lo mas pronto posible.")
+            session.fuera_horario_notificado = True
+            db.session.commit()
+
+    return True
+
+def enviar_mensaje_bienvenida(state):
+    phone_number = state.get("phone_number")
+    ahora = datetime.utcnow()
+    tiempo_limite = timedelta(hours=4)
+
+    session = UserSession.query.filter_by(phone_number=phone_number).first()
+
+    if not session:
+        session = UserSession(phone_number=phone_number)
+        db.session.add(session)
+        db.session.commit()
+        bot_enviar_mensaje_whatsapp(phone_number, "👋 ¡Bienvenidoa Intermotores! ¿En qué podemos ayudarte hoy?")
+        return
+
+    ultima_interaccion = session.last_interaction or ahora
+    if ahora - ultima_interaccion > tiempo_limite:
+        bot_enviar_mensaje_whatsapp(phone_number, "👋 ¡Hola de nuevo! ¿En qué podemos ayudarte hoy?")
+
+    # Actualizar última interacción
+    session.last_interaction = ahora
+    session.fuera_horario_notificado = False  # Reiniciar advertencia
+    db.session.commit()
+
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp"""
@@ -516,79 +591,63 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
-@flask_app.route('/webhook', methods=['GET', 'POST'])
+
+webhook = Blueprint('webhook', __name__)
+
+@webhook.route("/webhook", methods=["POST"])
 def webhook_whatsapp():
-    if request.method == 'GET':
-        challenge = verificar_token_whatsapp(request)
-        return challenge
-    
     try:
         data = request.get_json()
         agregar_mensajes_log(data)
 
-        entry = data['entry'][0]
-        changes = entry.get('changes', [])[0]
-        value = changes.get('value', {})
-        field = changes.get('field', '')
+        entry = data.get("entry", [])[0]
+        changes = entry.get("changes", [])[0]
+        value = changes.get("value", {})
+        messages = value.get("messages")
 
-        # 🔥 FILTRAR: solo eventos field = "messages"
-        if field != "messages":
-            return jsonify({'message': 'EVENT_RECEIVED'})
+        if not messages:
+            return jsonify({'message': 'EVENT_RECEIVED'})  # Solo procesamos mensajes
 
-        messages_list = value.get('messages', [])
+        message = messages[0]
+        phone_number = message["from"]
+        text = message.get("text", {}).get("body", "")
+        timestamp = int(message.get("timestamp", datetime.utcnow().timestamp()))
+        datetime_received = datetime.utcfromtimestamp(timestamp)
 
-        if not messages_list:
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
-        message = messages_list[0]
-
-        # 🔥 FILTRAR mensajes que no son de humanos
         if not is_human_message(message):
-            agregar_mensajes_log(f"Mensaje no humano ignorado: {message}")
             return jsonify({'message': 'EVENT_RECEIVED'})
 
-        phone_number = message.get("from")
-        text = ""
-
-        message_type = message.get("type")
-
-        if message_type == "interactive":
-            interactive = message.get("interactive", {})
-            if interactive.get("type") == "button_reply":
-                text = interactive.get("button_reply", {}).get("id")
-            elif interactive.get("type") == "list_reply":
-                text = interactive.get("list_reply", {}).get("id")
-        elif message_type == "text":
-            text = message.get("text", {}).get("body", "")
-
-        if not text.strip():
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
+        # Preparar el estado inicial
         initial_state = {
+            "source": "whatsapp",
             "phone_number": phone_number,
-            "user_msg": text,
+            "text": text,
+            "timestamp": datetime_received,
             "response_data": [],
-            "message_data": message,
-            "logs": [],
-            "source": "whatsapp"
         }
 
-        # 🔥 Nueva lógica: primero intentar comandos especiales
-        special_response = handle_special_commands(initial_state)
+        # 🔥 1. Middleware de bloqueo y horario
+        if not verificar_middleware_usuario(initial_state):
+            return jsonify({'message': 'EVENT_RECEIVED'})  # Solo usuarios bloqueados se cortan aquí
 
+        # 🔥 2. Mensaje de bienvenida
+        enviar_mensaje_bienvenida(initial_state)
+
+        # 🔥 3. Intentar manejar comandos especiales
+        special_response = handle_special_commands(initial_state)
         if special_response:
-            # Si hay respuesta especial, respondemos inmediatamente
             send_messages(initial_state, special_response)
             return jsonify({'message': 'EVENT_RECEIVED'})
 
-        # 🔥 Si no hay respuesta especial, sigue flujo normal
+        # 🔥 4. Si no hay comandos especiales, seguir flujo normal
         app_flow.invoke(initial_state)
-        
+
         return jsonify({'message': 'EVENT_RECEIVED'})
 
     except Exception as e:
         agregar_mensajes_log(f"Error en webhook_whatsapp: {str(e)}")
-        return jsonify({'message': 'EVENT_RECEIVED'}), 500
+        return jsonify({'message': 'ERROR'}), 500
+
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
 def webhook_telegram():

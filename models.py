@@ -12,6 +12,7 @@ class UserSession(db.Model):
     nombre = db.Column(db.String(25))
     apellido = db.Column(db.String(25))
     last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
+    fuera_horario_notificado = db.Column(db.Boolean, default=False)
 
     logs = db.relationship('Log', backref='session', lazy=True)
     model_products = db.relationship('ProductModel', backref='session', lazy=True)
