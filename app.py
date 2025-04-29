@@ -302,35 +302,31 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
             pass
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
-    """
-    Envía mensajes a WhatsApp Business API.
-    Soporta: texto, imágenes, ubicación, botones interactivos y listas.
-    """
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {Config.WHATSAPP_TOKEN}"
     }
-
+    
     try:
         connection = http.client.HTTPSConnection("graph.facebook.com")
-        json_data = json.dumps(data, ensure_ascii=False)
-        
-        # Endpoint para la API de WhatsApp (v17.0 o superior)
+        json_data = json.dumps(data)
         endpoint = f"/v17.0/{Config.PHONE_NUMBER_ID}/messages"
-        connection.request("POST", endpoint, json_data, headers)
         
+        connection.request("POST", endpoint, json_data, headers)
         response = connection.getresponse()
         response_data = response.read()
         
-        # Log de la respuesta (útil para depuración)
-        agregar_mensajes_log(f"Respuesta WhatsApp API: {response_data.decode('utf-8')}")
+        # DEBUG: Registra la respuesta de la API
+        agregar_mensajes_log(f"API WhatsApp Response: {response_data.decode('utf-8')}")
+        
+        if response.status != 200:
+            agregar_mensajes_log(f"Error en API: {response.status} - {response_data.decode('utf-8')}")
         
         return response_data
-
+        
     except Exception as e:
-        agregar_mensajes_log(f"Error enviando a WhatsApp: {str(e)}")
+        agregar_mensajes_log(f"Fallo en bot_enviar_mensaje_whatsapp: {str(e)}")
         return None
-
     finally:
         connection.close() if 'connection' in locals() else None
 
