@@ -665,7 +665,6 @@ def index():
 
 from message_validator import MessageValidator
 
-# ... (código existente)
 
 @flask_app.route('/webhook', methods=['GET', 'POST'])
 def webhook_whatsapp():
@@ -677,7 +676,7 @@ def webhook_whatsapp():
         data = request.get_json()
 
         # Guardar el evento recibido
-        #agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
+        agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
 
         # Filtro inicial: solo humanos
         #if not is_human_message("whatsapp", data):
