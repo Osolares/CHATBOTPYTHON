@@ -267,8 +267,16 @@ def asistente(state: BotState) -> BotState:
     """Maneja mensajes no reconocidos usando DeepSeek"""
     if not state.get("response_data"):
         user_msg = state["user_msg"]
+        last_log = db.session.query(Log).filter(
+            Log.session_id == (state["session"].idUser if state["session"] else None)
+        ).order_by(Log.fecha_y_hora.desc()).first()
+
+        if last_log and user_msg in (last_log.texto or ""):
+            agregar_mensajes_log("🔁 Mensaje duplicado detectado, ignorando respuesta asistente", state["session"].idUser if state["session"] else None)
+            return state
+
+        # Llama DeepSeek solo si no es duplicado
         response = model.invoke([HumanMessage(content=user_msg)])
-        
         body = response.content
 
         if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
@@ -278,7 +286,7 @@ def asistente(state: BotState) -> BotState:
                 "type": "text",
                 "text": {"body": body}
             }]
-    
+
     return state
 
 def send_messages(state: BotState) -> BotState:
@@ -518,8 +526,17 @@ workflow.add_node("send_messages", send_messages)
 workflow.add_edge("load_session", "load_product_flow")
 workflow.add_edge("load_product_flow", "handle_product_flow")
 workflow.add_edge("handle_product_flow", "handle_special_commands")
-workflow.add_edge("handle_special_commands", "asistente")
+#workflow.add_edge("handle_special_commands", "asistente")
+#workflow.add_edge("asistente", "send_messages")
+# Nueva función de enrutamiento
+def enrutar_despues_comandos(state: BotState) -> str:
+    if state["response_data"]:
+        return "send_messages"
+    return "asistente"
+
+workflow.add_conditional_edges("handle_special_commands", enrutar_despues_comandos)
 workflow.add_edge("asistente", "send_messages")
+
 workflow.add_edge("send_messages", END)
 
 workflow.set_entry_point("load_session")
@@ -563,17 +580,29 @@ from message_validator import MessageValidator
 
 @flask_app.route('/webhook', methods=['GET', 'POST'])
 def webhook_whatsapp():
-    """Endpoint para WhatsApp Business API."""
+    """Webhook de WhatsApp - Validación estricta de eventos."""
     if request.method == 'GET':
         return verificar_token_whatsapp(request)
-    
+
     try:
         data = request.get_json()
+
+        # Guardar el evento recibido
+        agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
+
+        # Filtro inicial: solo humanos
+        if not is_human_message("whatsapp", data):
+            agregar_mensajes_log("🚫 Evento ignorado: no es mensaje humano", None)
+            return jsonify({'status': 'ignored', 'reason': 'non_human_event'})
+
+        # Validación de estructura
         validation = MessageValidator.validate("whatsapp", data)
-        
+
         if not validation["is_valid"]:
+            agregar_mensajes_log("🚫 Mensaje inválido detectado en webhook", None)
             return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
-        
+
+        # Crea estado inicial
         initial_state = {
             "phone_number": validation["user_id"],
             "user_msg": validation["message_content"],
@@ -582,14 +611,17 @@ def webhook_whatsapp():
             "logs": [],
             "source": "whatsapp"
         }
-        
+
+        # Ejecuta el flujo
         app_flow.invoke(initial_state)
+
         return jsonify({'status': 'processed'})
-        
+
     except Exception as e:
-        error_msg = f"WhatsApp webhook error: {str(e)}"
+        error_msg = f"❌ Error procesando webhook WhatsApp: {str(e)}"
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
+
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
 def webhook_telegram():
@@ -681,6 +713,16 @@ def verificar_token_whatsapp(req):
         return challenge
     else:
         return jsonify({'error': 'Token Invalido'}), 401
+
+def enrutar_despues_comandos(state: BotState) -> str:
+    """
+    Decide a dónde ir después de procesar comandos especiales:
+    - Si ya hay respuesta en state["response_data"], saltar asistente y enviar directamente.
+    - Si no, pasar al asistente.
+    """
+    if state.get("response_data"):
+        return "send_messages"
+    return "asistente"
 
 # ------------------------------------------
 # Inicialización
