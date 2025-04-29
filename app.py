@@ -291,15 +291,20 @@ def asistente(state: BotState) -> BotState:
     return state
 
 def send_messages(state, messages_to_send=None):
+    """
+    Envía mensajes al usuario según la plataforma y canal.
+    Si no se proporcionan mensajes específicos, usa los mensajes en 'response_data'.
+    """
     phone_number = state.get("phone_number")
-    source = state.get("source", "whatsapp")
+    source = state.get("source", "whatsapp")  # Fuente: whatsapp, telegram, etc.
 
+    # 🔥 Mensajes a enviar
     messages = messages_to_send if messages_to_send else state.get("response_data", [])
 
     for msg in messages:
         try:
             if source == "whatsapp":
-                bot_enviar_mensaje_whatsapp(phone_number, msg)  # 🔥 Aquí corregido
+                bot_enviar_mensaje_whatsapp(phone_number, msg)
             elif source == "telegram":
                 bot_enviar_mensaje_telegram(phone_number, msg)
             elif source == "messenger":
@@ -308,6 +313,7 @@ def send_messages(state, messages_to_send=None):
                 agregar_mensajes_log(f"Plataforma desconocida: {source}")
         except Exception as e:
             agregar_mensajes_log(f"Error enviando mensaje a {source}: {str(e)}")
+
 #-------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
 # ------------------------------------------
