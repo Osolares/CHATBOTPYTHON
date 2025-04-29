@@ -76,7 +76,7 @@ def pre_validaciones(state: BotState) -> BotState:
 
     # --- BLOQUEO DE USUARIOS ---
     BLOQUEADOS = {
-        "whatsapp": ["50211112222", "50233334444"],
+        "whatsapp": ["50255105350", "50233334444"],
         "telegram": ["123456789"],
         "web": ["correo@ejemplo.com"]
     }
@@ -418,6 +418,7 @@ def send_messages(state: BotState) -> BotState:
     
     for mensaje in messages:
         try:
+            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             if state["source"] == "whatsapp":
                 bot_enviar_mensaje_whatsapp(mensaje)
             elif state["source"] == "telegram":
