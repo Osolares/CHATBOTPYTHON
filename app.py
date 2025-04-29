@@ -592,7 +592,7 @@ def index():
     return render_template('index.html', registros=registros, users=users, products=products)
 
 
-webhook = Blueprint('webhook', __name__)
+#webhook = Blueprint('webhook', __name__)
 
 @webhook.route("/webhook", methods=["POST"])
 def webhook_whatsapp():
