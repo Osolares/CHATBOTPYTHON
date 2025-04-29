@@ -16,6 +16,7 @@ from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
 from datetime import datetime, timedelta
+import logging
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -592,62 +593,76 @@ def index():
     return render_template('index.html', registros=registros, users=users, products=products)
 
 
-#webhook = Blueprint('webhook', __name__)
+webhook = Blueprint('webhook', __name__)
 
-@webhook.route("/webhook", methods=["POST"])
+@webhook.route('/webhook', methods=['GET', 'POST'])
 def webhook_whatsapp():
-    try:
-        data = request.get_json()
-        agregar_mensajes_log(data)
+    if request.method == 'GET':
+        mode = request.args.get('hub.mode')
+        token = request.args.get('hub.verify_token')
+        challenge = request.args.get('hub.challenge')
+        if mode == 'subscribe' and token == 'TOKEN_WEBHOOK_WHATSAPP':  # <-- Asegúrate que este token es correcto
+            return challenge, 200
+        else:
+            return 'Error de verificación', 403
 
-        entry = data.get("entry", [])[0]
-        changes = entry.get("changes", [])[0]
-        value = changes.get("value", {})
-        messages = value.get("messages")
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            logging.info(data)  # Opcional: para ver lo que llega en los logs
 
-        if not messages:
-            return jsonify({'message': 'EVENT_RECEIVED'})  # Solo procesamos mensajes
+            # ✅ Detectar si el mensaje recibido es un mensaje humano válido
+            entry = data.get('entry', [])[0]
+            changes = entry.get('changes', [])[0]
+            value = changes.get('value', {})
+            messages = value.get('messages')
 
-        message = messages[0]
-        phone_number = message["from"]
-        text = message.get("text", {}).get("body", "")
-        timestamp = int(message.get("timestamp", datetime.utcnow().timestamp()))
-        datetime_received = datetime.utcfromtimestamp(timestamp)
+            if not messages:
+                return jsonify({'message': 'EVENT_RECEIVED'})  # Si no hay mensajes, ignorar
 
-        if not is_human_message(message):
+            message = messages[0]
+            phone_number = message['from']
+            text = message['text']['body'] if message['type'] == 'text' else ''
+            current_time = datetime.utcnow()
+
+            # Construimos el "estado inicial" que se pasa a los flujos
+            initial_state = {
+                'source': 'whatsapp',
+                'user_id': phone_number,
+                'phone_number': phone_number,
+                'message': text,
+                'current_time': current_time,
+                'metadata': value.get('metadata', {}),
+            }
+
+            # ✅ Filtro de mensajes automáticos (sólo procesamos humanos)
+            if not is_human_message(message):
+                return jsonify({'message': 'EVENT_RECEIVED'})
+
+            # ✅ Middleware de usuarios bloqueados (No seguir si está bloqueado)
+            if not verificar_middleware_usuario(initial_state):
+                return jsonify({'message': 'EVENT_RECEIVED'})
+
+            # ✅ Middleware de bienvenida (si es nuevo o inactivo mucho tiempo)
+            enviar_mensaje_bienvenida(initial_state)
+
+            # ✅ Middleware fuera de horario (si aplica, enviar alerta una vez)
+            verificar_fuera_horario(initial_state)
+
+            # ✅ Intentar manejar comandos especiales (respuestas predefinidas)
+            special_response = handle_special_commands(initial_state)
+            if special_response:
+                send_messages(initial_state, special_response)
+                return jsonify({'message': 'EVENT_RECEIVED'})
+
+            # ✅ Si no hay respuesta especial, sigue el flujo normal
+            app_flow.invoke(initial_state)
+
             return jsonify({'message': 'EVENT_RECEIVED'})
 
-        # Preparar el estado inicial
-        initial_state = {
-            "source": "whatsapp",
-            "phone_number": phone_number,
-            "text": text,
-            "timestamp": datetime_received,
-            "response_data": [],
-        }
-
-        # 🔥 1. Middleware de bloqueo y horario
-        if not verificar_middleware_usuario(initial_state):
-            return jsonify({'message': 'EVENT_RECEIVED'})  # Solo usuarios bloqueados se cortan aquí
-
-        # 🔥 2. Mensaje de bienvenida
-        enviar_mensaje_bienvenida(initial_state)
-
-        # 🔥 3. Intentar manejar comandos especiales
-        special_response = handle_special_commands(initial_state)
-        if special_response:
-            send_messages(initial_state, special_response)
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
-        # 🔥 4. Si no hay comandos especiales, seguir flujo normal
-        app_flow.invoke(initial_state)
-
-        return jsonify({'message': 'EVENT_RECEIVED'})
-
-    except Exception as e:
-        agregar_mensajes_log(f"Error en webhook_whatsapp: {str(e)}")
-        return jsonify({'message': 'ERROR'}), 500
-
+        except Exception as e:
+            logging.error(f"Error en webhook_whatsapp: {e}")
+            return jsonify({'error': str(e)}), 500
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
 def webhook_telegram():
