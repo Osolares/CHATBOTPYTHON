@@ -3,6 +3,12 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import os
 from dotenv import load_dotenv
+import pytz
+
+GUATEMALA_TZ = pytz.timezone("America/Guatemala")
+def hora_guatemala():
+    from datetime import datetime
+    return datetime.now(GUATEMALA_TZ)
 
 # Cargar variables de entorno
 load_dotenv()

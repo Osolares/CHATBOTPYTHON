@@ -1,5 +1,6 @@
 from datetime import datetime
 from config import db
+from utils.timezone import now
 
 class UserSession(db.Model):
     __tablename__ = 'user_sessions'
@@ -11,7 +12,8 @@ class UserSession(db.Model):
     messenger_id = db.Column(db.String(50), unique=True)
     nombre = db.Column(db.String(25))
     apellido = db.Column(db.String(25))
-    last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
+    last_interaction = db.Column(db.DateTime, default=now)
+    #last_interaction = db.Column(db.DateTime, default=hora_guatemala)
 
     mostro_bienvenida = db.Column(db.Boolean, default=False)
     ultima_alerta_horario = db.Column(db.DateTime)
@@ -37,7 +39,7 @@ class Log(db.Model):
     __tablename__ = 'logs'
 
     id = db.Column(db.Integer, primary_key=True)
-    fecha_y_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_y_hora = db.Column(db.DateTime, default=now)
     texto = db.Column(db.Text)
     
     session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'))

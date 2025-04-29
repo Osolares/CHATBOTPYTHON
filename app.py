@@ -14,7 +14,11 @@ from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
+from datetime import datetime, timedelta
 from pytz import timezone
+from config import GUATEMALA_TZ
+from utils.timezone import now
+
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -50,13 +54,11 @@ def pre_validaciones(state: BotState) -> BotState:
     """
     Middleware que valida:
     - Usuarios bloqueados
-    - Horario de atención (usando zona horaria de Guatemala)
-    - Mensaje de bienvenida controlado
+    - Horario de atención (zona horaria de Guatemala)
+    - Bienvenida con control de frecuencia
     """
-    from pytz import timezone
-    tz_gt = timezone("America/Guatemala")
-    ahora = datetime.now(tz_gt)
-
+    #ahora = datetime.now(GUATEMALA_TZ)
+    ahora = now()
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
@@ -68,8 +70,7 @@ def pre_validaciones(state: BotState) -> BotState:
         "web": ["correo@ejemplo.com"]
     }
 
-    bloqueados = BLOQUEADOS.get(source, [])
-    if phone_or_id in bloqueados:
+    if phone_or_id in BLOQUEADOS.get(source, []):
         state["response_data"] = [{
             "messaging_product": "whatsapp" if source == "whatsapp" else "other",
             "to": phone_or_id,
@@ -80,33 +81,34 @@ def pre_validaciones(state: BotState) -> BotState:
         }]
         return state
 
-    # --- HORARIO DE ATENCIÓN (Guatemala) ---
+    # --- HORARIO DE ATENCIÓN ---
     HORARIO = {
         0: ("08:00", "17:00"),  # Lunes
         1: ("08:00", "17:00"),
         2: ("08:00", "17:00"),
         3: ("08:00", "17:00"),
         4: ("08:00", "17:00"),
-        5: ("08:00", "12:00"),  # Sábado
+        5: ("08:00", "12:00"),
         6: (None, None)         # Domingo cerrado
     }
 
-    dia_semana = ahora.weekday()
-    hora_inicio_str, hora_fin_str = HORARIO.get(dia_semana, (None, None))
-
-    mostrar_alerta_horario = False
+    dia = ahora.weekday()
+    h_ini_str, h_fin_str = HORARIO.get(dia, (None, None))
     dentro_horario = False
 
-    if hora_inicio_str and hora_fin_str:
-        hora_inicio = datetime.strptime(hora_inicio_str, "%H:%M").time()
-        hora_fin = datetime.strptime(hora_fin_str, "%H:%M").time()
-        ahora_time = ahora.time()
-
-        dentro_horario = hora_inicio <= ahora_time <= hora_fin
+    if h_ini_str and h_fin_str:
+        h_ini = datetime.strptime(h_ini_str, "%H:%M").time()
+        h_fin = datetime.strptime(h_fin_str, "%H:%M").time()
+        dentro_horario = h_ini <= ahora.time() <= h_fin
 
     if not dentro_horario:
-        # Mostrar alerta solo si no se ha mostrado recientemente
-        if not session or not session.ultima_alerta_horario or (ahora - session.ultima_alerta_horario).total_seconds() > 3600:
+        mostrar_alerta = False
+        if not session or not session.ultima_alerta_horario:
+            mostrar_alerta = True
+        elif ahora - session.ultima_alerta_horario > timedelta(hours=1):
+            mostrar_alerta = True
+
+        if mostrar_alerta:
             state.setdefault("response_data", []).append({
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "to": phone_or_id,
@@ -115,16 +117,17 @@ def pre_validaciones(state: BotState) -> BotState:
                     "body": "🕒 En este momento estamos fuera de nuestro horario de atención.\nNuestro equipo le responderá en el siguiente horario disponible.\n\nPuede continuar usando el asistente automático mientras tanto."
                 }
             })
-
             if session:
                 session.ultima_alerta_horario = ahora
                 db.session.commit()
 
-    # --- MENSAJE DE BIENVENIDA ---
+    # --- BIENVENIDA CONTROLADA ---
     mostrar_bienvenida = False
     if not session:
         mostrar_bienvenida = True
-    elif not session.mostro_bienvenida or (ahora - session.last_interaction).total_seconds() > 86400:
+    elif not session.mostro_bienvenida:
+        mostrar_bienvenida = True
+    elif ahora - session.last_interaction > timedelta(hours=24):
         mostrar_bienvenida = True
 
     if mostrar_bienvenida:
@@ -133,7 +136,7 @@ def pre_validaciones(state: BotState) -> BotState:
             "to": phone_or_id,
             "type": "text",
             "text": {
-                "body": "👋 ¡Bienvenido(a) a Intermotores!\nEstamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗"
+                "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗"
             }
         })
         if session:
@@ -184,7 +187,7 @@ def load_or_create_session(state: BotState) -> BotState:
                 db.session.flush()
 
         if session:
-            session.last_interaction = datetime.utcnow()
+            session.last_interaction =now()
         
         state["session"] = session
 
@@ -373,7 +376,8 @@ def asistente(state: BotState) -> BotState:
             return state
 
         # Llama DeepSeek solo si no es duplicado
-        response = model.invoke([HumanMessage(content=user_msg)])
+
+        response = model.invoke([HumanMessage(content=f"Responde en maximo 15 palabras de forma muy directa, concisa y resumida: {user_msg}")])
         body = response.content
 
         if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
