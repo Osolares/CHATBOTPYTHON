@@ -6,12 +6,15 @@ class UserSession(db.Model):
 
     idUser = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(20))
-    email = db.Column(db.String(120), unique=True)  # NUEVO: correo para usuarios Web o Messenger
-    telegram_id = db.Column(db.String(50), unique=True)  # NUEVO: para identificar usuarios de Telegram
-    messenger_id = db.Column(db.String(50), unique=True)  # NUEVO: para identificar usuarios de Messenger
+    email = db.Column(db.String(120), unique=True)
+    telegram_id = db.Column(db.String(50), unique=True)
+    messenger_id = db.Column(db.String(50), unique=True)
     nombre = db.Column(db.String(25))
     apellido = db.Column(db.String(25))
     last_interaction = db.Column(db.DateTime, default=datetime.utcnow)
+
+    mostro_bienvenida = db.Column(db.Boolean, default=False)
+    ultima_alerta_horario = db.Column(db.DateTime)
 
     logs = db.relationship('Log', backref='session', lazy=True)
     model_products = db.relationship('ProductModel', backref='session', lazy=True)

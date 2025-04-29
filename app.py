@@ -45,6 +45,97 @@ class BotState(TypedDict):
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
+def pre_validaciones(state: BotState) -> BotState:
+    """
+    Middleware para validar:
+    - Usuarios bloqueados
+    - Horario de atención
+    - Bienvenida controlada
+    """
+    session = state.get("session")
+    phone_or_id = state.get("phone_number") or state["message_data"].get("email")
+    source = state.get("source")
+    ahora = datetime.utcnow()
+
+    # --- BLOQUEO DE USUARIOS ---
+    BLOQUEADOS = {
+        "whatsapp": ["50211112222", "50233334444"],
+        "telegram": ["123456789"],
+        "web": ["correo@ejemplo.com"]
+    }
+
+    bloqueados = BLOQUEADOS.get(source, [])
+    if phone_or_id in bloqueados:
+        state["response_data"] = [{
+            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+            "to": phone_or_id,
+            "type": "text",
+            "text": {
+                "body": "⚠️ Este canal no está habilitado para usted. Gracias por su comprensión."
+            }
+        }]
+        return state  # Bloquea el flujo
+
+    # --- HORARIO DE ATENCIÓN ---
+    HORARIO = {
+        0: ("08:00", "17:00"),
+        1: ("08:00", "17:00"),
+        2: ("08:00", "17:00"),
+        3: ("08:00", "17:00"),
+        4: ("08:00", "17:00"),
+        5: ("08:00", "12:00"),
+        6: (None, None)
+    }
+
+    dia = ahora.weekday()
+    hora_inicio, hora_fin = HORARIO.get(dia, (None, None))
+    dentro_horario = False
+
+    if hora_inicio and hora_fin:
+        h_ini = datetime.strptime(hora_inicio, "%H:%M").time()
+        h_fin = datetime.strptime(hora_fin, "%H:%M").time()
+        dentro_horario = h_ini <= ahora.time() <= h_fin
+
+    # Verifica si debe mostrar alerta fuera de horario
+    mostrar_alerta_horario = False
+    if not dentro_horario:
+        if not session or not session.ultima_alerta_horario or (ahora - session.ultima_alerta_horario).total_seconds() > 3600:
+            mostrar_alerta_horario = True
+
+    if mostrar_alerta_horario:
+        state.setdefault("response_data", []).append({
+            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+            "to": phone_or_id,
+            "type": "text",
+            "text": {
+                "body": "🕒 Estamos fuera de horario.\nUn asistente automático puede ayudarle por ahora. Nuestro equipo humano le responderá lo antes posible."
+            }
+        })
+        if session:
+            session.ultima_alerta_horario = ahora
+            db.session.commit()
+
+    # --- MENSAJE DE BIENVENIDA ---
+    mostrar_bienvenida = False
+    if not session:
+        mostrar_bienvenida = True
+    elif not session.mostro_bienvenida or (ahora - session.last_interaction).total_seconds() > 86400:
+        mostrar_bienvenida = True
+
+    if mostrar_bienvenida:
+        state.setdefault("response_data", []).append({
+            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+            "to": phone_or_id,
+            "type": "text",
+            "text": {
+                "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗"
+            }
+        })
+        if session:
+            session.mostro_bienvenida = True
+            db.session.commit()
+
+    return state
 
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
@@ -511,10 +602,10 @@ def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
 # ------------------------------------------
 # Construcción del Grafo de Flujo
 # ------------------------------------------
-
 workflow = StateGraph(BotState)
 
-# Añadir nodos
+# --- 1. Nodos ---
+workflow.add_node("pre_validaciones", pre_validaciones)        # <<<< Nuevo primer middleware
 workflow.add_node("load_session", load_or_create_session)
 workflow.add_node("load_product_flow", load_product_flow)
 workflow.add_node("handle_product_flow", handle_product_flow)
@@ -522,27 +613,28 @@ workflow.add_node("handle_special_commands", handle_special_commands)
 workflow.add_node("asistente", asistente)
 workflow.add_node("send_messages", send_messages)
 
-# Definir flujo
+# --- 2. Enlaces (Edges) ---
+workflow.add_edge("pre_validaciones", "load_session")              # Primero pre_validaciones
 workflow.add_edge("load_session", "load_product_flow")
 workflow.add_edge("load_product_flow", "handle_product_flow")
 workflow.add_edge("handle_product_flow", "handle_special_commands")
-#workflow.add_edge("handle_special_commands", "asistente")
-#workflow.add_edge("asistente", "send_messages")
-# Nueva función de enrutamiento
+
+# Aquí usamos enrutamiento condicional: ¿hay respuesta o pasamos al asistente?
 def enrutar_despues_comandos(state: BotState) -> str:
-    if state["response_data"]:
+    if state.get("response_data"):
         return "send_messages"
     return "asistente"
 
 workflow.add_conditional_edges("handle_special_commands", enrutar_despues_comandos)
 workflow.add_edge("asistente", "send_messages")
 
-workflow.add_edge("send_messages", END)
+# --- 3. Configurar entrada y salida ---
+workflow.set_entry_point("pre_validaciones")
+workflow.set_finish_point(END)
 
-workflow.set_entry_point("load_session")
-
-# Compilar el grafo
+# --- 4. Compilar ---
 app_flow = workflow.compile()
+
 
 # ------------------------------------------
 # Configuración de Flask y Rutas
@@ -591,9 +683,15 @@ def webhook_whatsapp():
         agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
 
         # Filtro inicial: solo humanos
+        #if not is_human_message("whatsapp", data):
+        #    agregar_mensajes_log("🚫 Evento ignorado: no es mensaje humano", None)
+        #    return jsonify({'status': 'ignored', 'reason': 'non_human_event'})
+        
+        # Versión más limpia (opcional)
         if not is_human_message("whatsapp", data):
-            agregar_mensajes_log("🚫 Evento ignorado: no es mensaje humano", None)
-            return jsonify({'status': 'ignored', 'reason': 'non_human_event'})
+            # Puedes comentar esto si no quieres ni siquiera registrar eventos no humanos
+            # agregar_mensajes_log("🚫 Evento ignorado: no es mensaje humano", None)
+            return jsonify({'status': 'ignored'})
 
         # Validación de estructura
         validation = MessageValidator.validate("whatsapp", data)
