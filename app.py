@@ -330,9 +330,11 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
         except Exception as e2:
             pass
 
+
 def verificar_middleware_usuario(state):
     phone_number = state.get("phone_number")
 
+    # 📋 Lista de usuarios bloqueados
     usuarios_bloqueados = [
         "50212345678",  # Ejemplo
         "50287654321",
@@ -342,14 +344,14 @@ def verificar_middleware_usuario(state):
         agregar_mensajes_log(f"Usuario bloqueado: {phone_number}")
         return False
 
-    # Horarios
+    # 📋 Definir horarios de atención
     horarios = {
-        "lunes": ("08:00", "17:30"),
-        "martes": ("08:00", "17:30"),
-        "miércoles": ("08:00", "17:30"),
-        "jueves": ("08:00", "17:30"),
-        "viernes": ("08:00", "17:30"),
-        "sábado": ("08:00", "12:30"),
+        "lunes": ("08:00", "17:00"),
+        "martes": ("08:00", "17:00"),
+        "miércoles": ("08:00", "17:00"),
+        "jueves": ("08:00", "17:00"),
+        "viernes": ("08:00", "17:00"),
+        "sábado": ("08:00", "12:00"),
         "domingo": None,
     }
 
@@ -358,23 +360,26 @@ def verificar_middleware_usuario(state):
     hora_actual = ahora.strftime('%H:%M')
 
     horario = horarios.get(dia_actual)
-    session = UserSession.query.filter_by(phone_number=phone_number).first()
 
+    # 📋 Obtener o crear sesión
+    session = UserSession.query.filter_by(phone_number=phone_number).first()
     if not session:
         session = UserSession(phone_number=phone_number)
         db.session.add(session)
         db.session.commit()
 
+    # 📋 Evaluar si está fuera de horario
     if horario:
         inicio, fin = horario
         if not (inicio <= hora_actual <= fin):
             if not getattr(session, 'fuera_horario_notificado', False):
-                bot_enviar_mensaje_whatsapp(phone_number, f"🕔 Hola, estamos fuera de nuestro horario de atención, *Envíanos tu consulta o revisa nuestro menú* ({inicio}-{fin}). Te responderemos lo mas pronto posible.")
+                bot_enviar_mensaje_whatsapp(phone_number, f"🕔 Hola, estamos fuera de nuestro horario de atención ({inicio}-{fin}). Te responderemos en cuanto sea posible.")
                 session.fuera_horario_notificado = True
                 db.session.commit()
     else:
+        # 📋 Día cerrado
         if not getattr(session, 'fuera_horario_notificado', False):
-            bot_enviar_mensaje_whatsapp(phone_number,f"🕔 Hola, estamos fuera de nuestro horario de atención, *Envíanos tu consulta o revisa nuestro menú* ({inicio}-{fin}). Te responderemos lo mas pronto posible.")
+            bot_enviar_mensaje_whatsapp(phone_number, "🕔 Hoy estamos cerrados. Te responderemos en nuestro horario habitual.")
             session.fuera_horario_notificado = True
             db.session.commit()
 
@@ -383,7 +388,7 @@ def verificar_middleware_usuario(state):
 def enviar_mensaje_bienvenida(state):
     phone_number = state.get("phone_number")
     ahora = datetime.utcnow()
-    tiempo_limite = timedelta(hours=4)
+    tiempo_limite = timedelta(hours=4)  # Puede ser 4 horas o lo que prefieras
 
     session = UserSession.query.filter_by(phone_number=phone_number).first()
 
@@ -391,17 +396,18 @@ def enviar_mensaje_bienvenida(state):
         session = UserSession(phone_number=phone_number)
         db.session.add(session)
         db.session.commit()
-        bot_enviar_mensaje_whatsapp(phone_number, "👋 ¡Bienvenidoa Intermotores! ¿En qué podemos ayudarte hoy?")
+        bot_enviar_mensaje_whatsapp(phone_number, "👋 ¡Bienvenido! ¿En qué podemos ayudarte hoy?")
         return
 
     ultima_interaccion = session.last_interaction or ahora
     if ahora - ultima_interaccion > tiempo_limite:
         bot_enviar_mensaje_whatsapp(phone_number, "👋 ¡Hola de nuevo! ¿En qué podemos ayudarte hoy?")
 
-    # Actualizar última interacción
+    # 📋 Actualizar sesión
     session.last_interaction = ahora
     session.fuera_horario_notificado = False  # Reiniciar advertencia
     db.session.commit()
+
 
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
@@ -594,73 +600,101 @@ def index():
 
 # --- AQUÍ EL WEBHOOK SIN BLUEPRINT ---
 
-@flask_app.route('/webhook', methods=['GET', 'POST'])
+from flask import request, jsonify
+from datetime import datetime
+from app import flask_app, db
+from models import UserSession
+from helpers import (
+    agregar_mensajes_log,
+    verificar_token_whatsapp,
+    is_human_message,
+    handle_special_commands,
+    send_messages,
+    app_flow,
+    bot_enviar_mensaje_whatsapp,
+)
+
+@flask_app.route('/webhook/whatsapp', methods=['GET', 'POST'])
 def webhook_whatsapp():
     if request.method == 'GET':
-        mode = request.args.get('hub.mode')
-        token = request.args.get('hub.verify_token')
-        challenge = request.args.get('hub.challenge')
-        if mode == 'subscribe' and token == 'TOKEN_WEBHOOK_WHATSAPP':  # Asegúrate que el token sea correcto
-            return challenge, 200
-        else:
-            return 'Error de verificación', 403
+        challenge = verificar_token_whatsapp(request)
+        return challenge
 
-    if request.method == 'POST':
-        try:
-            data = request.get_json()
-            logging.info(data)  # Opcional para debug
+    try:
+        data = request.get_json()
+        agregar_mensajes_log(data)
 
-            # ✅ Procesar mensajes
-            entry = data.get('entry', [])[0]
-            changes = entry.get('changes', [])[0]
-            value = changes.get('value', {})
-            messages = value.get('messages')
+        entry = data['entry'][0]
+        changes = entry.get('changes', [])[0]
+        value = changes.get('value', {})
+        field = changes.get('field', '')
 
-            if not messages:
-                return jsonify({'message': 'EVENT_RECEIVED'})  # Si no hay mensajes, terminar
-
-            message = messages[0]
-            phone_number = message['from']
-            text = message['text']['body'] if message['type'] == 'text' else ''
-            current_time = datetime.utcnow()
-
-            initial_state = {
-                'source': 'whatsapp',
-                'user_id': phone_number,
-                'phone_number': phone_number,
-                'message': text,
-                'current_time': current_time,
-                'metadata': value.get('metadata', {}),
-            }
-
-            # ✅ Verificar si el mensaje es de humano
-            if not is_human_message(message):
-                return jsonify({'message': 'EVENT_RECEIVED'})
-
-            # ✅ Middleware usuarios bloqueados
-            if not verificar_middleware_usuario(initial_state):
-                return jsonify({'message': 'EVENT_RECEIVED'})
-
-            # ✅ Mensaje de bienvenida (si aplica)
-            enviar_mensaje_bienvenida(initial_state)
-
-            # ✅ Mensaje fuera de horario (solo una vez)
-            verificar_fuera_horario(initial_state)
-
-            # ✅ Comandos especiales
-            special_response = handle_special_commands(initial_state)
-            if special_response:
-                send_messages(initial_state, special_response)
-                return jsonify({'message': 'EVENT_RECEIVED'})
-
-            # ✅ Flujo normal
-            app_flow.invoke(initial_state)
-
+        # 🔥 FILTRAR: solo eventos "messages"
+        if field != "messages":
             return jsonify({'message': 'EVENT_RECEIVED'})
 
-        except Exception as e:
-            logging.error(f"Error en webhook_whatsapp: {e}")
-            return jsonify({'error': str(e)}), 500
+        messages_list = value.get('messages', [])
+
+        if not messages_list:
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        message = messages_list[0]
+
+        # 🔥 FILTRAR mensajes que no son de humanos
+        if not is_human_message(message):
+            agregar_mensajes_log(f"Mensaje no humano ignorado: {message}")
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        phone_number = message.get("from")
+        text = ""
+
+        message_type = message.get("type")
+
+        if message_type == "interactive":
+            interactive = message.get("interactive", {})
+            if interactive.get("type") == "button_reply":
+                text = interactive.get("button_reply", {}).get("id")
+            elif interactive.get("type") == "list_reply":
+                text = interactive.get("list_reply", {}).get("id")
+        elif message_type == "text":
+            text = message.get("text", {}).get("body", "")
+
+        if not text.strip():
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        # 🔥 Crear el estado inicial
+        initial_state = {
+            "phone_number": phone_number,
+            "user_msg": text,
+            "response_data": [],
+            "message_data": message,
+            "logs": [],
+            "source": "whatsapp",
+        }
+
+        # 🔥 Verificar usuario bloqueado y fuera de horario
+        if not verificar_middleware_usuario(initial_state):
+            return jsonify({'message': 'EVENT_RECEIVED'})  # Usuario bloqueado
+
+        # 🔥 Enviar mensaje de bienvenida si aplica
+        enviar_mensaje_bienvenida(initial_state)
+
+        # 🔥 Intentar manejar comandos especiales
+        special_response = handle_special_commands(initial_state)
+
+        if special_response:
+            send_messages(initial_state, special_response)
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
+        # 🔥 Flujo normal de conversación
+        app_flow.invoke(initial_state)
+
+        return jsonify({'message': 'EVENT_RECEIVED'})
+
+    except Exception as e:
+        agregar_mensajes_log(f"Error en webhook_whatsapp: {str(e)}")
+        return jsonify({'message': 'EVENT_RECEIVED'}), 500
+
 
 # --- FIN DEL WEBHOOK NORMAL ---
 
