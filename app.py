@@ -291,24 +291,28 @@ def asistente(state: BotState) -> BotState:
     return state
 
 def send_messages(state, messages_to_send=None):
-    phone_number = state.get("phone_number")
+    """Envía mensajes manteniendo ambos formatos de mensaje"""
     source = state.get("source", "whatsapp")
-
     messages = messages_to_send if messages_to_send else state.get("response_data", [])
 
     for msg in messages:
         try:
             if source == "whatsapp":
-                bot_enviar_mensaje_whatsapp(phone_number, msg)  # 🔥 Aquí corregido
+                # Maneja ambos casos:
+                # 1. Mensajes con 'to' incluido
+                # 2. Mensajes sin 'to' (usa phone_number del estado)
+                if 'to' in msg:
+                    bot_enviar_mensaje_whatsapp(msg)
+                else:
+                    bot_enviar_mensaje_whatsapp(msg, state["phone_number"])
             elif source == "telegram":
-                send_telegram_message(phone_number, msg)
+                bot_enviar_mensaje_telegram(state["phone_number"], msg)
             elif source == "messenger":
-                send_messenger_message(phone_number, msg)
+                bot_enviar_mensaje_messenger(state["phone_number"], msg)
             else:
                 agregar_mensajes_log(f"Plataforma desconocida: {source}")
         except Exception as e:
             agregar_mensajes_log(f"Error enviando mensaje a {source}: {str(e)}")
-
 #-------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
 # ------------------------------------------
@@ -330,8 +334,21 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
         except Exception as e2:
             pass
 
-def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
-    """Envía un mensaje a WhatsApp"""
+def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], phone_number: str = None) -> Optional[bytes]:
+    """Envía un mensaje a WhatsApp, ahora compatible con ambos formatos"""
+    # Si recibe solo el número (para backward compatibility)
+    if isinstance(data, str) and phone_number is None:
+        phone_number = data
+        data = {}
+    
+    # Construye el payload final
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": phone_number if phone_number else data.get('to'),
+        **{k: v for k, v in data.items() if k != 'to'}
+    }
+    
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"{Config.WHATSAPP_TOKEN}"
@@ -339,7 +356,7 @@ def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     
     try:
         connection = http.client.HTTPSConnection("graph.facebook.com")
-        json_data = json.dumps(data)
+        json_data = json.dumps(payload)
         connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
         response = connection.getresponse()
         return response.read()
