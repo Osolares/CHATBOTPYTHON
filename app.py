@@ -45,20 +45,13 @@ class BotState(TypedDict):
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
-def is_human_message(message):
-    """
-    Detecta si el mensaje recibido es de un humano real.
-    Solo procesa mensajes de tipo "text" o "interactive".
-    """
-    valid_types = ["text", "interactive"]
-    message_type = message.get("type")
-    return message_type in valid_types
 
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
     phone_number = state.get("phone_number")
     source = state.get("source")
     message_data = state.get("message_data", {})
+
     session = None
 
     with db.session.begin():
@@ -131,18 +124,8 @@ def handle_special_commands(state: BotState) -> BotState:
     if "hola" in texto:
         if source in ["whatsapp", "telegram", "messenger", "web"]:
             state["response_data"] = [
-
                 {
-                    "messaging_product": "whatsapp",
-                    "recipient_type": "individual",
-                    "to": number,
-                    "type": "image",
-                    "image": {
-                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                    }
-                },
-                {
-                    "messaging_product": "whatsapp",
+                    "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                     "recipient_type": "individual",
                     "to": number,
                     "type": "text",
@@ -151,7 +134,6 @@ def handle_special_commands(state: BotState) -> BotState:
                         "body": "👋 Gracias por comunicarse con nosotros, es un placer atenderle 👨‍💻"
                     }
                 }
-
             ]
     elif texto == "1":
         state["response_data"] = formulario_motor(number)
@@ -161,31 +143,18 @@ def handle_special_commands(state: BotState) -> BotState:
 
     elif texto == "3":
         state["response_data"] = [
-
             {
-                "messaging_product": "whatsapp",
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "location",
                 "location": {
                     "latitude": "14.564777",
                     "longitude": "-90.466011",
-                    "name": "Intermotores",  # Nombre sin formato (texto plano)
+                    "name": "Intermotores",
                     "address": "Importadora Internacional de Motores Japoneses, s.a."
                 }
-            },
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
-                }
-            },
-            generar_list_menu(number)
-
+            }
         ]
 
     elif texto == "4":
@@ -205,38 +174,29 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "5":
         state["response_data"] = [
             {
-                "messaging_product": "whatsapp",
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "☎*Comunícate con nosotros será un placer atenderte* \n\n 📞 6637-9834 \n\n 📞 6646-6137 \n\n 📱 5510-5350 \n\n 🌐 www.intermotores.com  \n\n 📧 intermotores.ventas@gmail.com \n\n *Facebook* \n Intermotores GT\n\n *Instagram* \n Intermotores GT "}
-            },
-            generar_list_menu(number)
+                    "body": "☎*Comunícate con nosotros será un placer atenderte*\n\n 📞 6637-9834\n 📞 6646-6137\n 📱 5510-5350\n\n 🌐 www.intermotores.com\n 📧 intermotores.ventas@gmail.com\n\n *Facebook*: Intermotores GT\n *Instagram*: Intermotores GT"
+                }
+            }
         ]
 
     elif texto == "6":
         state["response_data"] = [
             {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "image",
-                "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
-                }
-            }, 
-            {
-                "messaging_product": "whatsapp",
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"}
-            },
-            generar_list_menu(number)
+                    "body": "*💲Medios de pago:* \n\n💵 Efectivo.\n🏦 Depósitos o transferencias.\n📦 Pago contra Entrega.\n💳 Visa Cuotas.\n💳 Cuotas Credomatic.\n🔗 Neo Link."
+                }
+            }
         ]
 
     elif texto == "7":
@@ -256,21 +216,22 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "8":
         state["response_data"] = [
             {
-                "messaging_product": "whatsapp",
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "recipient_type": "individual",
                 "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
-            },
-            generar_list_menu(number)
+                    "body": "🏠*Envíos a domicilio disponibles.*\n\n🛵 Capital\n🚚 Departamentos\n⏳ Tiempo: 24-48h según destino."
+                }
+            }
         ]
 
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
 
     return state
+
 
 def asistente(state: BotState) -> BotState:
     """Maneja mensajes no reconocidos usando DeepSeek"""
@@ -290,31 +251,27 @@ def asistente(state: BotState) -> BotState:
     
     return state
 
-def send_messages(state, messages_to_send=None):
-    """Envía mensajes manteniendo compatibilidad con ambos formatos"""
-    source = state.get("source", "whatsapp")
-    messages = messages_to_send if messages_to_send else state.get("response_data", [])
-    phone_number = state.get("phone_number")
-
-    for msg in messages:
+def send_messages(state: BotState) -> BotState:
+    """Envía mensajes al canal correcto según la fuente"""
+    for mensaje in state["response_data"]:
         try:
-            if source == "whatsapp":
-                # Maneja ambos formatos:
-                # 1. Mensajes con estructura completa (incluyen 'to')
-                # 2. Mensajes que necesitan phone_number del estado
-                if isinstance(msg, dict) and 'to' in msg:
-                    bot_enviar_mensaje_whatsapp(msg)
-                else:
-                    bot_enviar_mensaje_whatsapp(msg, phone_number)
-            elif source == "telegram":
-                bot_enviar_mensaje_telegram (phone_number, msg)
-            elif source == "messenger":
-                bot_enviar_mensaje_messenger(phone_number, msg)
-            else:
-                agregar_mensajes_log(f"Plataforma desconocida: {source}")
+            if state["source"] == "whatsapp":
+                bot_enviar_mensaje_whatsapp(mensaje)
+            elif state["source"] == "telegram":
+                bot_enviar_mensaje_telegram(mensaje)
+            elif state["source"] == "messenger":
+                bot_enviar_mensaje_messenger(mensaje)
+            elif state["source"] == "web":
+                bot_enviar_mensaje_web(mensaje)
+
+            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
+            time.sleep(1)
         except Exception as e:
-            agregar_mensajes_log(f"Error enviando mensaje a {source}: {str(e)}")
-#-------------------------------------
+            agregar_mensajes_log(f"Error enviando mensaje ({state['source']}) a {state.get('phone_number') or state.get('email')}: {str(e)}",
+                                 state["session"].idUser if state["session"] else None)
+    return state
+
+# ------------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
 # ------------------------------------------
 
@@ -335,21 +292,8 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
         except Exception as e2:
             pass
 
-def bot_enviar_mensaje_whatsapp(data: Union[Dict[str, Any], str], phone_number: str = None) -> Optional[bytes]:
-    """Envía mensajes a WhatsApp, ahora compatible con ambos formatos"""
-    # Si recibe el número como primer parámetro (para backward compatibility)
-    if isinstance(data, str):
-        phone_number = data
-        data = {}
-    
-    # Construye el payload final
-    payload = {
-        "messaging_product": "whatsapp",
-        "recipient_type": "individual",
-        "to": phone_number if phone_number else data.get('to'),
-        **{k: v for k, v in data.items() if k != 'to'}
-    }
-    
+def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
+    """Envía un mensaje a WhatsApp"""
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"{Config.WHATSAPP_TOKEN}"
@@ -357,7 +301,7 @@ def bot_enviar_mensaje_whatsapp(data: Union[Dict[str, Any], str], phone_number: 
     
     try:
         connection = http.client.HTTPSConnection("graph.facebook.com")
-        json_data = json.dumps(payload)
+        json_data = json.dumps(data)
         connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
         response = connection.getresponse()
         return response.read()
@@ -537,7 +481,7 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
-@flask_app.route('/webhook', methods=['GET', 'POST'])
+@flask_app.route('/webhook/whatsapp', methods=['GET', 'POST'])
 def webhook_whatsapp():
     if request.method == 'GET':
         challenge = verificar_token_whatsapp(request)
@@ -550,63 +494,35 @@ def webhook_whatsapp():
         entry = data['entry'][0]
         changes = entry.get('changes', [])[0]
         value = changes.get('value', {})
-        field = changes.get('field', '')
-
-        # 🔥 FILTRAR: solo eventos field = "messages"
-        if field != "messages":
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
         messages_list = value.get('messages', [])
 
-        if not messages_list:
-            return jsonify({'message': 'EVENT_RECEIVED'})
+        if messages_list:
+            message = messages_list[0]
+            phone_number = message.get("from")
+            text = ""
 
-        message = messages_list[0]
-
-        # 🔥 FILTRAR mensajes que no son de humanos
-        if not is_human_message(message):
-            agregar_mensajes_log(f"Mensaje no humano ignorado: {message}")
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
-        phone_number = message.get("from")
-        text = ""
-
-        message_type = message.get("type")
-
-        if message_type == "interactive":
-            interactive = message.get("interactive", {})
-            if interactive.get("type") == "button_reply":
-                text = interactive.get("button_reply", {}).get("id")
-            elif interactive.get("type") == "list_reply":
-                text = interactive.get("list_reply", {}).get("id")
-        elif message_type == "text":
-            text = message.get("text", {}).get("body", "")
-
-        if not text.strip():
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
-        initial_state = {
-            "phone_number": phone_number,
-            "user_msg": text,
-            "response_data": [],
-            "message_data": message,
-            "logs": [],
-            "source": "whatsapp"
-        }
-
-        # 🔥 Nueva lógica: primero intentar comandos especiales
-        special_response = handle_special_commands(initial_state)
-
-        if special_response:
-            # Si hay respuesta especial, respondemos inmediatamente
-            send_messages(initial_state, special_response)
-            return jsonify({'message': 'EVENT_RECEIVED'})
-
-        # 🔥 Si no hay respuesta especial, sigue flujo normal
-        app_flow.invoke(initial_state)
-        
+            if message.get("type") == "interactive":
+                interactive = message.get("interactive", {})
+                if interactive.get("type") == "button_reply":
+                    text = interactive.get("button_reply", {}).get("id")
+                elif interactive.get("type") == "list_reply":
+                    text = interactive.get("list_reply", {}).get("id")
+            elif message.get("type") == "text":
+                text = message.get("text", {}).get("body", "")
+            
+            initial_state = {
+                "phone_number": phone_number,
+                "user_msg": text,
+                "response_data": [],
+                "message_data": message,
+                "logs": [],
+                "source": "whatsapp"
+            }
+            
+            app_flow.invoke(initial_state)
+            
         return jsonify({'message': 'EVENT_RECEIVED'})
-
+    
     except Exception as e:
         agregar_mensajes_log(f"Error en webhook_whatsapp: {str(e)}")
         return jsonify({'message': 'EVENT_RECEIVED'}), 500
