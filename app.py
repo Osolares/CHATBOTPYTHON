@@ -594,7 +594,7 @@ def index():
 
 # --- AQUÍ EL WEBHOOK SIN BLUEPRINT ---
 
-@app.route('/webhook', methods=['GET', 'POST'])
+@flask_app.route('/webhook', methods=['GET', 'POST'])
 def webhook_whatsapp():
     if request.method == 'GET':
         mode = request.args.get('hub.mode')
