@@ -390,11 +390,12 @@ def send_messages(state: BotState) -> BotState:
     
     for mensaje in priority_messages + normal_messages:
         try:
+            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             if state["source"] == "whatsapp":
                 bot_enviar_mensaje_whatsapp(mensaje)
             # ... otros canales ...
             
-            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
+            #agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             time.sleep(1)
         except Exception as e:
             agregar_mensajes_log(f"Error enviando mensaje: {str(e)}")
@@ -676,7 +677,7 @@ def webhook_whatsapp():
         data = request.get_json()
 
         # Guardar el evento recibido
-        agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
+        #agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
 
         # Filtro inicial: solo humanos
         #if not is_human_message("whatsapp", data):
