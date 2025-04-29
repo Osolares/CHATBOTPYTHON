@@ -50,19 +50,31 @@ class BotState(TypedDict):
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
+from datetime import datetime, time, timedelta
+from typing import Optional
+from config import db
+from models import UserSession
+
+GUATEMALA_TZ = timezone('America/Guatemala')
+
+def now():
+    return datetime.now(GUATEMALA_TZ)
+
 def pre_validaciones(state: BotState) -> BotState:
     """
-    Middleware optimizado que:
-    - Solo bloquea usuarios no permitidos
-    - Agrega mensajes adicionales sin interrumpir
-    - Controla frecuencia sin afectar flujo
+    Middleware que valida:
+    - Usuarios bloqueados
+    - Horario de atención (zona horaria de Guatemala)
+    - Bienvenida con control de frecuencia
+    
+    Ahora solo agrega mensajes adicionales sin interrumpir el flujo
     """
     ahora = now()
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
 
-    # --- BLOQUEO DE USUARIOS (único caso que interrumpe) ---
+    # --- BLOQUEO DE USUARIOS ---
     BLOQUEADOS = {
         "whatsapp": ["50211112222", "50233334444"],
         "telegram": ["123456789"],
@@ -70,6 +82,7 @@ def pre_validaciones(state: BotState) -> BotState:
     }
 
     if phone_or_id in BLOQUEADOS.get(source, []):
+        # Para usuarios bloqueados SI interrumpimos el flujo
         state["response_data"] = [{
             "messaging_product": "whatsapp" if source == "whatsapp" else "other",
             "to": phone_or_id,
@@ -78,63 +91,80 @@ def pre_validaciones(state: BotState) -> BotState:
                 "body": "⚠️ Este canal no está habilitado para usted. Gracias por su comprensión."
             }
         }]
-        state["skip_processing"] = True  # Bandera para saltar el resto
+        state["skip_processing"] = True  # Nueva bandera para saltar procesamiento
         return state
 
-    # --- MENSAJES ADICIONALES (no interrumpen) ---
-    additional_msgs = []
+    # --- HORARIO DE ATENCIÓN ---
+    HORARIO = {
+        0: ("08:00", "17:00"),  # Lunes
+        1: ("08:00", "17:00"),
+        2: ("08:00", "17:00"),
+        3: ("08:00", "17:00"),
+        4: ("08:00", "17:00"),
+        5: ("08:00", "12:00"),
+        6: (None, None)         # Domingo cerrado
+    }
 
-    # Horario de atención (solo si es primera vez o pasó 1 hora)
-    if not _dentro_horario_atención(ahora):
-        if not session or not session.ultima_alerta_horario or (ahora - session.ultima_alerta_horario > timedelta(hours=1)):
-            additional_msgs.append({
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                "to": phone_or_id,
-                "type": "text",
-                "text": {
-                    "body": "🕒 Fuera de horario. Atenderemos pronto su consulta."
-                }
-            })
-            if session:
+    dia = ahora.weekday()
+    h_ini_str, h_fin_str = HORARIO.get(dia, (None, None))
+    dentro_horario = False
+
+    if h_ini_str and h_fin_str:
+        h_ini = datetime.strptime(h_ini_str, "%H:%M").time()
+        h_fin = datetime.strptime(h_fin_str, "%H:%M").time()
+        dentro_horario = h_ini <= ahora.time() <= h_fin
+
+    if not dentro_horario:
+        mostrar_alerta = False
+        
+        # Solo mostrar alerta si pasó más de 1 hora desde la última
+        if session:
+            ultima_alerta = session.ultima_alerta_horario or datetime.min.replace(tzinfo=GUATEMALA_TZ)
+            if ahora - ultima_alerta > timedelta(hours=1):
+                mostrar_alerta = True
                 session.ultima_alerta_horario = ahora
                 db.session.commit()
+        else:
+            mostrar_alerta = True
 
-    # Bienvenida (solo si es primera vez o pasó 24h)
-    if session:
-        if not session.mostro_bienvenida or (ahora - session.last_interaction > timedelta(hours=24)):
-            additional_msgs.append({
+        if mostrar_alerta:
+            state.setdefault("additional_messages", []).append({
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "to": phone_or_id,
                 "type": "text",
                 "text": {
-                    "body": "👋 ¡Bienvenido(a) a Intermotores!"
+                    "body": "🕒 En este momento estamos fuera de nuestro horario de atención.\n"
+                            "Nuestro equipo le responderá en el siguiente horario disponible.\n\n"
+                            "Puede continuar usando el asistente automático mientras tanto."
+                }
+            })
+
+    # --- BIENVENIDA CONTROLADA ---
+    if session:
+        # Solo mostrar bienvenida si es la primera vez o si pasó más de 24h desde la última interacción
+        if not session.mostro_bienvenida or (ahora - session.last_interaction > timedelta(hours=24)):
+            state.setdefault("additional_messages", []).append({
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "to": phone_or_id,
+                "type": "text",
+                "text": {
+                    "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗"
                 }
             })
             session.mostro_bienvenida = True
             db.session.commit()
+    else:
+        # Si no hay sesión, mostrar bienvenida mínima
+        state.setdefault("additional_messages", []).append({
+            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+            "to": phone_or_id,
+            "type": "text",
+            "text": {
+                "body": "👋 ¡Gracias por contactar a Intermotores!"
+            }
+        })
 
-    # Agregar al inicio de las respuestas (si hay)
-    if additional_msgs:
-        state["response_data"] = additional_msgs + (state.get("response_data") or [])
-    
     return state
-
-def _dentro_horario_atención(ahora):
-    """Helper para verificar horario"""
-    HORARIO = {
-        0: ("08:00", "17:00"), 1: ("08:00", "17:00"), 
-        2: ("08:00", "17:00"), 3: ("08:00", "17:00"),
-        4: ("08:00", "17:00"), 5: ("08:00", "12:00"), 
-        6: (None, None)
-    }
-    dia = ahora.weekday()
-    h_ini_str, h_fin_str = HORARIO.get(dia, (None, None))
-    if h_ini_str and h_fin_str:
-        h_ini = datetime.strptime(h_ini_str, "%H:%M").time()
-        h_fin = datetime.strptime(h_fin_str, "%H:%M").time()
-        return h_ini <= ahora.time() <= h_fin
-    return False
-
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
     phone_number = state.get("phone_number")
@@ -380,30 +410,44 @@ def asistente(state: BotState) -> BotState:
     return state
 
 def send_messages(state: BotState) -> BotState:
-    """Envía mensajes manteniendo el orden correcto"""
+    """Envía mensajes al canal correcto según la fuente."""
     messages = state.get("response_data", [])
     
-    # Ordenar por tipo (bienvenida/horario primero)
-    priority_messages = [m for m in messages if "Fuera de horario" in m.get("text", {}).get("body", "") 
-                         or "Bienvenido" in m.get("text", {}).get("body", "")]
-    normal_messages = [m for m in messages if m not in priority_messages]
+    if not messages:
+        return state
     
-    for mensaje in priority_messages + normal_messages:
+    for mensaje in messages:
         try:
-            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             if state["source"] == "whatsapp":
                 bot_enviar_mensaje_whatsapp(mensaje)
-            # ... otros canales ...
-            
-            #agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
+            elif state["source"] == "telegram":
+                bot_enviar_mensaje_telegram(mensaje)
+            elif state["source"] == "messenger":
+                bot_enviar_mensaje_messenger(mensaje)
+            elif state["source"] == "web":
+                bot_enviar_mensaje_web(mensaje)
+
+            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             time.sleep(1)
         except Exception as e:
-            agregar_mensajes_log(f"Error enviando mensaje: {str(e)}")
-    
+            agregar_mensajes_log(f"Error enviando mensaje ({state['source']}): {str(e)}",
+                               state["session"].idUser if state["session"] else None)
     return state
 # ------------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
 # ------------------------------------------
+
+def merge_responses(state: BotState) -> BotState:
+    """
+    Combina los mensajes adicionales del middleware con las respuestas normales.
+    Los mensajes adicionales van primero.
+    """
+    additional = state.pop("additional_messages", [])
+    main_responses = state.get("response_data", [])
+    
+    state["response_data"] = additional + main_responses
+    return state
+
 def is_human_message(platform: str, message_data: dict) -> bool:
     """
     Verifica si un mensaje es válido para procesar en cualquier plataforma.
@@ -605,7 +649,7 @@ def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
 # ------------------------------------------
 workflow = StateGraph(BotState)
 
-# Nodos existentes
+# --- 1. Nodos ---
 workflow.add_node("pre_validaciones", pre_validaciones)
 workflow.add_node("load_session", load_or_create_session)
 workflow.add_node("load_product_flow", load_product_flow)
@@ -613,13 +657,15 @@ workflow.add_node("handle_product_flow", handle_product_flow)
 workflow.add_node("handle_special_commands", handle_special_commands)
 workflow.add_node("asistente", asistente)
 workflow.add_node("send_messages", send_messages)
+workflow.add_node("merge_responses", merge_responses)  # Nuevo nodo
 
-# Flujo original (sin nodos nuevos)
+# --- 2. Enlaces (Edges) ---
 workflow.add_edge("pre_validaciones", "load_session")
 workflow.add_edge("load_session", "load_product_flow")
 workflow.add_edge("load_product_flow", "handle_product_flow")
 workflow.add_edge("handle_product_flow", "handle_special_commands")
 
+# Condicional entre comandos y asistente
 def enrutar_despues_comandos(state: BotState) -> str:
     if state.get("skip_processing", False):
         return "send_messages"
@@ -628,12 +674,15 @@ def enrutar_despues_comandos(state: BotState) -> str:
     return "asistente"
 
 workflow.add_conditional_edges("handle_special_commands", enrutar_despues_comandos)
-workflow.add_edge("asistente", "send_messages")
+workflow.add_edge("asistente", "merge_responses")
+workflow.add_edge("merge_responses", "send_messages")
 workflow.add_edge("send_messages", END)
 
+# --- Configurar punto de entrada
 workflow.set_entry_point("pre_validaciones")
-app_flow = workflow.compile()
-# ------------------------------------------
+
+# --- Compilar
+app_flow = workflow.compile()# ------------------------------------------
 # Configuración de Flask y Rutas
 # ------------------------------------------
 
