@@ -14,6 +14,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
+from pytz import timezone
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -47,15 +48,18 @@ class BotState(TypedDict):
 # ------------------------------------------
 def pre_validaciones(state: BotState) -> BotState:
     """
-    Middleware para validar:
+    Middleware que valida:
     - Usuarios bloqueados
-    - Horario de atención
-    - Bienvenida controlada
+    - Horario de atención (usando zona horaria de Guatemala)
+    - Mensaje de bienvenida controlado
     """
+    from pytz import timezone
+    tz_gt = timezone("America/Guatemala")
+    ahora = datetime.now(tz_gt)
+
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
-    ahora = datetime.utcnow()
 
     # --- BLOQUEO DE USUARIOS ---
     BLOQUEADOS = {
@@ -74,46 +78,47 @@ def pre_validaciones(state: BotState) -> BotState:
                 "body": "⚠️ Este canal no está habilitado para usted. Gracias por su comprensión."
             }
         }]
-        return state  # Bloquea el flujo
+        return state
 
-    # --- HORARIO DE ATENCIÓN ---
+    # --- HORARIO DE ATENCIÓN (Guatemala) ---
     HORARIO = {
-        0: ("08:00", "17:00"),
+        0: ("08:00", "17:00"),  # Lunes
         1: ("08:00", "17:00"),
         2: ("08:00", "17:00"),
         3: ("08:00", "17:00"),
         4: ("08:00", "17:00"),
-        5: ("08:00", "12:00"),
-        6: (None, None)
+        5: ("08:00", "12:00"),  # Sábado
+        6: (None, None)         # Domingo cerrado
     }
 
-    dia = ahora.weekday()
-    hora_inicio, hora_fin = HORARIO.get(dia, (None, None))
+    dia_semana = ahora.weekday()
+    hora_inicio_str, hora_fin_str = HORARIO.get(dia_semana, (None, None))
+
+    mostrar_alerta_horario = False
     dentro_horario = False
 
-    if hora_inicio and hora_fin:
-        h_ini = datetime.strptime(hora_inicio, "%H:%M").time()
-        h_fin = datetime.strptime(hora_fin, "%H:%M").time()
-        dentro_horario = h_ini <= ahora.time() <= h_fin
+    if hora_inicio_str and hora_fin_str:
+        hora_inicio = datetime.strptime(hora_inicio_str, "%H:%M").time()
+        hora_fin = datetime.strptime(hora_fin_str, "%H:%M").time()
+        ahora_time = ahora.time()
 
-    # Verifica si debe mostrar alerta fuera de horario
-    mostrar_alerta_horario = False
+        dentro_horario = hora_inicio <= ahora_time <= hora_fin
+
     if not dentro_horario:
+        # Mostrar alerta solo si no se ha mostrado recientemente
         if not session or not session.ultima_alerta_horario or (ahora - session.ultima_alerta_horario).total_seconds() > 3600:
-            mostrar_alerta_horario = True
+            state.setdefault("response_data", []).append({
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "to": phone_or_id,
+                "type": "text",
+                "text": {
+                    "body": "🕒 En este momento estamos fuera de nuestro horario de atención.\nNuestro equipo le responderá en el siguiente horario disponible.\n\nPuede continuar usando el asistente automático mientras tanto."
+                }
+            })
 
-    if mostrar_alerta_horario:
-        state.setdefault("response_data", []).append({
-            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-            "to": phone_or_id,
-            "type": "text",
-            "text": {
-                "body": "🕒 Estamos fuera de horario.\nUn asistente automático puede ayudarle por ahora. Nuestro equipo humano le responderá lo antes posible."
-            }
-        })
-        if session:
-            session.ultima_alerta_horario = ahora
-            db.session.commit()
+            if session:
+                session.ultima_alerta_horario = ahora
+                db.session.commit()
 
     # --- MENSAJE DE BIENVENIDA ---
     mostrar_bienvenida = False
@@ -128,7 +133,7 @@ def pre_validaciones(state: BotState) -> BotState:
             "to": phone_or_id,
             "type": "text",
             "text": {
-                "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗"
+                "body": "👋 ¡Bienvenido(a) a Intermotores!\nEstamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗"
             }
         })
         if session:
@@ -136,6 +141,7 @@ def pre_validaciones(state: BotState) -> BotState:
             db.session.commit()
 
     return state
+
 
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
@@ -303,20 +309,20 @@ def handle_special_commands(state: BotState) -> BotState:
                 "messaging_product": "whatsapp",
                 "recipient_type": "individual",
                 "to": number,
-                "type": "image",
-                "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
-                }
-            }, 
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
                 "type": "text",
                 "text": {
                     "preview_url": False,
                     "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"}
             },
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
+                }
+            }, 
             generar_list_menu(number)
         ]
 
