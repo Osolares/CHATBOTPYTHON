@@ -304,6 +304,52 @@ def send_messages(state: BotState) -> BotState:
 # ------------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
 # ------------------------------------------
+def is_human_message(platform: str, message_data: dict) -> bool:
+    """
+    Verifica si un mensaje es válido para procesar en cualquier plataforma.
+    
+    Args:
+        platform: "whatsapp", "telegram", "messenger", "web"
+        message_data: Datos crudos del mensaje recibido
+        
+    Returns:
+        bool: True si es un mensaje válido de humano, False si es un evento del sistema
+    """
+    try:
+        if platform == "whatsapp":
+            # WhatsApp Business API structure
+            message = message_data.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {}).get("messages", [{}])[0]
+            if not message.get("from"):
+                return False
+                
+            message_type = message.get("type")
+            valid_types = ["text", "interactive"]
+            return message_type in valid_types
+            
+        elif platform == "telegram":
+            # Telegram webhook structure
+            if "message" not in message_data:
+                return False
+                
+            message = message_data["message"]
+            return "text" in message or "data" in message  # Mensajes o callback queries
+            
+        elif platform == "messenger":
+            # Messenger webhook structure
+            entry = message_data.get("entry", [{}])[0]
+            messaging = entry.get("messaging", [{}])[0]
+            return "message" in messaging and "text" in messaging["message"]
+            
+        elif platform == "web":
+            # Estructura para web (formularios, chat web)
+            return bool(message_data.get("message")) and bool(message_data.get("email"))
+            
+        return False
+        
+    except Exception as e:
+        agregar_mensajes_log(f"Error en is_human_message: {str(e)}")
+        return False
+
 
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
     """Guarda un mensaje en memoria y en la base de datos."""
@@ -511,106 +557,120 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
+from message_validator import MessageValidator
+
+# ... (código existente)
+
 @flask_app.route('/webhook', methods=['GET', 'POST'])
 def webhook_whatsapp():
+    """Endpoint para WhatsApp Business API."""
     if request.method == 'GET':
-        challenge = verificar_token_whatsapp(request)
-        return challenge
+        return verificar_token_whatsapp(request)
     
     try:
         data = request.get_json()
-        agregar_mensajes_log(data)
-
-        entry = data['entry'][0]
-        changes = entry.get('changes', [])[0]
-        value = changes.get('value', {})
-        messages_list = value.get('messages', [])
-
-        if messages_list:
-            message = messages_list[0]
-            phone_number = message.get("from")
-            text = ""
-
-            if message.get("type") == "interactive":
-                interactive = message.get("interactive", {})
-                if interactive.get("type") == "button_reply":
-                    text = interactive.get("button_reply", {}).get("id")
-                elif interactive.get("type") == "list_reply":
-                    text = interactive.get("list_reply", {}).get("id")
-            elif message.get("type") == "text":
-                text = message.get("text", {}).get("body", "")
-            
-            initial_state = {
-                "phone_number": phone_number,
-                "user_msg": text,
-                "response_data": [],
-                "message_data": message,
-                "logs": [],
-                "source": "whatsapp"
-            }
-            
-            app_flow.invoke(initial_state)
-            
-        return jsonify({'message': 'EVENT_RECEIVED'})
-    
+        validation = MessageValidator.validate("whatsapp", data)
+        
+        if not validation["is_valid"]:
+            return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
+        
+        initial_state = {
+            "phone_number": validation["user_id"],
+            "user_msg": validation["message_content"],
+            "response_data": [],
+            "message_data": validation["raw_message"],
+            "logs": [],
+            "source": "whatsapp"
+        }
+        
+        app_flow.invoke(initial_state)
+        return jsonify({'status': 'processed'})
+        
     except Exception as e:
-        agregar_mensajes_log(f"Error en webhook_whatsapp: {str(e)}")
-        return jsonify({'message': 'EVENT_RECEIVED'}), 500
+        error_msg = f"WhatsApp webhook error: {str(e)}"
+        agregar_mensajes_log(error_msg)
+        return jsonify({'status': 'error', 'message': error_msg}), 500
+
+@flask_app.route('/webhook/telegram', methods=['POST'])
+def webhook_telegram():
+    """Endpoint para Telegram."""
+    try:
+        data = request.get_json()
+        validation = MessageValidator.validate("telegram", data)
+        
+        if not validation["is_valid"]:
+            return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
+        
+        initial_state = {
+            "phone_number": validation["user_id"],
+            "user_msg": validation["message_content"],
+            "response_data": [],
+            "message_data": {"chat_id": validation["user_id"]},
+            "logs": [],
+            "source": "telegram"
+        }
+        
+        app_flow.invoke(initial_state)
+        return jsonify({'status': 'processed'})
+        
+    except Exception as e:
+        error_msg = f"Telegram webhook error: {str(e)}"
+        agregar_mensajes_log(error_msg)
+        return jsonify({'status': 'error', 'message': error_msg}), 500
 
 @flask_app.route('/webhook/messenger', methods=['POST'])
 def webhook_messenger():
+    """Endpoint para Facebook Messenger."""
     try:
         data = request.get_json()
-        agregar_mensajes_log(data)
-
-        entry = data['entry'][0]
-        messaging = entry.get('messaging', [])[0]
-        sender_id = messaging['sender']['id']
-        text = messaging['message']['text']
-
+        validation = MessageValidator.validate("messenger", data)
+        
+        if not validation["is_valid"]:
+            return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
+        
         initial_state = {
-            "phone_number": "",  # No hay teléfono en Messenger
-            "user_msg": text,
+            "phone_number": "",  # Messenger usa ID, no teléfono
+            "user_msg": validation["message_content"],
             "response_data": [],
-            "message_data": {"recipient": {"id": sender_id}},
+            "message_data": {"recipient": {"id": validation["user_id"]}},
             "logs": [],
             "source": "messenger"
         }
         
         app_flow.invoke(initial_state)
+        return jsonify({'status': 'processed'})
         
-        return jsonify({'message': 'EVENT_RECEIVED'})
-    
     except Exception as e:
-        agregar_mensajes_log(f"Error en webhook_messenger: {str(e)}")
-        return jsonify({'message': 'EVENT_RECEIVED'}), 500
+        error_msg = f"Messenger webhook error: {str(e)}"
+        agregar_mensajes_log(error_msg)
+        return jsonify({'status': 'error', 'message': error_msg}), 500
 
 @flask_app.route('/webhook/web', methods=['POST'])
 def webhook_web():
+    """Endpoint para chat web."""
     try:
         data = request.get_json()
-        agregar_mensajes_log(data)
-
-        email = data.get("email")
-        text = data.get("message", "")
-
+        validation = MessageValidator.validate("web", data)
+        
+        if not validation["is_valid"]:
+            return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
+        
         initial_state = {
-            "phone_number": "", 
-            "user_msg": text,
+            "phone_number": "",  # Web usa email
+            "user_msg": validation["message_content"],
             "response_data": [],
-            "message_data": {"email": email},
+            "message_data": {"email": validation["user_id"]},
             "logs": [],
             "source": "web"
         }
         
         app_flow.invoke(initial_state)
+        return jsonify({'status': 'processed'})
         
-        return jsonify({'message': 'EVENT_RECEIVED'})
-    
     except Exception as e:
-        agregar_mensajes_log(f"Error en webhook_web: {str(e)}")
-        return jsonify({'message': 'EVENT_RECEIVED'}), 500
-
+        error_msg = f"Web webhook error: {str(e)}"
+        agregar_mensajes_log(error_msg)
+        return jsonify({'status': 'error', 'message': error_msg}), 500
 
 def verificar_token_whatsapp(req):
     """Verificación del token de WhatsApp"""
