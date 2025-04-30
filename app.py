@@ -184,79 +184,79 @@ def pre_validaciones(state: BotState) -> BotState:
 
     return state
 
-#def load_or_create_session(state: BotState) -> BotState:
-#    """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
-#    phone_number = state.get("phone_number")
-#    source = state.get("source")
-#    message_data = state.get("message_data", {})
-#
-#    session = None
-#
-#    with db.session.begin():
-#        if source == "whatsapp":
-#            session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
-#            if not session:
-#                session = UserSession(phone_number=phone_number)
-#                db.session.add(session)
-#                db.session.flush()
-#
-#        elif source == "telegram":
-#            chat_id = message_data.get("chat_id")
-#            session = db.session.query(UserSession).filter_by(telegram_id=chat_id).first()
-#            if not session:
-#                session = UserSession(telegram_id=chat_id)
-#                db.session.add(session)
-#                db.session.flush()
-#
-#        elif source == "messenger":
-#            messenger_id = message_data.get("recipient", {}).get("id")
-#            session = db.session.query(UserSession).filter_by(messenger_id=messenger_id).first()
-#            if not session:
-#                session = UserSession(messenger_id=messenger_id)
-#                db.session.add(session)
-#                db.session.flush()
-#
-#        elif source == "web":
-#            email = message_data.get("email")
-#            session = db.session.query(UserSession).filter_by(email=email).first()
-#            if not session and email:
-#                session = UserSession(email=email)
-#                db.session.add(session)
-#                db.session.flush()
-#
-#        if session:
-#            session.last_interaction =now()
-#        
-#        state["session"] = session
-#
-#    return state
-
 def load_or_create_session(state: BotState) -> BotState:
-    """Carga o crea una sesión de usuario"""
-    try:
-        phone_number = state.get("phone_number")
-        source = state.get("source")
-        message_data = state.get("message_data", {})
+    """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
+    phone_number = state.get("phone_number")
+    source = state.get("source")
+    message_data = state.get("message_data", {})
 
-        with db.session.begin():
-            if source == "whatsapp":
-                session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
-                if not session:
-                    session = UserSession(
-                        phone_number=phone_number,
-                        #created_at=now(),
-                        last_interaction=now(),
-                        source=source
-                    )
-                    db.session.add(session)
-                
-                # Actualizar siempre la última interacción
-                session.last_interaction = now()
-                session.source = source
-                db.session.commit()
+    session = None
 
-            state["session"] = session
-            return state
+    with db.session.begin():
+        if source == "whatsapp":
+            session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
+            if not session:
+                session = UserSession(phone_number=phone_number)
+                db.session.add(session)
+                db.session.flush()
+
+        elif source == "telegram":
+            chat_id = message_data.get("chat_id")
+            session = db.session.query(UserSession).filter_by(telegram_id=chat_id).first()
+            if not session:
+                session = UserSession(telegram_id=chat_id)
+                db.session.add(session)
+                db.session.flush()
+
+        elif source == "messenger":
+            messenger_id = message_data.get("recipient", {}).get("id")
+            session = db.session.query(UserSession).filter_by(messenger_id=messenger_id).first()
+            if not session:
+                session = UserSession(messenger_id=messenger_id)
+                db.session.add(session)
+                db.session.flush()
+
+        elif source == "web":
+            email = message_data.get("email")
+            session = db.session.query(UserSession).filter_by(email=email).first()
+            if not session and email:
+                session = UserSession(email=email)
+                db.session.add(session)
+                db.session.flush()
+
+        if session:
+            session.last_interaction =now()
+        
+        state["session"] = session
+
+    return state
+
+#def load_or_create_session(state: BotState) -> BotState:
+#    """Carga o crea una sesión de usuario"""
+#    try:
+#        phone_number = state.get("phone_number")
+#        source = state.get("source")
+#        message_data = state.get("message_data", {})
+#
+#        with db.session.begin():
+#            if source == "whatsapp":
+#                session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
+#                if not session:
+#                    session = UserSession(
+#                        phone_number=phone_number,
+#                        #created_at=now(),
+#                        last_interaction=now(),
+#                        source=source
+#                    )
+#                    db.session.add(session)
+#                
+#                # Actualizar siempre la última interacción
+#                session.last_interaction = now()
+#                session.source = source
+#                db.session.commit()
+#
+#            state["session"] = session
+#            return state
             
     except Exception as e:
         agregar_mensajes_log(f"Error en load_or_create_session: {str(e)}")
