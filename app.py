@@ -33,6 +33,8 @@ model = ChatOpenAI(
     max_tokens=200,
 )
 
+
+
 # ------------------------------------------
 # Definición del Estado y Modelos
 # ------------------------------------------
@@ -72,9 +74,9 @@ def block(source, to_compare):
         # Para usuarios bloqueados SI interrumpimos el flujo
         error_msg = f"❌ Error Usuario bloqueado"
         agregar_mensajes_log(error_msg)
-        return 0
-
-    return "success"
+        return {"status": "blocked", "message": error_msg}
+    
+    return {"status": "success"}
 
 def pre_validaciones(state: BotState) -> BotState:
     """
@@ -182,52 +184,85 @@ def pre_validaciones(state: BotState) -> BotState:
 
     return state
 
+#def load_or_create_session(state: BotState) -> BotState:
+#    """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
+#    phone_number = state.get("phone_number")
+#    source = state.get("source")
+#    message_data = state.get("message_data", {})
+#
+#    session = None
+#
+#    with db.session.begin():
+#        if source == "whatsapp":
+#            session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
+#            if not session:
+#                session = UserSession(phone_number=phone_number)
+#                db.session.add(session)
+#                db.session.flush()
+#
+#        elif source == "telegram":
+#            chat_id = message_data.get("chat_id")
+#            session = db.session.query(UserSession).filter_by(telegram_id=chat_id).first()
+#            if not session:
+#                session = UserSession(telegram_id=chat_id)
+#                db.session.add(session)
+#                db.session.flush()
+#
+#        elif source == "messenger":
+#            messenger_id = message_data.get("recipient", {}).get("id")
+#            session = db.session.query(UserSession).filter_by(messenger_id=messenger_id).first()
+#            if not session:
+#                session = UserSession(messenger_id=messenger_id)
+#                db.session.add(session)
+#                db.session.flush()
+#
+#        elif source == "web":
+#            email = message_data.get("email")
+#            session = db.session.query(UserSession).filter_by(email=email).first()
+#            if not session and email:
+#                session = UserSession(email=email)
+#                db.session.add(session)
+#                db.session.flush()
+#
+#        if session:
+#            session.last_interaction =now()
+#        
+#        state["session"] = session
+#
+#    return state
+
 def load_or_create_session(state: BotState) -> BotState:
-    """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
-    phone_number = state.get("phone_number")
-    source = state.get("source")
-    message_data = state.get("message_data", {})
+    """Carga o crea una sesión de usuario"""
+    try:
+        phone_number = state.get("phone_number")
+        source = state.get("source")
+        message_data = state.get("message_data", {})
 
-    session = None
+        with db.session.begin():
+            if source == "whatsapp":
+                session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
+                if not session:
+                    session = UserSession(
+                        phone_number=phone_number,
+                        created_at=now(),
+                        last_interaction=now(),
+                        source=source
+                    )
+                    db.session.add(session)
+                
+                # Actualizar siempre la última interacción
+                session.last_interaction = now()
+                session.source = source
+                db.session.commit()
 
-    with db.session.begin():
-        if source == "whatsapp":
-            session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
-            if not session:
-                session = UserSession(phone_number=phone_number)
-                db.session.add(session)
-                db.session.flush()
-
-        elif source == "telegram":
-            chat_id = message_data.get("chat_id")
-            session = db.session.query(UserSession).filter_by(telegram_id=chat_id).first()
-            if not session:
-                session = UserSession(telegram_id=chat_id)
-                db.session.add(session)
-                db.session.flush()
-
-        elif source == "messenger":
-            messenger_id = message_data.get("recipient", {}).get("id")
-            session = db.session.query(UserSession).filter_by(messenger_id=messenger_id).first()
-            if not session:
-                session = UserSession(messenger_id=messenger_id)
-                db.session.add(session)
-                db.session.flush()
-
-        elif source == "web":
-            email = message_data.get("email")
-            session = db.session.query(UserSession).filter_by(email=email).first()
-            if not session and email:
-                session = UserSession(email=email)
-                db.session.add(session)
-                db.session.flush()
-
-        if session:
-            session.last_interaction =now()
-        
-        state["session"] = session
-
-    return state
+            state["session"] = session
+            return state
+            
+    except Exception as e:
+        agregar_mensajes_log(f"Error en load_or_create_session: {str(e)}")
+        # Crear estado mínimo si falla
+        state["session"] = None
+        return state
 
 def load_product_flow(state: BotState) -> BotState:
     """Carga el estado del flujo de producto para el usuario actual"""
@@ -435,7 +470,7 @@ def send_messages(state: BotState) -> BotState:
     
     for mensaje in messages:
         try:
-            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
+            #agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             if state["source"] == "whatsapp":
                 bot_enviar_mensaje_whatsapp(mensaje)
             elif state["source"] == "telegram":
@@ -730,7 +765,9 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
+
 #from message_validator import MessageValidator
+
 
 #Token de verificacion para la configuracion
 TOKEN_WEBHOOK_WHATSAPP = f"{Config.TOKEN_WEBHOOK_WHATSAPP}"
@@ -796,11 +833,21 @@ def recibir_mensajes(req):
         value = changes.get('value', {})
         messages_list = value.get('messages', [])
 
+#        if messages_list:
+#            message = messages_list[0]
+#            phone_number = message.get("from")
+#
+#            block("whatsapp", phone_number)
+
         if messages_list:
             message = messages_list[0]
             phone_number = message.get("from")
-
-            block("whatsapp", phone_number)
+            
+            # Verificar si el usuario está bloqueado
+            block_result = block("whatsapp", phone_number)
+            if block_result.get("status") == "blocked":
+                agregar_mensajes_log(f"Usuario bloqueado intentó contactar: {phone_number}")
+                return jsonify({'status': 'blocked', 'message': 'Usuario bloqueado'}), 403
 
             #session = load_or_create_session(phone_number)
             #if not session:
@@ -821,6 +868,7 @@ def recibir_mensajes(req):
                 "logs": [],
                 "source": "whatsapp"
             }
+            agregar_mensajes_log(f"📥 Initial State: {json.dumps(initial_state)}")
 
             msg_type = message.get("type")
 
@@ -848,6 +896,8 @@ def recibir_mensajes(req):
                     # Actualizamos el user_msg en el estado con el texto del botón
                     initial_state["user_msg"] = text
                     #enviar_mensajes_whatsapp(text, phone_number)
+
+            agregar_mensajes_log(f"📥 Mensaje a enviar: {json.dumps(initial_state)}")
 
             # Ejecuta el flujo
             app_flow.invoke(initial_state)
