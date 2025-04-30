@@ -244,7 +244,7 @@ def load_or_create_session(state: BotState) -> BotState:
                 if not session:
                     session = UserSession(
                         phone_number=phone_number,
-                        created_at=now(),
+                        #created_at=now(),
                         last_interaction=now(),
                         source=source
                     )
