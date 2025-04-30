@@ -922,9 +922,8 @@ def recibir_mensajes(req):
 
             # Ejecuta el flujo
             app_flow.invoke(initial_state)
-            clear_pending_messages()
 
-            return jsonify({'status': 'processed'}), 200
+            #return jsonify({'status': 'processed'}), 200
         
         else:
             return jsonify({'status': 'ignored', 'reason': 'no_messages'}), 200
@@ -939,19 +938,6 @@ def recibir_mensajes(req):
         error_msg = f"❌ Error procesando webhook WhatsApp: {str(e)}"
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
-
-def clear_pending_messages():
-    headers = {
-        "Authorization": f"Bearer {Config.WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    conn = http.client.HTTPSConnection("graph.facebook.com")
-    conn.request("POST", f"/v18.0/{Config.PHONE_NUMBER_ID}/clear_queue", headers=headers)
-    response = conn.getresponse()
-    conn.close()
-    agregar_mensajes_log(f"Clear Queue: {json.dumps(response)}")
-
-    return response.status == 200
 
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
