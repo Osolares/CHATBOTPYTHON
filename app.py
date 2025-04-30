@@ -91,6 +91,7 @@ def pre_validaciones(state: BotState) -> BotState:
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
+    agregar_mensajes_log(f"En pre_validaciones: {json.dumps(source)}")
 
     # --- BLOQUEO DE USUARIOS ---
     #BLOQUEADOS = {
@@ -191,6 +192,7 @@ def load_or_create_session(state: BotState) -> BotState:
     message_data = state.get("message_data", {})
 
     session = None
+    agregar_mensajes_log(f"En userSession: {json.dumps(message_data)}")
 
     with db.session.begin():
         if source == "whatsapp":
@@ -226,7 +228,8 @@ def load_or_create_session(state: BotState) -> BotState:
 
         if session:
             session.last_interaction =now()
-        
+        agregar_mensajes_log(f"En userSession: {json.dumps(session)}")
+
         state["session"] = session
 
     return state
