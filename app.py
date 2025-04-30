@@ -258,11 +258,11 @@ def load_or_create_session(state: BotState) -> BotState:
 #            state["session"] = session
 #            return state
             
-    except Exception as e:
-        agregar_mensajes_log(f"Error en load_or_create_session: {str(e)}")
-        # Crear estado mínimo si falla
-        state["session"] = None
-        return state
+#    except Exception as e:
+#        agregar_mensajes_log(f"Error en load_or_create_session: {str(e)}")
+#        # Crear estado mínimo si falla
+#        state["session"] = None
+#        return state
 
 def load_product_flow(state: BotState) -> BotState:
     """Carga el estado del flujo de producto para el usuario actual"""
