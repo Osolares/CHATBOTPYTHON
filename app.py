@@ -228,7 +228,7 @@ def load_or_create_session(state: BotState) -> BotState:
 
         if session:
             session.last_interaction =now()
-        agregar_mensajes_log(f"En userSession: {json.dumps(session)}")
+        agregar_mensajes_log(f"En userSession: {session}")
 
         state["session"] = session
 
