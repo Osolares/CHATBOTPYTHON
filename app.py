@@ -851,8 +851,11 @@ def recibir_mensajes(req):
 
             # Ejecuta el flujo
             app_flow.invoke(initial_state)
-    
+
             return jsonify({'status': 'processed'})
+        
+        else:
+            return 0
 
         #return jsonify({'message': 'EVENT_RECEIVED'})
 
