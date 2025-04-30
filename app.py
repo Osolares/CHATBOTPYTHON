@@ -741,8 +741,8 @@ def webhook():
         challenge = verificar_token_whatsapp(request)
         return challenge
     elif request.method == 'POST':
-        reponse = recibir_mensajes(request)
-        return reponse
+        response = recibir_mensajes(request)
+        return response
 
 def verificar_token_whatsapp(req):
     token = req.args.get('hub.verify_token')
@@ -855,7 +855,7 @@ def recibir_mensajes(req):
             return jsonify({'status': 'processed'})
         
         else:
-            return 0
+            return jsonify({'status': 'ignored', 'reason': 'no_messages'}), 200
 
         #return jsonify({'message': 'EVENT_RECEIVED'})
 
