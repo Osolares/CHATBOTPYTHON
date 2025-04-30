@@ -91,7 +91,7 @@ def pre_validaciones(state: BotState) -> BotState:
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
-    agregar_mensajes_log(f"En pre_validaciones: Session {json.dumps(session)}")
+    agregar_mensajes_log(f"En pre_validaciones: Session {session}")
 
     # --- BLOQUEO DE USUARIOS ---
     #BLOQUEADOS = {
