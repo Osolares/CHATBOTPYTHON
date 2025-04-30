@@ -70,6 +70,8 @@ def block(source, to_compare):
 
     if to_compare in BLOQUEADOS.get(source, []):
         # Para usuarios bloqueados SI interrumpimos el flujo
+        error_msg = f"❌ Error Usuario bloqueado"
+        agregar_mensajes_log(error_msg)
         return 0
 
     return "success"
@@ -847,10 +849,10 @@ def recibir_mensajes(req):
                     initial_state["user_msg"] = text
                     #enviar_mensajes_whatsapp(text, phone_number)
 
-        # Ejecuta el flujo
-        app_flow.invoke(initial_state)
-
-        return jsonify({'status': 'processed'})
+            # Ejecuta el flujo
+            app_flow.invoke(initial_state)
+    
+            return jsonify({'status': 'processed'})
 
         #return jsonify({'message': 'EVENT_RECEIVED'})
 
