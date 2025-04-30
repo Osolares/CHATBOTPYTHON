@@ -825,7 +825,7 @@ def recibir_mensajes(req):
 
         if not data or 'entry' not in data:
             agregar_mensajes_log("Error: JSON sin 'entry' o 'Data'")
-            return jsonify({'message': 'EVENT_RECEIVED'})
+            return jsonify({'message': 'EVENT_RECEIVED'}), 401
 
         # Guardar el evento recibido
         #agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
@@ -923,7 +923,7 @@ def recibir_mensajes(req):
             # Ejecuta el flujo
             app_flow.invoke(initial_state)
 
-            return jsonify({'status': 'processed'})
+            return jsonify({'status': 'processed'}), 200
         
         else:
             return jsonify({'status': 'ignored', 'reason': 'no_messages'}), 200
