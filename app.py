@@ -812,6 +812,7 @@ def verificar_token_whatsapp(req):
         return jsonify({'error':'Token Invalido'}),401
 
 def recibir_mensajes(req):
+    clear_pending_messages()
     try:
         data = request.get_json()
 
@@ -868,7 +869,7 @@ def recibir_mensajes(req):
             block_result = block("whatsapp", phone_number)
             if block_result.get("status") == "blocked":
                 agregar_mensajes_log(f"Usuario bloqueado intentó contactar: {phone_number}")
-                return jsonify({'status': 'blocked', 'message': 'Usuario bloqueado'}), 403
+                return jsonify({'status': 'blocked', 'message': 'Usuario bloqueado'}), 200
 
             #session = load_or_create_session(phone_number)
             #if not session:
@@ -938,6 +939,19 @@ def recibir_mensajes(req):
         error_msg = f"❌ Error procesando webhook WhatsApp: {str(e)}"
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
+
+def clear_pending_messages():
+    headers = {
+        "Authorization": f"Bearer {Config.WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    conn = http.client.HTTPSConnection("graph.facebook.com")
+    conn.request("POST", f"/v18.0/{Config.PHONE_NUMBER_ID}/clear_queue", headers=headers)
+    response = conn.getresponse()
+    conn.close()
+    agregar_mensajes_log(f"Clear Queue: {json.dumps(response)}")
+
+    return response.status == 200
 
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
