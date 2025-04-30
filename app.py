@@ -269,7 +269,7 @@ def load_or_create_session(state: BotState) -> BotState:
 
 def load_product_flow(state: BotState) -> BotState:
     """Carga el estado del flujo de producto para el usuario actual"""
-    agregar_mensajes_log(f"En load_product_flow: state {state}")
+    agregar_mensajes_log(f"En load_product_flow: {json.dumps(state)}")
 
     if state["session"]:
         flujo_producto = db.session.query(ProductModel).filter_by(
@@ -296,7 +296,7 @@ def handle_special_commands(state: BotState) -> BotState:
     number = state.get("phone_number")
     source = state.get("source")
 
-    agregar_mensajes_log(f"En handle_special_commands: state {state}")
+    agregar_mensajes_log(f"En handle_special_commands: {json.dumps(state)}")
 
     # Dependiendo del source, podrías en el futuro mandar menús diferentes.
     if "hola" in texto:
@@ -443,7 +443,7 @@ def handle_special_commands(state: BotState) -> BotState:
 
 def asistente(state: BotState) -> BotState:
     """Maneja mensajes no reconocidos usando DeepSeek"""
-    agregar_mensajes_log(f"En asistente: state {state}")
+    agregar_mensajes_log(f"En asistente: {json.dumps(state)}")
 
     if not state.get("response_data"):
         user_msg = state["user_msg"]
@@ -472,7 +472,7 @@ def asistente(state: BotState) -> BotState:
 
 def send_messages(state: BotState) -> BotState:
     """Envía mensajes al canal correcto según la fuente."""
-    agregar_mensajes_log(f"En send_messages: state {state}")
+    agregar_mensajes_log(f"En send_messages: {json.dumps(state)}")
 
     messages = state.get("response_data", [])
     
@@ -506,7 +506,7 @@ def merge_responses(state: BotState) -> BotState:
     Combina los mensajes adicionales del middleware con las respuestas normales.
     Los mensajes adicionales van primero.
     """
-    agregar_mensajes_log(f"En merge_responses: state {state}")
+    agregar_mensajes_log(f"En merge_responses: {json.dumps(state)}")
 
     additional = state.pop("additional_messages", [])
     main_responses = state.get("response_data", [])
@@ -563,7 +563,7 @@ def is_human_message(platform: str, message_data: dict) -> bool:
 
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
     """Guarda un mensaje en memoria y en la base de datos."""
-    #agregar_mensajes_log(f"En agregar_mensajes_log: state {state}")
+    #agregar_mensajes_log(f"En agregar_mensajes_log: {json.dumps(state)}")
 
     try:
         texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
@@ -582,7 +582,7 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp"""
-    agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: state {state}")
+    agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {json.dumps(state)}")
 
     headers = {
         "Content-Type": "application/json",
@@ -1034,7 +1034,7 @@ def enrutar_despues_comandos(state: BotState) -> str:
     - Si ya hay respuesta en state["response_data"], saltar asistente y enviar directamente.
     - Si no, pasar al asistente.
     """
-    agregar_mensajes_log(f"En agregar_despues_comandos: state {state}")
+    agregar_mensajes_log(f"En agregar_despues_comandos: {json.dumps(state)}")
 
     if state.get("response_data"):
         return "send_messages"
