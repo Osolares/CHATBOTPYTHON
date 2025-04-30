@@ -728,12 +728,12 @@ def index():
 
     return render_template('index.html', registros=registros, users=users, products=products)
 
-from message_validator import MessageValidator
+#from message_validator import MessageValidator
 
 #Token de verificacion para la configuracion
 TOKEN_WEBHOOK_WHATSAPP = f"{Config.TOKEN_WEBHOOK_WHATSAPP}"
 
-@app.route('/webhook', methods=['GET','POST'])
+@flask_app.route('/webhook', methods=['GET','POST'])
 def webhook():
     if request.method == 'GET':
         challenge = verificar_token_whatsapp(request)
@@ -945,15 +945,15 @@ def webhook_web():
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
 
-def verificar_token_whatsapp(req):
-    """Verificación del token de WhatsApp"""
-    token = req.args.get('hub.verify_token')
-    challenge = req.args.get('hub.challenge')
-
-    if challenge and token == Config.TOKEN_WEBHOOK_WHATSAPP:
-        return challenge
-    else:
-        return jsonify({'error': 'Token Invalido'}), 401
+#def verificar_token_whatsapp(req):
+#    """Verificación del token de WhatsApp"""
+#    token = req.args.get('hub.verify_token')
+#    challenge = req.args.get('hub.challenge')
+#
+#    if challenge and token == Config.TOKEN_WEBHOOK_WHATSAPP:
+#        return challenge
+#    else:
+#        return jsonify({'error': 'Token Invalido'}), 401
 
 def enrutar_despues_comandos(state: BotState) -> str:
     """
