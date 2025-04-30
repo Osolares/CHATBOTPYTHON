@@ -563,7 +563,7 @@ def is_human_message(platform: str, message_data: dict) -> bool:
 
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
     """Guarda un mensaje en memoria y en la base de datos."""
-    agregar_mensajes_log(f"En agregar_mensajes_log: state {state}")
+    #agregar_mensajes_log(f"En agregar_mensajes_log: state {state}")
 
     try:
         texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
