@@ -812,7 +812,6 @@ def verificar_token_whatsapp(req):
         return jsonify({'error':'Token Invalido'}),401
 
 def recibir_mensajes(req):
-    clear_pending_messages()
     try:
         data = request.get_json()
 
@@ -923,6 +922,7 @@ def recibir_mensajes(req):
 
             # Ejecuta el flujo
             app_flow.invoke(initial_state)
+            clear_pending_messages()
 
             return jsonify({'status': 'processed'}), 200
         
