@@ -50,15 +50,29 @@ class BotState(TypedDict):
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
-from datetime import datetime, time, timedelta
-from typing import Optional
-from config import db
-from models import UserSession
+#from datetime import datetime, time, timedelta
+#from typing import Optional
+#from config import db
+#from models import UserSession
+#
+#GUATEMALA_TZ = timezone('America/Guatemala')
+#
+#def now():
+#    return datetime.now(GUATEMALA_TZ)
+def block(source, to_compare):
+    # --- BLOQUEO DE USUARIOS ---
+    BLOQUEADOS = {
+        "whatsapp": ["502123456", "50233334444"],
+        "telegram": ["123456789"],
+        "web": ["correo@ejemplo.com"]
+    }
 
-GUATEMALA_TZ = timezone('America/Guatemala')
 
-def now():
-    return datetime.now(GUATEMALA_TZ)
+    if to_compare in BLOQUEADOS.get(source, []):
+        # Para usuarios bloqueados SI interrumpimos el flujo
+        return 0
+
+    return "success"
 
 def pre_validaciones(state: BotState) -> BotState:
     """
@@ -75,24 +89,24 @@ def pre_validaciones(state: BotState) -> BotState:
     source = state.get("source")
 
     # --- BLOQUEO DE USUARIOS ---
-    BLOQUEADOS = {
-        "whatsapp": ["50255105350", "50233334444"],
-        "telegram": ["123456789"],
-        "web": ["correo@ejemplo.com"]
-    }
-
-    if phone_or_id in BLOQUEADOS.get(source, []):
-        # Para usuarios bloqueados SI interrumpimos el flujo
-        state["response_data"] = [{
-            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-            "to": phone_or_id,
-            "type": "text",
-            "text": {
-                "body": "⚠️ Este canal no está habilitado para usted. Gracias por su comprensión."
-            }
-        }]
-        state["skip_processing"] = True  # Nueva bandera para saltar procesamiento
-        return state
+    #BLOQUEADOS = {
+    #    "whatsapp": ["502123456", "50233334444"],
+    #    "telegram": ["123456789"],
+    #    "web": ["correo@ejemplo.com"]
+    #}
+#
+    #if phone_or_id in BLOQUEADOS.get(source, []):
+    #    # Para usuarios bloqueados SI interrumpimos el flujo
+    #    state["response_data"] = [{
+    #        "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+    #        "to": phone_or_id,
+    #        "type": "text",
+    #        "text": {
+    #            "body": "⚠️ Este canal no está habilitado para usted. Gracias por su comprensión."
+    #        }
+    #    }]
+    #    state["skip_processing"] = True  # Nueva bandera para saltar procesamiento
+    #    return state
 
     # --- HORARIO DE ATENCIÓN ---
     HORARIO = {
@@ -165,6 +179,7 @@ def pre_validaciones(state: BotState) -> BotState:
         })
 
     return state
+
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
     phone_number = state.get("phone_number")
@@ -651,8 +666,8 @@ def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
 workflow = StateGraph(BotState)
 
 # --- 1. Nodos ---
-workflow.add_node("pre_validaciones", pre_validaciones)
 workflow.add_node("load_session", load_or_create_session)
+workflow.add_node("pre_validaciones", pre_validaciones)
 workflow.add_node("load_product_flow", load_product_flow)
 workflow.add_node("handle_product_flow", handle_product_flow)
 workflow.add_node("handle_special_commands", handle_special_commands)
@@ -661,8 +676,8 @@ workflow.add_node("send_messages", send_messages)
 workflow.add_node("merge_responses", merge_responses)  # Nuevo nodo
 
 # --- 2. Enlaces (Edges) ---
-workflow.add_edge("pre_validaciones", "load_session")
-workflow.add_edge("load_session", "load_product_flow")
+workflow.add_edge("load_session", "pre_validaciones")
+workflow.add_edge("pre_validaciones", "load_product_flow")
 workflow.add_edge("load_product_flow", "handle_product_flow")
 workflow.add_edge("handle_product_flow", "handle_special_commands")
 
@@ -680,7 +695,7 @@ workflow.add_edge("merge_responses", "send_messages")
 workflow.add_edge("send_messages", END)
 
 # --- Configurar punto de entrada
-workflow.set_entry_point("pre_validaciones")
+workflow.set_entry_point("load_session")
 
 # --- Compilar
 app_flow = workflow.compile()# ------------------------------------------
@@ -715,51 +730,133 @@ def index():
 
 from message_validator import MessageValidator
 
+#Token de verificacion para la configuracion
+TOKEN_WEBHOOK_WHATSAPP = f"{Config.TOKEN_WEBHOOK_WHATSAPP}"
 
-@flask_app.route('/webhook', methods=['GET', 'POST'])
-def webhook_whatsapp():
-    """Webhook de WhatsApp - Validación estricta de eventos."""
+@app.route('/webhook', methods=['GET','POST'])
+def webhook():
     if request.method == 'GET':
-        return verificar_token_whatsapp(request)
+        challenge = verificar_token_whatsapp(request)
+        return challenge
+    elif request.method == 'POST':
+        reponse = recibir_mensajes(request)
+        return reponse
 
+def verificar_token_whatsapp(req):
+    token = req.args.get('hub.verify_token')
+    challenge = req.args.get('hub.challenge')
+
+    if challenge and token == TOKEN_WEBHOOK_WHATSAPP:
+        return challenge
+    else:
+        return jsonify({'error':'Token Invalido'}),401
+
+def recibir_mensajes(req):
     try:
         data = request.get_json()
 
+        try:
+            #agregar_mensajes_log(json.dumps(data, ensure_ascii=False))
+            # Guardar el evento recibido
+            agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
+
+        except TypeError as e:
+            agregar_mensajes_log(f"[Log ignorado] No se pudo serializar data: {str(e)}")
+
+        if not data or 'entry' not in data:
+            agregar_mensajes_log("Error: JSON sin 'entry' o 'Data'")
+            return jsonify({'message': 'EVENT_RECEIVED'})
+
         # Guardar el evento recibido
-        agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
+        #agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
 
         # Filtro inicial: solo humanos
         #if not is_human_message("whatsapp", data):
         #    agregar_mensajes_log("🚫 Evento ignorado: no es mensaje humano", None)
         #    return jsonify({'status': 'ignored', 'reason': 'non_human_event'})
         
-        # Versión más limpia (opcional)
-        if not is_human_message("whatsapp", data):
-            # Puedes comentar esto si no quieres ni siquiera registrar eventos no humanos
-            # agregar_mensajes_log("🚫 Evento ignorado: no es mensaje humano", None)
-            return jsonify({'status': 'ignored'})
+        ## Versión más limpia (opcional)
+        #if not is_human_message("whatsapp", data):
+        #    # Puedes comentar esto si no quieres ni siquiera registrar eventos no humanos
+        #    # agregar_mensajes_log("🚫 Evento ignorado: no es mensaje humano", None)
+        #    return jsonify({'status': 'ignored'})
+#
+        ## Validación de estructura
+        #validation = MessageValidator.validate("whatsapp", data)
+#
+        #if not validation["is_valid"]:
+        #    agregar_mensajes_log("🚫 Mensaje inválido detectado en webhook", None)
+        #    return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
 
-        # Validación de estructura
-        validation = MessageValidator.validate("whatsapp", data)
 
-        if not validation["is_valid"]:
-            agregar_mensajes_log("🚫 Mensaje inválido detectado en webhook", None)
-            return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
+        entry = data['entry'][0]
+        changes = entry.get('changes', [])[0]
+        value = changes.get('value', {})
+        messages_list = value.get('messages', [])
 
-        # Crea estado inicial
-        initial_state = {
-            "phone_number": validation["user_id"],
-            "user_msg": validation["message_content"],
-            "response_data": [],
-            "message_data": validation["raw_message"],
-            "logs": [],
-            "source": "whatsapp"
-        }
+        if messages_list:
+            message = messages_list[0]
+            phone_number = message.get("from")
+
+            block("whatsapp", phone_number)
+
+            #session = load_or_create_session(phone_number)
+            #if not session:
+            #    session = load_or_create_session(phone_number)
+
+            ## Guardar log
+            #try:
+            #    agregar_mensajes_log(json.dumps(message, ensure_ascii=False))
+            #except TypeError as e:
+            #    agregar_mensajes_log(f"[Log ignorado] No se pudo serializar message: {str(e)}")
+
+            # Crea estado inicial
+            initial_state = {
+                "phone_number":phone_number,
+                "user_msg": message,
+                "response_data": [],
+                "message_data": message,
+                "logs": [],
+                "source": "whatsapp"
+            }
+
+            msg_type = message.get("type")
+
+            if msg_type == "interactive":
+                interactive = message.get("interactive", {})
+                tipo_interactivo = interactive.get("type")
+
+                if tipo_interactivo == "button_reply":
+                    text = interactive.get("button_reply", {}).get("id")
+                    if text:
+                        # Actualizamos el user_msg en el estado con el texto del botón
+                        initial_state["user_msg"] = text
+                        #enviar_mensajes_whatsapp(text, phone_number)
+
+                elif tipo_interactivo == "list_reply":
+                    text = interactive.get("list_reply", {}).get("id")
+                    if text:
+                        # Actualizamos el user_msg en el estado con el texto del botón
+                        initial_state["user_msg"] = text
+                        #enviar_mensajes_whatsapp(text, phone_number)
+
+            elif msg_type == "text":
+                text = message.get("text", {}).get("body")
+                if text:
+                    # Actualizamos el user_msg en el estado con el texto del botón
+                    initial_state["user_msg"] = text
+                    #enviar_mensajes_whatsapp(text, phone_number)
 
         # Ejecuta el flujo
         app_flow.invoke(initial_state)
 
         return jsonify({'status': 'processed'})
+
+        #return jsonify({'message': 'EVENT_RECEIVED'})
+
+    #except Exception as e:
+    #    agregar_mensajes_log(f"Error en recibir_mensajes: {str(e)}")
+    #    return jsonify({'message': 'EVENT_RECEIVED'})
 
     except Exception as e:
         error_msg = f"❌ Error procesando webhook WhatsApp: {str(e)}"
