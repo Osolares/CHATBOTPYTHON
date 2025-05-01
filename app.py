@@ -76,7 +76,7 @@ def block(source, to_compare):
         agregar_mensajes_log(error_msg)
         return {"status": "blocked", "message": error_msg}
     
-    return {"status": "success"},200
+    return {"status": "success"}
 
 def pre_validaciones(state: BotState) -> BotState:
     """
@@ -937,7 +937,7 @@ def recibir_mensajes(req):
     except Exception as e:
         error_msg = f"❌ Error procesando webhook WhatsApp: {str(e)}"
         agregar_mensajes_log(error_msg)
-        return jsonify({'status': 'error', 'message': error_msg}), 501
+        return jsonify({'status': 'error', 'message': error_msg}), 500
 
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
