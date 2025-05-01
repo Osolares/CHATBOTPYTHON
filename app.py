@@ -85,6 +85,8 @@ def pre_validaciones(state: BotState) -> BotState:
     
     Mantiene la misma lógica pero con mejor manejo de zonas horarias
     """
+    agregar_mensajes_log(f"En pre_validaciones: {state}")
+
     ahora = now()  # Usa la función centralizada que ya incluye la zona horaria
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
@@ -188,6 +190,8 @@ def pre_validaciones(state: BotState) -> BotState:
             }
         })
 
+    agregar_mensajes_log(f"saliendo de pre_validaciones: {state}")
+
     return state
 
 def load_or_create_session(state: BotState) -> BotState:
@@ -197,7 +201,7 @@ def load_or_create_session(state: BotState) -> BotState:
     message_data = state.get("message_data", {})
 
     session = None
-    agregar_mensajes_log(f"En userSession: {json.dumps(message_data)}")
+    agregar_mensajes_log(f"Entrando En userSession: {state}")
 
     with db.session.begin():
         if source == "whatsapp":
@@ -233,7 +237,7 @@ def load_or_create_session(state: BotState) -> BotState:
 
         if session:
             session.last_interaction =now()
-        agregar_mensajes_log(f"En userSession: {session}")
+        agregar_mensajes_log(f"Saliendo de userSession: {session}")
 
         state["session"] = session
 
@@ -591,7 +595,7 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp"""
-    agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {state}")
+    agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {data}")
 
     headers = {
         "Content-Type": "application/json",
