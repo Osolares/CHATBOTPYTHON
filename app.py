@@ -470,7 +470,7 @@ def asistente(state: BotState) -> BotState:
 
         # Llama DeepSeek solo si no es duplicado
 
-        response = model.invoke([HumanMessage(content=f"Responde en maximo 15 palabras de forma muy directa, concisa y resumida: {user_msg}")])
+        response = model.invoke([HumanMessage(content=f"Responde en maximo 50 palabras de forma muy directa, concisa y resumida: {user_msg}")])
         body = response.content
 
         if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
@@ -488,12 +488,14 @@ def send_messages(state: BotState) -> BotState:
     agregar_mensajes_log(f"En send_messages: {state}")
 
     messages = state.get("response_data", [])
-    
+
     if not messages:
         return state
     
     for mensaje in messages:
         try:
+            agregar_mensajes_log(f"📥 Enviando Mensaje: {mensaje}")
+
             #agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             if state["source"] == "whatsapp":
                 bot_enviar_mensaje_whatsapp(mensaje)
@@ -752,9 +754,9 @@ workflow.add_edge("handle_product_flow", "handle_special_commands")
 # Condicional entre comandos y asistente
 def enrutar_despues_comandos(state: BotState) -> str:
     if state.get("skip_processing", False):
-        return "send_messages"
+        return "merge_responses"
     if state.get("response_data"):
-        return "send_messages"
+        return "merge_responses"
     return "asistente"
 
 workflow.add_conditional_edges("handle_special_commands", enrutar_despues_comandos)
@@ -825,13 +827,13 @@ def recibir_mensajes(req):
     try:
         data = request.get_json()
 
-        try:
-            #agregar_mensajes_log(json.dumps(data, ensure_ascii=False))
-            # Guardar el evento recibido
-            agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
+        #try:
+        #    #agregar_mensajes_log(json.dumps(data, ensure_ascii=False))
+        #    # Guardar el evento recibido
+        #    agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
 
-        except TypeError as e:
-            agregar_mensajes_log(f"[Log ignorado] No se pudo serializar data: {str(e)}")
+        #except TypeError as e:
+        #    agregar_mensajes_log(f"[Log ignorado] No se pudo serializar data: {str(e)}")
 
         if not data or 'entry' not in data:
             agregar_mensajes_log("Error: JSON sin 'entry' o 'Data'")
@@ -899,7 +901,7 @@ def recibir_mensajes(req):
                 "logs": [],
                 "source": "whatsapp"
             }
-            agregar_mensajes_log(f"📥 Initial State: {json.dumps(initial_state)}")
+            #agregar_mensajes_log(f"📥 Initial State: {json.dumps(initial_state)}")
 
             msg_type = message.get("type")
 
