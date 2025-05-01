@@ -16,9 +16,7 @@ from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
 from datetime import datetime, timedelta
 from pytz import timezone
-from config import GUATEMALA_TZ
-from utils.timezone import now
-
+from config import now,GUATEMALA_TZ
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -85,35 +83,22 @@ def pre_validaciones(state: BotState) -> BotState:
     - Horario de atención (zona horaria de Guatemala)
     - Bienvenida con control de frecuencia
     
-    Ahora solo agrega mensajes adicionales sin interrumpir el flujo
+    Mantiene la misma lógica pero con mejor manejo de zonas horarias
     """
-    ahora = now()
+    ahora = now()  # Usa la función centralizada que ya incluye la zona horaria
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
-    agregar_mensajes_log(f"En pre_validaciones: Session {session}")
+    
+    # Log mejorado con marca de tiempo
+    agregar_mensajes_log({
+        "timestamp": ahora.isoformat(),
+        "event": "pre_validaciones",
+        "session_id": session.idUser if session else None,
+        "phone_or_id": phone_or_id
+    })
 
-    # --- BLOQUEO DE USUARIOS ---
-    #BLOQUEADOS = {
-    #    "whatsapp": ["502123456", "50233334444"],
-    #    "telegram": ["123456789"],
-    #    "web": ["correo@ejemplo.com"]
-    #}
-#
-    #if phone_or_id in BLOQUEADOS.get(source, []):
-    #    # Para usuarios bloqueados SI interrumpimos el flujo
-    #    state["response_data"] = [{
-    #        "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-    #        "to": phone_or_id,
-    #        "type": "text",
-    #        "text": {
-    #            "body": "⚠️ Este canal no está habilitado para usted. Gracias por su comprensión."
-    #        }
-    #    }]
-    #    state["skip_processing"] = True  # Nueva bandera para saltar procesamiento
-    #    return state
-
-    # --- HORARIO DE ATENCIÓN ---
+    # --- HORARIO DE ATENCIÓN (Mejorado para manejo de zona horaria) ---
     HORARIO = {
         0: ("08:00", "17:00"),  # Lunes
         1: ("08:00", "17:00"),
@@ -129,24 +114,34 @@ def pre_validaciones(state: BotState) -> BotState:
     dentro_horario = False
 
     if h_ini_str and h_fin_str:
-        h_ini = datetime.strptime(h_ini_str, "%H:%M").time()
-        h_fin = datetime.strptime(h_fin_str, "%H:%M").time()
-        dentro_horario = h_ini <= ahora.time() <= h_fin
+        # Crear objetos datetime completos con la fecha actual y zona horaria
+        h_ini = GUATEMALA_TZ.localize(
+            datetime.combine(ahora.date(), datetime.strptime(h_ini_str, "%H:%M").time())
+        )
+        h_fin = GUATEMALA_TZ.localize(
+            datetime.combine(ahora.date(), datetime.strptime(h_fin_str, "%H:%M").time())
+        )
+        dentro_horario = h_ini <= ahora <= h_fin
 
     if not dentro_horario:
         mostrar_alerta = False
         
-        # Solo mostrar alerta si pasó más de 1 hora desde la última
         if session:
+            # Asegurar que ultima_alerta_horario tenga zona horaria
             ultima_alerta = session.ultima_alerta_horario or datetime.min.replace(tzinfo=GUATEMALA_TZ)
+            if ultima_alerta.tzinfo is None:  # Si no tiene zona horaria
+                ultima_alerta = GUATEMALA_TZ.localize(ultima_alerta)
+                
             if ahora - ultima_alerta > timedelta(hours=1):
                 mostrar_alerta = True
                 session.ultima_alerta_horario = ahora
-                db.session.commit()
-        else:
-            mostrar_alerta = True
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    agregar_mensajes_log(f"Error al guardar ultima_alerta_horario: {str(e)}")
 
-        if mostrar_alerta:
+        if mostrar_alerta or not session:
             state.setdefault("additional_messages", []).append({
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "to": phone_or_id,
@@ -154,14 +149,20 @@ def pre_validaciones(state: BotState) -> BotState:
                 "text": {
                     "body": "🕒 En este momento estamos fuera de nuestro horario de atención.\n"
                             "Nuestro equipo le responderá en el siguiente horario disponible.\n\n"
+                            "Horario: L-V 8:00-17:00, Sáb 8:00-12:00\n\n"
                             "Puede continuar usando el asistente automático mientras tanto."
                 }
             })
 
-    # --- BIENVENIDA CONTROLADA ---
+    # --- BIENVENIDA CONTROLADA (Mejorado para manejo de zona horaria) ---
     if session:
-        # Solo mostrar bienvenida si es la primera vez o si pasó más de 24h desde la última interacción
-        if not session.mostro_bienvenida or (ahora - session.last_interaction > timedelta(hours=24)):
+        # Asegurar que last_interaction tenga zona horaria
+        last_interaction = session.last_interaction
+        if last_interaction and last_interaction.tzinfo is None:
+            last_interaction = GUATEMALA_TZ.localize(last_interaction)
+        
+        # Mostrar bienvenida si es primera vez o pasaron más de 24h
+        if not session.mostro_bienvenida or (ahora - last_interaction > timedelta(hours=24)):
             state.setdefault("additional_messages", []).append({
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "to": phone_or_id,
@@ -171,15 +172,19 @@ def pre_validaciones(state: BotState) -> BotState:
                 }
             })
             session.mostro_bienvenida = True
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                agregar_mensajes_log(f"Error al guardar mostro_bienvenida: {str(e)}")
     else:
-        # Si no hay sesión, mostrar bienvenida mínima
+        # Bienvenida mínima para nuevos usuarios
         state.setdefault("additional_messages", []).append({
             "messaging_product": "whatsapp" if source == "whatsapp" else "other",
             "to": phone_or_id,
             "type": "text",
             "text": {
-                "body": "👋 ¡Gracias por contactar a Intermotores!"
+                "body": "👋 ¡Gracias por contactar a Intermotores! ¿En qué podemos ayudarte hoy?"
             }
         })
 
@@ -272,6 +277,7 @@ def load_product_flow(state: BotState) -> BotState:
     agregar_mensajes_log(f"En load_product_flow: {state}")
 
     if state["session"]:
+
         flujo_producto = db.session.query(ProductModel).filter_by(
             session_id=state["session"].idUser
         ).first()

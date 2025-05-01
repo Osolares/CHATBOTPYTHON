@@ -4,10 +4,13 @@ from flask_migrate import Migrate
 import os
 from dotenv import load_dotenv
 import pytz
+from datetime import datetime
+from dotenv import load_dotenv
 
 GUATEMALA_TZ = pytz.timezone("America/Guatemala")
-def hora_guatemala():
-    from datetime import datetime
+
+def now():
+    """Función centralizada para obtener la hora actual en Guatemala"""
     return datetime.now(GUATEMALA_TZ)
 
 # Cargar variables de entorno
