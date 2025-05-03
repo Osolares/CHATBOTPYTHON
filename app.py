@@ -163,33 +163,37 @@ def pre_validaciones(state: BotState) -> BotState:
         last_interaction = session.last_interaction
         if last_interaction and last_interaction.tzinfo is None:
             last_interaction = GUATEMALA_TZ.localize(last_interaction)
+        
+        # Mostrar bienvenida si es primera vez o pasaron más de 24h
 
         if not session.mostro_bienvenida or (ahora - last_interaction > timedelta(hours=24)):
-            state.setdefault("additional_messages", []).extend([
-                # Mensaje de texto (primero)
-                {
-                    "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                    "to": phone_or_id,
-                    "type": "text",
-                    "text": {
-                        "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗"
+            state.setdefault("additional_messages", []).append({
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "to": phone_or_id,
+                "type": "interactive",  # Tipo compuesto
+                "interactive": {
+                    "type": "button",
+                    "header": {
+                        "type": "image",
+                        "image": {
+                            "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                        }
+                    },
+                    "body": {
+                        "text": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗"
+                    },
+                    "action": {
+                        "buttons": [{
+                            "type": "reply",
+                            "reply": {
+                                "id": "welcome_ok",
+                                "title": "Entendido"
+                            }
+                        }]
                     }
-                },
-                # Mensaje de imagen (segundo, solo WhatsApp)
-                {
-                    "messaging_product": "whatsapp",
-                    "recipient_type": "individual",
-                    "to": phone_or_id,
-                    "type": "image",
-                    "image": {
-                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                    }
-                } if source == "whatsapp" else None  # Opcional: filtrar si no es WhatsApp
-            ])
-
-            # Eliminar posibles `None` si hay filtro
-            state["additional_messages"] = [msg for msg in state["additional_messages"] if msg is not None]
-
+                }
+            })
+            
             session.mostro_bienvenida = True
             try:
                 db.session.commit()
