@@ -193,7 +193,12 @@ def pre_validaciones(state: BotState) -> BotState:
                     }
                 }
             })
-            
+
+            # Agregar el menú después del mensaje de bienvenida (solo WhatsApp)
+            if source == "whatsapp":
+                menu_message = generar_list_menu(phone_or_id)
+                state["additional_messages"].append(menu_message)
+
             session.mostro_bienvenida = True
             try:
                 db.session.commit()
@@ -210,6 +215,12 @@ def pre_validaciones(state: BotState) -> BotState:
                 "body": "👋 ¡Hola Bienvenido(a) que gusto tenerte de nuevo, Gracias por contactar a Intermotores! ¿En qué podemos ayudarte hoy? 🚗"
             }
         })
+
+        # Agregar el menú después del mensaje de bienvenida (solo WhatsApp)
+        if source == "whatsapp":
+            from menus import generar_list_menu  # Importa la función si no está en el mismo archivo
+            menu_message = generar_list_menu(phone_or_id)
+            state["additional_messages"].append(menu_message)
 
     agregar_mensajes_log(f"saliendo de pre_validaciones: {state}")
 
