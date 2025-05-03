@@ -145,28 +145,17 @@ def pre_validaciones(state: BotState) -> BotState:
                     agregar_mensajes_log(f"Error al guardar ultima_alerta_horario: {str(e)}")
 
         if mostrar_alerta or not session:
-            state.setdefault("additional_messages", []).append(
-                {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": phone_or_id,
-                "type": "image",
-                "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                }
-                },
-                {
+            state.setdefault("additional_messages", []).append({
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "to": phone_or_id,
                 "type": "text",
                 "text": {
                     "body": "🕒 Gracias por comunicarte con nosotros en este momento estamos fuera de nuestro horario de atención.\n"
-                            "Puede continuar usando nuestro asistente, envíenos sus consultas y nuestro equipo le atenderá lo más pronto posible."
+                            "Puede continuar usando el nuestro asistente, envíenos sus consultas y nuestro equipo le atenderá lo más pronto posible."
                             #"Nuestro equipo le responderá en el siguiente horario disponible.\n\n"
                             #"Horario: L-V 8:00-17:00, Sáb 8:00-12:00\n\n"
                 }
-                }
-                )
+            })
 
     # --- BIENVENIDA CONTROLADA (Mejorado para manejo de zona horaria) ---
     if session:
@@ -174,17 +163,56 @@ def pre_validaciones(state: BotState) -> BotState:
         last_interaction = session.last_interaction
         if last_interaction and last_interaction.tzinfo is None:
             last_interaction = GUATEMALA_TZ.localize(last_interaction)
-        
+
+        if not session.mostro_bienvenida or (ahora - last_interaction > timedelta(hours=24)):
+            state.setdefault("additional_messages", []).extend([
+                # Mensaje de texto (primero)
+                {
+                    "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                    "to": phone_or_id,
+                    "type": "text",
+                    "text": {
+                        "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗"
+                    }
+                },
+                # Mensaje de imagen (segundo, solo WhatsApp)
+                {
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": phone_or_id,
+                    "type": "image",
+                    "image": {
+                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                    }
+                } if source == "whatsapp" else None  # Opcional: filtrar si no es WhatsApp
+            ])
+
+            # Eliminar posibles `None` si hay filtro
+            state["additional_messages"] = [msg for msg in state["additional_messages"] if msg is not None]
+
         # Mostrar bienvenida si es primera vez o pasaron más de 24h
         if not session.mostro_bienvenida or (ahora - last_interaction > timedelta(hours=24)):
-            state.setdefault("additional_messages", []).append({
+            state.setdefault("additional_messages", []).append(
+                {
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "to": phone_or_id,
                 "type": "text",
                 "text": {
                     "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para su vehículo. 🚗"
                 }
-            })
+            },
+            state.setdefault("additional_messages", []).append(
+                       {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": phone_or_id,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                }
+            }
+            )
+            )
 
             session.mostro_bienvenida = True
             try:
