@@ -150,8 +150,8 @@ def pre_validaciones(state: BotState) -> BotState:
                 "to": phone_or_id,
                 "type": "text",
                 "text": {
-                    "body": "🕒 Gracias por comunicarte con nosotros en este momento estamos fuera de nuestro horario de atención.\n"
-                            "Puede continuar usando el nuestro asistente, envíenos sus consultas y nuestro equipo le atenderá lo más pronto posible."
+                    "body": "🕒 Gracias por comunicarte con nosotros en este momento estamos fuera de nuestro horario de atención.\n\n"
+                            "💬Puedes continuar usando nuestro asistente, envíanos tus consultas y nuestro equipo te atenderá lo más pronto posible."
                             #"Nuestro equipo le responderá en el siguiente horario disponible.\n\n"
                             #"Horario: L-V 8:00-17:00, Sáb 8:00-12:00\n\n"
                 }
@@ -180,24 +180,25 @@ def pre_validaciones(state: BotState) -> BotState:
                         }
                     },
                     "body": {
-                        "text": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗"
+                        "text": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗\n\n"
+                                "🗒️Consulta nuestro menú."
                     },
                     "action": {
-                        "buttons": [{
-                            "type": "reply",
-                            "reply": {
-                                "id": "welcome_ok",
-                                "title": "Entendido"
-                            }
-                        }]
+                        #"buttons": [{
+                        #    "type": "reply",
+                        #    "reply": {
+                        #        "id": "welcome_ok",
+                        #        "title": "Entendido"
+                        #    }
+                        #}]
                     }
                 }
             })
 
             # 2. Menú de opciones (solo WhatsApp)
             if source == "whatsapp":
-                from menus import generar_list_menu
-                menu_msg = generar_list_menu(phone_or_id)
+
+                menu_msg = generar_menu_principal(phone_or_id)
                 state["additional_messages"].append(menu_msg)  # <-- Segundo append
 
             session.mostro_bienvenida = True
@@ -206,14 +207,34 @@ def pre_validaciones(state: BotState) -> BotState:
             except Exception as e:
                 db.session.rollback()
                 agregar_mensajes_log(f"Error al guardar mostro_bienvenida: {str(e)}")
+                
     else:
         # Bienvenida mínima para nuevos usuarios
         state.setdefault("additional_messages", []).append({
             "messaging_product": "whatsapp" if source == "whatsapp" else "other",
             "to": phone_or_id,
-            "type": "text",
-            "text": {
-                "body": "👋 ¡Hola Bienvenido(a) que gusto tenerte de nuevo, Gracias por contactar a Intermotores! ¿En qué podemos ayudarte hoy? 🚗"
+            "type": "interactive",  # Tipo compuesto
+            "interactive": {
+                "type": "button",
+                "header": {
+                    "type": "image",
+                    "image": {
+                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                    }
+                },
+                "body": {
+                    "text": "👋 ¡Hola Bienvenido(a) que gusto tenerte de nuevo, Gracias por contactar a Intermotores! ¿En qué podemos ayudarte hoy? 🚗\n\n"
+                            "🗒️Consulta nuestro menú."
+                },
+                "action": {
+                    #"buttons": [{
+                    #    "type": "reply",
+                    #    "reply": {
+                    #        "id": "welcome_ok",
+                    #        "title": "Entendido"
+                    #    }
+                    #}]
+                }
             }
         })
 
