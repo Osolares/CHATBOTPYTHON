@@ -48,7 +48,6 @@ class BotState(TypedDict):
     source: str  # NUEVO: whatsapp, telegram, messenger, web, etc
     additional_messages: List[Dict[str, Any]]  # Añade este campo
 
-
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
 # ------------------------------------------
@@ -146,17 +145,28 @@ def pre_validaciones(state: BotState) -> BotState:
                     agregar_mensajes_log(f"Error al guardar ultima_alerta_horario: {str(e)}")
 
         if mostrar_alerta or not session:
-            state.setdefault("additional_messages", []).append({
+            state.setdefault("additional_messages", []).append(
+                {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": phone_or_id,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                }
+                },
+                {
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                 "to": phone_or_id,
                 "type": "text",
                 "text": {
-                    "body": "🕒 En este momento estamos fuera de nuestro horario de atención.\n"
-                            "Nuestro equipo le responderá en el siguiente horario disponible.\n\n"
-                            "Horario: L-V 8:00-17:00, Sáb 8:00-12:00\n\n"
-                            "Puede continuar usando el asistente automático mientras tanto."
+                    "body": "🕒 Gracias por comunicarte con nosotros en este momento estamos fuera de nuestro horario de atención.\n"
+                            "Puede continuar usando nuestro asistente, envíenos sus consultas y nuestro equipo le atenderá lo más pronto posible."
+                            #"Nuestro equipo le responderá en el siguiente horario disponible.\n\n"
+                            #"Horario: L-V 8:00-17:00, Sáb 8:00-12:00\n\n"
                 }
-            })
+                }
+                )
 
     # --- BIENVENIDA CONTROLADA (Mejorado para manejo de zona horaria) ---
     if session:
@@ -172,9 +182,10 @@ def pre_validaciones(state: BotState) -> BotState:
                 "to": phone_or_id,
                 "type": "text",
                 "text": {
-                    "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗"
+                    "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para su vehículo. 🚗"
                 }
             })
+
             session.mostro_bienvenida = True
             try:
                 db.session.commit()
@@ -188,7 +199,7 @@ def pre_validaciones(state: BotState) -> BotState:
             "to": phone_or_id,
             "type": "text",
             "text": {
-                "body": "👋 ¡Gracias por contactar a Intermotores! ¿En qué podemos ayudarte hoy?"
+                "body": "👋 ¡Hola Bienvenido(a) que gusto tenerte de nuevo, Gracias por contactar a Intermotores! ¿En qué podemos ayudarte hoy? 🚗"
             }
         })
 
