@@ -190,30 +190,6 @@ def pre_validaciones(state: BotState) -> BotState:
             # Eliminar posibles `None` si hay filtro
             state["additional_messages"] = [msg for msg in state["additional_messages"] if msg is not None]
 
-        # Mostrar bienvenida si es primera vez o pasaron más de 24h
-        if not session.mostro_bienvenida or (ahora - last_interaction > timedelta(hours=24)):
-            state.setdefault("additional_messages", []).append(
-                {
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                "to": phone_or_id,
-                "type": "text",
-                "text": {
-                    "body": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para su vehículo. 🚗"
-                }
-            },
-            state.setdefault("additional_messages", []).append(
-                       {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": phone_or_id,
-                "type": "image",
-                "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                }
-            }
-            )
-            )
-
             session.mostro_bienvenida = True
             try:
                 db.session.commit()
