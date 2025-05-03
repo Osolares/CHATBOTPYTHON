@@ -46,6 +46,8 @@ class BotState(TypedDict):
     message_data: Optional[Dict[str, Any]]
     logs: List[str]
     source: str  # NUEVO: whatsapp, telegram, messenger, web, etc
+    additional_messages: List[Dict[str, Any]]  # Añade este campo
+
 
 # ------------------------------------------
 # Nodos del Grafo para Manejo de Usuarios
@@ -85,7 +87,7 @@ def pre_validaciones(state: BotState) -> BotState:
     
     Mantiene la misma lógica pero con mejor manejo de zonas horarias
     """
-    agregar_mensajes_log(f"En pre_validaciones: {state}")
+    #agregar_mensajes_log(f"En pre_validaciones: {state}")
 
     ahora = now()  # Usa la función centralizada que ya incluye la zona horaria
     session = state.get("session")
@@ -102,12 +104,12 @@ def pre_validaciones(state: BotState) -> BotState:
 
     # --- HORARIO DE ATENCIÓN (Mejorado para manejo de zona horaria) ---
     HORARIO = {
-        0: ("08:00", "17:00"),  # Lunes
-        1: ("08:00", "17:00"),
-        2: ("08:00", "17:00"),
-        3: ("08:00", "17:00"),
-        4: ("08:00", "17:00"),
-        5: ("08:00", "12:00"),
+        0: ("08:00", "17:30"),  # Lunes
+        1: ("08:00", "17:30"),
+        2: ("08:00", "17:30"),
+        3: ("08:00", "17:30"),
+        4: ("08:00", "17:30"),
+        5: ("08:00", "12:30"),
         6: (None, None)         # Domingo cerrado
     }
 
