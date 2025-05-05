@@ -27,11 +27,9 @@ model = ChatOpenAI(
     model="deepseek-chat",
     api_key=deepseek_key,
     base_url="https://api.deepseek.com/v1",
-    temperature=0,
+    temperature=0.5,
     max_tokens=200,
 )
-
-
 
 # ------------------------------------------
 # Definición del Estado y Modelos
@@ -80,36 +78,28 @@ def block(source, to_compare):
 def pre_validaciones(state: BotState) -> BotState:
     """
     Middleware que valida:
-    - Usuarios bloqueados
     - Horario de atención (zona horaria de Guatemala)
     - Bienvenida con control de frecuencia
-    
-    Mantiene la misma lógica pero con mejor manejo de zonas horarias
+    - Mensaje de fuera de horario con control de frecuencia
     """
-    #agregar_mensajes_log(f"En pre_validaciones: {state}")
-
     ahora = now()  # Usa la función centralizada que ya incluye la zona horaria
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
     
-    # Log mejorado con marca de tiempo
-    agregar_mensajes_log({
-        "timestamp": ahora.isoformat(),
-        "event": "pre_validaciones",
-        "session_id": session.idUser if session else None,
-        "phone_or_id": phone_or_id
-    })
+    # Inicializar additional_messages si no existe
+    if "additional_messages" not in state:
+        state["additional_messages"] = []
 
-    # --- HORARIO DE ATENCIÓN (Mejorado para manejo de zona horaria) ---
+    # --- HORARIO DE ATENCIÓN ---
     HORARIO = {
         0: ("08:00", "17:30"),  # Lunes
         1: ("08:00", "17:30"),
         2: ("08:00", "17:30"),
         3: ("08:00", "17:30"),
         4: ("08:00", "17:30"),
-        5: ("08:00", "12:30"),
-        6: (None, None)         # Domingo cerrado
+        5: ("08:00", "12:30"),  # Sábado
+        6: (None, None)         # Domingo
     }
 
     dia = ahora.weekday()
@@ -117,26 +107,35 @@ def pre_validaciones(state: BotState) -> BotState:
     dentro_horario = False
 
     if h_ini_str and h_fin_str:
-        # Crear objetos datetime completos con la fecha actual y zona horaria
-        h_ini = GUATEMALA_TZ.localize(
-            datetime.combine(ahora.date(), datetime.strptime(h_ini_str, "%H:%M").time())
-        )
-        h_fin = GUATEMALA_TZ.localize(
-            datetime.combine(ahora.date(), datetime.strptime(h_fin_str, "%H:%M").time())
-        )
+        h_ini = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_ini_str, "%H:%M").time()))
+        h_fin = GUATEMADA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_fin_str, "%H:%M").time()))
         dentro_horario = h_ini <= ahora <= h_fin
 
+    # --- Mensaje fuera de horario (con control de frecuencia) ---
     if not dentro_horario:
-        mostrar_alerta = False
+        mostrar_alerta = True
         
         if session:
-            # Asegurar que ultima_alerta_horario tenga zona horaria
-            ultima_alerta = session.ultima_alerta_horario or datetime.min.replace(tzinfo=GUATEMALA_TZ)
-            if ultima_alerta.tzinfo is None:  # Si no tiene zona horaria
-                ultima_alerta = GUATEMALA_TZ.localize(ultima_alerta)
-                
-            if ahora - ultima_alerta > timedelta(hours=1):
-                mostrar_alerta = True
+            # Verificar última alerta (con manejo de zona horaria)
+            ultima_alerta = session.ultima_alerta_horario
+            if ultima_alerta:
+                if ultima_alerta.tzinfo is None:
+                    ultima_alerta = GUATEMALA_TZ.localize(ultima_alerta)
+                if (ahora - ultima_alerta) < timedelta(hours=1):
+                    mostrar_alerta = False
+
+        if mostrar_alerta:
+            state["additional_messages"].append({
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "to": phone_or_id,
+                "type": "text",
+                "text": {
+                    "body": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n"
+                            "💬 Puedes continuar usando nuestro asistente, envíanos tus consultas y nuestro equipo te atenderá lo más pronto posible."
+                }
+            })
+            
+            if session:
                 session.ultima_alerta_horario = ahora
                 try:
                     db.session.commit()
@@ -144,76 +143,25 @@ def pre_validaciones(state: BotState) -> BotState:
                     db.session.rollback()
                     agregar_mensajes_log(f"Error al guardar ultima_alerta_horario: {str(e)}")
 
-        if mostrar_alerta or not session:
-            state.setdefault("additional_messages", []).append({
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                "to": phone_or_id,
-                "type": "text",
-                "text": {
-                    "body": "🕒 Gracias por comunicarte con nosotros en este momento estamos fuera de nuestro horario de atención.\n\n"
-                            "💬Puedes continuar usando nuestro asistente, envíanos tus consultas y nuestro equipo te atenderá lo más pronto posible."
-                            #"Nuestro equipo le responderá en el siguiente horario disponible.\n\n"
-                            #"Horario: L-V 8:00-17:00, Sáb 8:00-12:00\n\n"
-                }
-            })
-
-    # --- BIENVENIDA CONTROLADA (Mejorado para manejo de zona horaria) ---
+    # --- BIENVENIDA CONTROLADA ---
+    mostrar_bienvenida = False
+    
     if session:
-        # Asegurar que last_interaction tenga zona horaria
+        # Manejo de zona horaria para last_interaction
         last_interaction = session.last_interaction
         if last_interaction and last_interaction.tzinfo is None:
             last_interaction = GUATEMALA_TZ.localize(last_interaction)
         
-        # Mostrar bienvenida si es primera vez o pasaron más de 24h
-
-        if not session.mostro_bienvenida or (ahora - last_interaction > timedelta(hours=24)):
-            state.setdefault("additional_messages", []).append({
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                "to": phone_or_id,
-                "type": "interactive",  # Tipo compuesto
-                "interactive": {
-                    "type": "button",
-                    "header": {
-                        "type": "image",
-                        "image": {
-                            "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                        }
-                    },
-                    "body": {
-                        "text": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗\n\n"
-                                "🗒️Consulta nuestro menú."
-                    },
-                    "action": {
-                        #"buttons": [{
-                        #    "type": "reply",
-                        #    "reply": {
-                        #        "id": "welcome_ok",
-                        #        "title": "Entendido"
-                        #    }
-                        #}]
-                    }
-                }
-            })
-
-            # 2. Menú de opciones (solo WhatsApp)
-            if source == "whatsapp":
-
-                menu_msg = generar_menu_principal(phone_or_id)
-                state["additional_messages"].append(menu_msg)  # <-- Segundo append
-
-            session.mostro_bienvenida = True
-            try:
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                agregar_mensajes_log(f"Error al guardar mostro_bienvenida: {str(e)}")
-                
+        mostrar_bienvenida = not session.mostro_bienvenida or (ahora - last_interaction > timedelta(hours=24))
     else:
-        # Bienvenida mínima para nuevos usuarios
-        state.setdefault("additional_messages", []).append({
+        mostrar_bienvenida = True
+
+    if mostrar_bienvenida:
+        # Mensaje de bienvenida principal
+        welcome_msg = {
             "messaging_product": "whatsapp" if source == "whatsapp" else "other",
             "to": phone_or_id,
-            "type": "interactive",  # Tipo compuesto
+            "type": "interactive",
             "interactive": {
                 "type": "button",
                 "header": {
@@ -223,27 +171,26 @@ def pre_validaciones(state: BotState) -> BotState:
                     }
                 },
                 "body": {
-                    "text": "👋 ¡Hola Bienvenido(a) que gusto tenerte de nuevo, Gracias por contactar a Intermotores! ¿En qué podemos ayudarte hoy? 🚗\n\n"
-                            "🗒️Consulta nuestro menú."
+                    "text": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗\n\n"
+                            "🗒️ Consulta nuestro menú."
                 },
-                "action": {
-                    #"buttons": [{
-                    #    "type": "reply",
-                    #    "reply": {
-                    #        "id": "welcome_ok",
-                    #        "title": "Entendido"
-                    #    }
-                    #}]
-                }
+                "action": {}
             }
-        })
+        }
+        state["additional_messages"].append(welcome_msg)
 
-        # 2. Menú de opciones (solo WhatsApp)
-        if source == "whatsapp":
-            from menus import generar_list_menu
-            menu_msg = generar_list_menu(phone_or_id)
-            state["additional_messages"].append(menu_msg)  # <-- Segundo append
+        menu_msg = generar_menu_principal(phone_or_id)
+        state["additional_messages"].append(menu_msg)
 
+        if session:
+            session.mostro_bienvenida = True
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                agregar_mensajes_log(f"Error al guardar mostro_bienvenida: {str(e)}")
+
+    return state
 
     agregar_mensajes_log(f"saliendo de pre_validaciones: {state}")
 
