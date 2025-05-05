@@ -81,7 +81,7 @@ GUATEMALA_TZ = timezone('America/Guatemala')
 
 # Configuración de horarios y días festivos (pueden moverse a DB o config)
 HORARIO_ATENCION = {
-    0: ("08:00", "17:30"),  # Lunes
+    0: ("08:00", "16:30"),  # Lunes
     1: ("08:00", "17:30"),  # Martes
     2: ("08:00", "17:30"),  # Miércoles
     3: ("08:00", "17:30"),  # Jueves
