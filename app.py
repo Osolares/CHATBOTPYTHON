@@ -348,7 +348,7 @@ def handle_product_flow(state: BotState) -> BotState:
 
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
-    agregar_mensajes_log(f"En handle_special_commands: {state}")
+    agregar_mensajes_log(f"En Handle_special_commands: {state}")
 
     texto = state["user_msg"].lower().strip()
     number = state.get("phone_number")
@@ -571,6 +571,7 @@ def merge_responses(state: BotState) -> BotState:
     main_responses = state.get("response_data", [])
     
     state["response_data"] = additional + main_responses
+    agregar_mensajes_log(f"Saliendo de merge responses : {state}")
     return state
 
 def is_human_message(platform: str, message_data: dict) -> bool:
