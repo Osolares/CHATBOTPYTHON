@@ -108,7 +108,7 @@ def pre_validaciones(state: BotState) -> BotState:
 
     if h_ini_str and h_fin_str:
         h_ini = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_ini_str, "%H:%M").time()))
-        h_fin = GUATEMADA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_fin_str, "%H:%M").time()))
+        h_fin = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_fin_str, "%H:%M").time()))
         dentro_horario = h_ini <= ahora <= h_fin
 
     # --- Mensaje fuera de horario (con control de frecuencia) ---
