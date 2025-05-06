@@ -111,7 +111,7 @@ def pre_validaciones(state: BotState) -> BotState:
 
     # --- BIENVENIDA CONTROLADA (Mejorado para manejo de zona horaria) ---
     # 2) Bienvenida
-    #send_welcome, kind = False, None
+    send_welcome, kind = False, None
     
     if session:
         # Asegurar que last_interaction tenga zona horaria
