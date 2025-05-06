@@ -40,7 +40,7 @@ class WooCommerceService:
             return ["📢 No hay ofertas disponibles en este momento."]
 
         mensajes = []
-        for producto in productos[:3]:  # Limitar a 3 productos
+        for producto in productos[:5]:  # Limitar a 5 productos
             try:
                 nombre = producto.get('name', 'Producto sin nombre')
                 precio = producto.get('price', 'Precio no disponible')
@@ -93,10 +93,10 @@ class WooCommerceService:
                     mensaje += fecha_oferta_texto
 
                 mensaje += (
-                    f"\n\n🌟 *Detalles:*\n{descripcion_larga}\n\n"
+                    #f"\n\n🌟 *Detalles:*\n{descripcion_larga}\n\n"
                     f"🚚 Envío a domicilio\n"
                     f"🤝 Pago contra entrega (solamente repuestos)\n"
-                    f"💳 Aceptamos todas las tarjetas de crédito sin recargo\n\n"
+                    f"💳 Aceptamos todas las tarjetas de crédito sin recargo  (Precio Normal)\n\n"
                     f"⚠️ *Nota:* Los precios y disponibilidad pueden cambiar en cualquier momento sin previo aviso."
                 )
 

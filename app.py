@@ -329,11 +329,9 @@ def handle_product_flow(state: BotState) -> BotState:
         state["response_data"] = response
     return state
 
-import re
-
 def mensaje_parece_interes_en_producto(texto):
     texto = texto.lower()
-    patron = r"Hola, estoy interesado en el producto: .*? que se encuentra en https?://[^\s]+"
+    patron = r"hola, estoy interesado en el producto: .*? que se encuentra en https?://[^\s]+"
     #patron = r"(interesado|quiero|me interesa|información|info|detalles).*https?://[^\s]+"
     return re.search(patron, texto)
 
@@ -386,7 +384,7 @@ def handle_special_commands(state: BotState) -> BotState:
 
 
     # Dependiendo del source, podrías en el futuro mandar menús diferentes.
-    if "hola" in texto:
+    if "hola" == texto:
         if source in ["whatsapp", "telegram", "messenger", "web"]:
             state["response_data"] = [
                 {
