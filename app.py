@@ -349,14 +349,22 @@ def handle_special_commands(state: BotState) -> BotState:
     number = state.get("phone_number")
     source = state.get("source")
 
-
     # Verifica si el mensaje parece interés en un producto con URL
     if mensaje_parece_interes_en_producto(texto):
         url = extraer_url(texto)
-        producto = woo_service.obtener_producto_por_url(url)
-
+        producto = None
+        
+        # Primero intentar por URL
+        if url:
+            producto = woo_service.obtener_producto_por_url(url)
+        
+        # Si no se encontró por URL, intentar por nombre
         if not producto:
-            producto = woo_service.buscar_producto_por_nombre(texto)  # Opcional
+            # Extraer nombre del producto del mensaje
+            nombre_match = re.search(r"producto:\s*(.*?)\s*que se encuentra", texto, re.IGNORECASE)
+            if nombre_match:
+                nombre_producto = nombre_match.group(1)
+                producto = woo_service.buscar_producto_por_nombre(nombre_producto)
 
         if producto:
             mensaje = woo_service.formatear_producto_whatsapp(producto)
@@ -366,7 +374,7 @@ def handle_special_commands(state: BotState) -> BotState:
                 "to": number,
                 "type": "text",
                 "text": {
-                    "preview_url": False,
+                    "preview_url": True,  # Habilitar vista previa para el enlace
                     "body": mensaje
                 }
             }]
@@ -378,11 +386,13 @@ def handle_special_commands(state: BotState) -> BotState:
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "😕 Lo sentimos, no encontramos el producto que buscas. Por favor revisa el enlace o nombre e intenta nuevamente."
+                    "body": "😕 No pudimos encontrar el producto que buscas. Por favor verifica:\n\n"
+                            "1. Que el enlace sea correcto\n"
+                            "2. Que el nombre del producto esté bien escrito\n\n"
+                            "Puedes intentar nuevamente o escribir '0' para ver nuestro menú principal."
                 }
             }]
-        return state  # Finaliza aquí si encontró o no el producto
-
+        return state
 
     # Dependiendo del source, podrías en el futuro mandar menús diferentes.
     if "hola" == texto:

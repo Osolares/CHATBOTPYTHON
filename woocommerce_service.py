@@ -16,8 +16,8 @@ class WooCommerceService:
             params = {
                 'on_sale': 'true',
                 'status': 'publish',
-                'per_page': 100,  # Traer más para poder mezclar
-                '_fields': 'id,name,price,regular_price,description,short_description,date_on_sale_to,permalink,images'
+                'per_page': 25,  # Traer más para poder mezclar
+                '_fields': 'id,name,price,regular_price,sale_price,description,short_description,date_on_sale_to,permalink,images'
             }
             
             response = requests.get(
@@ -143,14 +143,35 @@ class WooCommerceService:
 
     def buscar_producto_por_nombre(self, nombre_producto):
         try:
-            response = requests.get(
-                f"{self.base_url}/products",
-                params={'search': nombre_producto, 'per_page': 1},
-                auth=self.auth
-            )
-            response.raise_for_status()
-            productos = response.json()
-            return productos[0] if productos else None
+            # Limpiar el nombre del producto para buscar
+            nombre_limpio = re.sub(r'[^\w\s]', '', nombre_producto).strip()
+            palabras_clave = nombre_limpio.split()[:5]  # Tomar las primeras 5 palabras como máximo
+
+            # Buscar por cada palabra clave
+            for palabra in palabras_clave:
+                if len(palabra) < 3:  # Ignorar palabras muy cortas
+                    continue
+
+                response = requests.get(
+                    f"{self.base_url}/products",
+                    params={
+                        'search': palabra,
+                        'per_page': 5,  # Limitar resultados
+                        'status': 'publish',
+                        '_fields': 'id,name,price,regular_price,description,short_description,date_on_sale_to,permalink,images,stock_status,stock_quantity'
+                    },
+                    auth=self.auth
+                )
+                response.raise_for_status()
+                productos = response.json()
+
+                # Buscar coincidencia más cercana
+                for prod in productos:
+                    prod_name = prod.get('name', '').lower()
+                    if nombre_limpio.lower() in prod_name or prod_name in nombre_limpio.lower():
+                        return prod
+
+            return None
         except Exception as e:
             print(f"Error buscando producto por nombre: {str(e)}")
             return None
@@ -164,6 +185,9 @@ class WooCommerceService:
             descripcion = self.limpiar_html(producto.get('short_description') or producto.get('description', ''))
             enlace = producto.get('permalink', '')
             fecha_oferta = producto.get('date_on_sale_to')
+            stock_status = producto.get('stock_status', 'instock')
+            stock_quantity = producto.get('stock_quantity', 0)
+
 
             mensaje = f"🔩⚙ *{nombre}* ⚙🔩\n\n"
 
@@ -171,10 +195,25 @@ class WooCommerceService:
                 mensaje += f"📝 *Descripción:*\n{descripcion}\n\n"
 
             mensaje += f"🔗 Ver más detalles aquí:\n{enlace}\n\n"
-            mensaje += f"💲 *Precio regular:* Q{precio_normal}"
+            # Manejo de stock
+            if stock_status == 'outofstock' or stock_quantity <= 0:
+                mensaje += "⚠️ *ESTADO:* AGOTADO\n\n"
+                #mensaje += "💲 *Precio normal:* Q{precio_normal}\n\n"
+                mensaje += "📦 *Disponibilidad:* Puede consultarnos cuándo estará disponible\n"
+            else:
+                mensaje += f"💲 *Precio:* Q{precio_normal}"
+                if precio_oferta and precio_oferta != precio_normal:
+                    mensaje += f"\n💥 *Súper Oferta (Efectivo):* Q{precio_oferta}"
 
-            if precio_oferta and precio_oferta != precio_normal:
-                mensaje += f"\n💥 *Precio en oferta:* Q{precio_oferta}"
+                #if stock_quantity > 0:
+                #    mensaje += f"\n📦 *Disponibles:* {stock_quantity} unidades"
+
+
+
+            #mensaje += f"💲 *Precio:* Q{precio_normal}"
+
+           # if precio_oferta and precio_oferta != precio_normal:
+           #     mensaje += f"\n💥 *Súper Oferta:* Q{precio_oferta}"
 
             if fecha_oferta:
                 try:
@@ -187,7 +226,9 @@ class WooCommerceService:
             mensaje += (
                 "\n\n🚚 Envío a domicilio\n"
                 "🤝 Pago contra entrega disponible\n"
-                "💳 Aceptamos tarjetas de crédito sin recargob (precio normal)\n\n"
+                "💳 Aceptamos tarjetas de crédito sin recargob (precio normal)\n"
+                "🚦 Aplican restricciones\n\n"
+
                 "⚠️ *Nota:* Los precios y disponibilidad pueden cambiar sin previo aviso."
             )
 
