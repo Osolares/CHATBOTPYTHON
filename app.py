@@ -129,20 +129,28 @@ def pre_validaciones(state: BotState) -> BotState:
 
     if send_welcome:
         msg = (
-          "👋 ¡Bienvenido a Intermotores! 🚗 Consulta nuestro menú."
-          if kind=="nueva" else
-          "👋 ¡Hola de nuevo! 🚗 ¿En qué podemos ayudarte hoy?"
+            "👋 ¡Bienvenido a Intermotores! 🚗 Consulta nuestro menú."
+            if kind=="nueva" else
+            "👋 ¡Hola de nuevo! 🚗 ¿En qué podemos ayudarte hoy?"
         )
         state["additional_messages"].append({
-          "messaging_product": "whatsapp" if src=="whatsapp" else "other",
-          "to": key, "type":"interactive",
-          "interactive":{
-            "type":"button",
-            "header":{"type":"image","image":{"link":"https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"}},
-            "body":{"text": msg},
-            # action/buttons opcional
-          }
-        })
+              "messaging_product": "whatsapp" if src=="whatsapp" else "other",
+              "to": key, "type":"text",
+              "text":{"body":
+                "🕒  Puedes usar el asistente automático; "
+                "te atenderemos en cuanto estemos disponibles."
+              }
+            })
+
+        #{
+        #    "messaging_product": "whatsapp",
+        #    "recipient_type": "individual",
+        #    "to": number,
+        #    "type": "image",
+        #    "image": {
+        #        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+        #    }
+        #}
         if src=="whatsapp":
             state["additional_messages"].append(generar_menu_principal(key))
         if session:
@@ -163,7 +171,7 @@ def load_or_create_session(state: BotState) -> BotState:
     message_data = state.get("message_data", {})
 
     session = None
-    agregar_mensajes_log(f"Entrando En userSession: {state}")
+    #agregar_mensajes_log(f"Entrando En userSession: {state}")
 
     with db.session.begin():
         if source == "whatsapp":
@@ -240,7 +248,7 @@ def load_or_create_session(state: BotState) -> BotState:
 
 def load_product_flow(state: BotState) -> BotState:
     """Carga el estado del flujo de producto para el usuario actual"""
-    agregar_mensajes_log(f"En load_product_flow: {state}")
+    #agregar_mensajes_log(f"En load_product_flow: {state}")
 
     if state["session"]:
 
