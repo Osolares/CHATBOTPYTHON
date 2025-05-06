@@ -348,12 +348,12 @@ def handle_product_flow(state: BotState) -> BotState:
 
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
-    agregar_mensajes_log(f"En Handle_special_commands: {state}")
 
     texto = state["user_msg"].lower().strip()
     number = state.get("phone_number")
     source = state.get("source")
 
+    agregar_mensajes_log(f"En Handle_special_commands: {texto}")
 
     # Dependiendo del source, podrías en el futuro mandar menús diferentes.
     if "hola" in texto:
@@ -504,6 +504,8 @@ def asistente(state: BotState) -> BotState:
 
     if not state.get("response_data"):
         user_msg = state["user_msg"]
+        agregar_mensajes_log(f"En asistente: {user_msg}")
+
         last_log = db.session.query(Log).filter(
             Log.session_id == (state["session"].idUser if state["session"] else None)
         ).order_by(Log.fecha_y_hora.desc()).first()
@@ -624,7 +626,7 @@ def is_human_message(platform: str, message_data: dict) -> bool:
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
     """Guarda un mensaje en memoria y en la base de datos."""
     #agregar_mensajes_log(f"En agregar_mensajes_log: {state}")
-
+    
     try:
         texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
         
