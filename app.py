@@ -353,7 +353,7 @@ def handle_special_commands(state: BotState) -> BotState:
     number = state.get("phone_number")
     source = state.get("source")
 
-    agregar_mensajes_log(f"En Handle_special_commands: {texto}")
+    agregar_mensajes_log(f"En Handle_special_commands: ")
 
     # Dependiendo del source, podrías en el futuro mandar menús diferentes.
     if "hola" in texto:
@@ -504,7 +504,7 @@ def asistente(state: BotState) -> BotState:
 
     if not state.get("response_data"):
         user_msg = state["user_msg"]
-        agregar_mensajes_log(f"En asistente: {user_msg}")
+        agregar_mensajes_log(f"En asistente: ")
 
         last_log = db.session.query(Log).filter(
             Log.session_id == (state["session"].idUser if state["session"] else None)
@@ -564,16 +564,24 @@ def send_messages(state: BotState) -> BotState:
 
 def merge_responses(state: BotState) -> BotState:
     """
-    Combina los mensajes adicionales del middleware con las respuestas normales.
-    Los mensajes adicionales van primero.
+    Combina solo additional_messages con response_data manteniendo el orden correcto
     """
-    agregar_mensajes_log(f"En merge_responses: {state}")
-
+    # Obtener los mensajes adicionales (horario, bienvenida, menú)
     additional = state.pop("additional_messages", [])
+    
+    # Obtener las respuestas normales del flujo
     main_responses = state.get("response_data", [])
     
+    # Combinar manteniendo el orden (primero los adicionales)
     state["response_data"] = additional + main_responses
-    agregar_mensajes_log(f"Saliendo de merge responses : {state}")
+    
+    # Log para depuración
+    agregar_mensajes_log(
+        f"Merge completado - Adicionales: {len(additional)}, "
+        f"Principales: {len(main_responses)}, "
+        f"Total: {len(state['response_data'])}"
+    )
+    
     return state
 
 def is_human_message(platform: str, message_data: dict) -> bool:
@@ -1099,7 +1107,7 @@ def enrutar_despues_comandos(state: BotState) -> str:
     agregar_mensajes_log(f"En agregar_despues_comandos: {state}")
 
     if state.get("response_data"):
-        return "send_messages"
+        return "merge_responses"
     return "asistente"
 
 # ------------------------------------------
