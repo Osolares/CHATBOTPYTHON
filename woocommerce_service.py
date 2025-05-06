@@ -116,84 +116,131 @@ class WooCommerceService:
         return re.sub(r'<[^>]*>', '', texto).strip()
 
 
-def obtener_producto_por_url(self, url_producto):
-    try:
-        # Buscar todos los productos publicados (hasta 100 por página)
-        page = 1
-        while True:
+    def obtener_producto_por_url(self, url_producto):
+        try:
+            page = 1
+            while True:
+                response = requests.get(
+                    f"{self.base_url}/products",
+                    params={'status': 'publish', 'per_page': 100, 'page': page},
+                    auth=self.auth
+                )
+                response.raise_for_status()
+                productos = response.json()
+
+                if not productos:
+                    break
+
+                for prod in productos:
+                    if prod.get('permalink') == url_producto:
+                        return prod
+
+                page += 1
+            return None
+        except Exception as e:
+            print(f"Error buscando producto por URL: {str(e)}")
+            return None
+
+    def buscar_producto_por_nombre(self, nombre_producto):
+        try:
             response = requests.get(
                 f"{self.base_url}/products",
-                params={'status': 'publish', 'per_page': 100, 'page': page},
+                params={'search': nombre_producto, 'per_page': 1},
                 auth=self.auth
             )
             response.raise_for_status()
             productos = response.json()
+            return productos[0] if productos else None
+        except Exception as e:
+            print(f"Error buscando producto por nombre: {str(e)}")
+            return None
 
-            if not productos:
-                break
+    def formatear_producto_whatsapp(self, producto):
+        try:
+            nombre = producto.get('name', 'Producto sin nombre')
+            precio = producto.get('price', 'N/A')
+            precio_normal = producto.get('regular_price') or precio
+            precio_oferta = producto.get('sale_price', '')
+            descripcion = self.limpiar_html(producto.get('short_description') or producto.get('description', ''))
+            enlace = producto.get('permalink', '')
+            fecha_oferta = producto.get('date_on_sale_to')
 
-            for prod in productos:
-                if prod.get('permalink') == url_producto:
-                    return prod
+            mensaje = f"🔩⚙ *{nombre}* ⚙🔩\n\n"
 
-            page += 1
-        return None
-    except Exception as e:
-        print(f"Error buscando producto por URL: {str(e)}")
-        return None
+            if descripcion:
+                mensaje += f"📝 *Descripción:*\n{descripcion}\n\n"
 
-def buscar_producto_por_nombre(self, nombre_producto):
-    try:
-        response = requests.get(
-            f"{self.base_url}/products",
-            params={'search': nombre_producto, 'per_page': 1},
-            auth=self.auth
-        )
-        response.raise_for_status()
-        productos = response.json()
-        return productos[0] if productos else None
-    except Exception as e:
-        print(f"Error buscando producto por nombre: {str(e)}")
-        return None
+            mensaje += f"🔗 Ver más detalles aquí:\n{enlace}\n\n"
+            mensaje += f"💲 *Precio regular:* Q{precio_normal}"
 
-def formatear_producto_whatsapp(self, producto):
-    try:
-        nombre = producto.get('name', 'Producto sin nombre')
-        precio = producto.get('price', 'N/A')
-        precio_normal = producto.get('regular_price') or precio
-        precio_oferta = producto.get('sale_price', '')
-        descripcion = self.limpiar_html(producto.get('short_description') or producto.get('description', ''))
-        enlace = producto.get('permalink', '')
-        fecha_oferta = producto.get('date_on_sale_to')
+            if precio_oferta and precio_oferta != precio_normal:
+                mensaje += f"\n💥 *Precio en oferta:* Q{precio_oferta}"
 
-        mensaje = f"🔩⚙ *{nombre}* ⚙🔩\n\n"
+            if fecha_oferta:
+                try:
+                    fecha_dt = datetime.fromisoformat(fecha_oferta)
+                    if fecha_dt > datetime.now():
+                        mensaje += f"\n🗓 Oferta válida hasta: {fecha_dt.strftime('%d/%m/%Y')}"
+                except:
+                    pass
 
-        if descripcion:
-            mensaje += f"📝 *Descripción:*\n{descripcion}\n\n"
+            mensaje += (
+                "\n\n🚚 Envío a domicilio\n"
+                "🤝 Pago contra entrega disponible\n"
+                "💳 Aceptamos tarjetas de crédito sin recargob (precio normal)\n\n"
+                "⚠️ *Nota:* Los precios y disponibilidad pueden cambiar sin previo aviso."
+            )
 
-        mensaje += f"🔗 Ver más detalles aquí:\n{enlace}\n\n"
-        mensaje += f"💲 *Precio regular:* Q{precio_normal}"
+            return mensaje
 
-        if precio_oferta and precio_oferta != precio_normal:
-            mensaje += f"\n💥 *Precio en oferta:* Q{precio_oferta}"
+        except Exception as e:
+            print(f"Error al formatear producto: {str(e)}")
+            return "⚠️ Hubo un problema al mostrar la información del producto."
 
-        if fecha_oferta:
-            try:
-                fecha_dt = datetime.fromisoformat(fecha_oferta)
-                if fecha_dt > datetime.now():
-                    mensaje += f"\n🗓 Oferta válida hasta: {fecha_dt.strftime('%d/%m/%Y')}"
-            except:
-                pass
 
-        mensaje += (
-            "\n\n🚚 Envío a domicilio\n"
-            "🤝 Pago contra entrega disponible\n"
-            "💳 Aceptamos tarjetas de crédito sin recargo\n\n"
-            "⚠️ *Nota:* Los precios y disponibilidad pueden cambiar sin previo aviso."
-        )
 
-        return mensaje
 
-    except Exception as e:
-        print(f"Error al formatear producto: {str(e)}")
-        return "⚠️ Hubo un problema al mostrar la información del producto."
+
+
+
+#def formatear_producto_whatsapp(self, producto):
+#    try:
+#        nombre = producto.get('name', 'Producto sin nombre')
+#        precio = producto.get('price', 'N/A')
+#        precio_normal = producto.get('regular_price') or precio
+#        precio_oferta = producto.get('sale_price', '')
+#        descripcion = self.limpiar_html(producto.get('short_description') or producto.get('description', ''))
+#        enlace = producto.get('permalink', '')
+#        fecha_oferta = producto.get('date_on_sale_to')
+#
+#        mensaje = f"🔩⚙ *{nombre}* ⚙🔩\n\n"
+#
+#        if descripcion:
+#            mensaje += f"📝 *Descripción:*\n{descripcion}\n\n"
+#
+#        mensaje += f"🔗 Ver más detalles aquí:\n{enlace}\n\n"
+#        mensaje += f"💲 *Precio regular:* Q{precio_normal}"
+#
+#        if precio_oferta and precio_oferta != precio_normal:
+#            mensaje += f"\n💥 *Precio en oferta:* Q{precio_oferta}"
+#
+#        if fecha_oferta:
+#            try:
+#                fecha_dt = datetime.fromisoformat(fecha_oferta)
+#                if fecha_dt > datetime.now():
+#                    mensaje += f"\n🗓 Oferta válida hasta: {fecha_dt.strftime('%d/%m/%Y')}"
+#            except:
+#                pass
+#
+#        mensaje += (
+#            "\n\n🚚 Envío a domicilio\n"
+#            "🤝 Pago contra entrega disponible\n"
+#            "💳 Aceptamos tarjetas de crédito sin recargo\n\n"
+#            "⚠️ *Nota:* Los precios y disponibilidad pueden cambiar sin previo aviso."
+#        )
+#
+#        return mensaje
+#
+#    except Exception as e:
+#        print(f"Error al formatear producto: {str(e)}")
+#        return "⚠️ Hubo un problema al mostrar la información del producto."

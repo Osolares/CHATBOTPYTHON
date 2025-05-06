@@ -4,7 +4,8 @@ from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from config import db, Config
 from models import UserSession, Log, ProductModel
-from woocommerce_service import WooCommerceService, obtener_producto_por_url, buscar_producto_por_nombre, formatear_producto_whatsapp
+#from woocommerce_service import WooCommerceService, obtener_producto_por_url, buscar_producto_por_nombre, formatear_producto_whatsapp
+from woocommerce_service import WooCommerceService
 from datetime import datetime
 import json
 import time
@@ -352,13 +353,13 @@ def handle_special_commands(state: BotState) -> BotState:
     # Verifica si el mensaje parece interés en un producto con URL
     if mensaje_parece_interes_en_producto(texto):
         url = extraer_url(texto)
-        producto = obtener_producto_por_url(url)
+        producto = woo_service.obtener_producto_por_url(url)
 
         if not producto:
-            producto = buscar_producto_por_nombre(texto)  # Opcional
+            producto = woo_service.buscar_producto_por_nombre(texto)  # Opcional
 
         if producto:
-            mensaje = formatear_producto_whatsapp(producto)
+            mensaje = woo_service.formatear_producto_whatsapp(producto)
             state["response_data"] = [{
                 "messaging_product": "whatsapp",
                 "recipient_type": "individual",
