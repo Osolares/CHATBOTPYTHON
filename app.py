@@ -14,10 +14,9 @@ from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
 from pytz import timezone
 from config import now,GUATEMALA_TZ
-from sqlalchemy.exc import SQLAlchemyError
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -76,167 +75,153 @@ def block(source, to_compare):
     
     return {"status": "success"}
 
-# Configuración de zona horaria
-GUATEMALA_TZ = timezone('America/Guatemala')
 
-# Configuración de horarios y días festivos (pueden moverse a DB o config)
-HORARIO_ATENCION = {
-    0: ("08:00", "16:30"),  # Lunes
-    1: ("08:00", "17:30"),  # Martes
-    2: ("08:00", "17:30"),  # Miércoles
-    3: ("08:00", "17:30"),  # Jueves
-    4: ("08:00", "17:30"),  # Viernes
-    5: ("08:00", "12:30"),  # Sábado
-    6: (None, None)         # Domingo
-}
+from datetime import datetime, timedelta
+from pytz import timezone
+from models import db  # Asegúrate que tu ORM SQLAlchemy esté bien importado
 
-DIAS_FESTIVOS = []  # Puedes llenar con fechas como "2023-12-25"
+GUATEMALA_TZ = timezone("America/Guatemala")
 
-class BotState(TypedDict):
-    phone_number: str
-    user_msg: str
-    session: Optional[Any]  # UserSession
-    flujo_producto: Optional[Any]  # ProductModel
-    response_data: List[Dict[str, Any]]
-    message_data: Optional[Dict[str, Any]]
-    logs: List[str]
-    source: str
-    additional_messages: List[Dict[str, Any]]
+# Puedes luego cargar esto desde una tabla o archivo JSON
+DIAS_FESTIVOS = [
+    "2025-01-01",  # Año Nuevo
+    "2025-04-17",  # Jueves Santo
+    "2025-04-18",  # Viernes Santo
+    "2025-05-01",  # Día del Trabajo
+    # ...
+]
 
-def now() -> datetime:
-    """Obtiene la fecha/hora actual con zona horaria de Guatemala"""
+def now():
     return datetime.now(GUATEMALA_TZ)
 
-def es_dia_festivo(fecha: datetime) -> bool:
-    """Verifica si la fecha es un día festivo"""
+def es_dia_festivo(fecha):
     return fecha.strftime("%Y-%m-%d") in DIAS_FESTIVOS
 
-def esta_en_horario_atencion() -> bool:
-    """Determina si el momento actual está dentro del horario de atención"""
-    ahora = now()
-    
-    # Verificar si es día festivo
-    if es_dia_festivo(ahora):
-        return False
-    
-    dia_semana = ahora.weekday()
-    horario = HORARIO_ATENCION.get(dia_semana, (None, None))
-    
-    if not horario[0] or not horario[1]:
-        return False
-    
-    hora_ini = datetime.strptime(horario[0], "%H:%M").time()
-    hora_fin = datetime.strptime(horario[1], "%H:%M").time()
-    
-    hora_actual = ahora.time()
-    return hora_ini <= hora_actual <= hora_fin
-
-def crear_mensaje_fuera_horario(phone_or_id: str, source: str) -> Dict[str, Any]:
-    """Crea el mensaje de fuera de horario"""
-    return {
-        "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-        "to": phone_or_id,
-        "type": "text",
-        "text": {
-            "body": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n"
-                    "💬 Puedes continuar usando nuestro asistente, envíanos tus consultas y nuestro equipo te atenderá lo más pronto posible."
-        }
-    }
-
-def crear_mensaje_bienvenida(phone_or_id: str, source: str, es_nuevo: bool = False) -> Dict[str, Any]:
-    """Crea el mensaje de bienvenida apropiado"""
-    if es_nuevo:
-        cuerpo = "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗\n\n🗒️Consulta nuestro menú."
-    else:
-        cuerpo = "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
-    
-    return {
-        "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-        "to": phone_or_id,
-        "type": "interactive",
-        "interactive": {
-            "type": "button",
-            "header": {
-                "type": "image",
-                "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                }
-            },
-            "body": {"text": cuerpo},
-            "action": {}
-        }
-    }
-
 def pre_validaciones(state: BotState) -> BotState:
-    """
-    Middleware que valida:
-    - Horario de atención (con control de frecuencia para mensajes fuera de horario)
-    - Mensaje de bienvenida (diferenciado para nuevos usuarios y reingresos después de 24h)
-    """
-    # Inicialización básica
     ahora = now()
     session = state.get("session")
-    phone_or_id = state.get("phone_number") or state["message_data"].get("from") or state["message_data"].get("email")
+    phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
-    
-    # Inicializar lista de mensajes adicionales
-    state.setdefault("additional_messages", [])
-    
-    # --- Validación de horario de atención ---
-    if not esta_en_horario_atencion():
-        mostrar_alerta = True
-        
-        if session and session.ultima_alerta_horario:
-            # Verificar si ya se mostró alerta en la última hora
-            ultima_alerta = session.ultima_alerta_horario
-            if ultima_alerta.tzinfo is None:
-                ultima_alerta = GUATEMALA_TZ.localize(ultima_alerta)
-            mostrar_alerta = (ahora - ultima_alerta) >= timedelta(hours=1)
-        
-        if mostrar_alerta:
-            state["additional_messages"].append(crear_mensaje_fuera_horario(phone_or_id, source))
-            if session:
-                try:
-                    session.ultima_alerta_horario = ahora
-                    db.session.commit()
-                except SQLAlchemyError as e:
-                    db.session.rollback()
-                    agregar_mensajes_log(f"Error al guardar última alerta: {str(e)}")
 
-    # --- Mensaje de bienvenida ---
-    mostrar_bienvenida = False
-    es_nuevo = False
-    
+    # Inicializar contenedor de mensajes
+    state.setdefault("additional_messages", [])
+
+    # --- HORARIO Y FERIADOS ---
+    HORARIO = {
+        0: ("08:00", "17:30"),  # Lunes
+        1: ("08:00", "17:30"),
+        2: ("08:00", "17:30"),
+        3: ("08:00", "17:30"),
+        4: ("08:00", "17:30"),
+        5: ("08:00", "12:30"),
+        6: (None, None)         # Domingo cerrado
+    }
+
+    dia = ahora.weekday()
+    h_ini_str, h_fin_str = HORARIO.get(dia, (None, None))
+    dentro_horario = False
+
+    if h_ini_str and h_fin_str and not es_dia_festivo(ahora):
+        h_ini = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_ini_str, "%H:%M").time()))
+        h_fin = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_fin_str, "%H:%M").time()))
+        dentro_horario = h_ini <= ahora <= h_fin
+
+    if not dentro_horario:
+        mostrar_alerta = False
+        if session:
+            ultima_alerta = session.ultima_alerta_horario or datetime.min.replace(tzinfo=GUATEMALA_TZ)
+            if (ahora - ultima_alerta) > timedelta(hours=1):
+                mostrar_alerta = True
+                session.ultima_alerta_horario = ahora
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+        else:
+            mostrar_alerta = True
+
+        if mostrar_alerta:
+            state["additional_messages"].append({
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "to": phone_or_id,
+                "type": "text",
+                "text": {
+                    "body": (
+                        "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención "
+                        "o es un día festivo. 💬Puedes continuar usando nuestro asistente, y nuestro equipo te responderá "
+                        "lo más pronto posible."
+                    )
+                }
+            })
+
+    # --- BIENVENIDA ---
+    enviar_bienvenida = False
+    tipo_bienvenida = "nueva"  # o "retorno"
+
     if session:
-        # Usuario existente - verificar si necesita bienvenida
         last_interaction = session.last_interaction
         if last_interaction and last_interaction.tzinfo is None:
             last_interaction = GUATEMALA_TZ.localize(last_interaction)
-        
-        mostrar_bienvenida = not session.mostro_bienvenida or (ahora - last_interaction) > timedelta(hours=24)
+
+        if not session.mostro_bienvenida:
+            enviar_bienvenida = True
+        elif (ahora - last_interaction) > timedelta(hours=24):
+            enviar_bienvenida = True
+            tipo_bienvenida = "retorno"
     else:
-        # Usuario nuevo
-        mostrar_bienvenida = True
-        es_nuevo = True
-    
-    if mostrar_bienvenida:
-        state["additional_messages"].append(crear_mensaje_bienvenida(phone_or_id, source, es_nuevo))
-        
-        # Agregar menú para WhatsApp
+        enviar_bienvenida = True  # nuevo usuario
+        tipo_bienvenida = "nueva"
+
+    if enviar_bienvenida:
+        texto_bienvenida = (
+            "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗\n\n"
+            "🗒️Consulta nuestro menú."
+        ) if tipo_bienvenida == "nueva" else (
+            "👋 ¡Hola de nuevo! Gracias por contactar nuevamente a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n"
+            "🗒️Consulta nuestro menú actualizado."
+        )
+
+        bienvenida_msg = {
+            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+            "to": phone_or_id,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "header": {
+                    "type": "image",
+                    "image": {
+                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
+                    }
+                },
+                "body": {
+                    "text": texto_bienvenida
+                },
+                "action": {
+                    #"buttons": [{
+                    #    "type": "reply",
+                    #    "reply": {"id": "welcome_ok", "title": "Entendido"}
+                    #}]
+                }
+            }
+        }
+
+        state["additional_messages"].append(bienvenida_msg)
+
+        # Si es WhatsApp agregamos también el menú
         if source == "whatsapp":
             menu_msg = generar_menu_principal(phone_or_id)
             state["additional_messages"].append(menu_msg)
-        
-        # Actualizar estado en la sesión si existe
+
+        # Guardar que se mostró la bienvenida
         if session:
+            session.mostro_bienvenida = True
             try:
-                session.mostro_bienvenida = True
                 db.session.commit()
-            except SQLAlchemyError as e:
+            except Exception as e:
                 db.session.rollback()
-                agregar_mensajes_log(f"Error al guardar estado de bienvenida: {str(e)}")
 
     return state
+
 
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
@@ -348,12 +333,12 @@ def handle_product_flow(state: BotState) -> BotState:
 
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
+    agregar_mensajes_log(f"En handle_special_commands: {state}")
 
     texto = state["user_msg"].lower().strip()
     number = state.get("phone_number")
     source = state.get("source")
 
-    agregar_mensajes_log(f"En Handle_special_commands: ")
 
     # Dependiendo del source, podrías en el futuro mandar menús diferentes.
     if "hola" in texto:
@@ -504,8 +489,6 @@ def asistente(state: BotState) -> BotState:
 
     if not state.get("response_data"):
         user_msg = state["user_msg"]
-        agregar_mensajes_log(f"En asistente: ")
-
         last_log = db.session.query(Log).filter(
             Log.session_id == (state["session"].idUser if state["session"] else None)
         ).order_by(Log.fecha_y_hora.desc()).first()
@@ -564,24 +547,15 @@ def send_messages(state: BotState) -> BotState:
 
 def merge_responses(state: BotState) -> BotState:
     """
-    Combina solo additional_messages con response_data manteniendo el orden correcto
+    Combina los mensajes adicionales del middleware con las respuestas normales.
+    Los mensajes adicionales van primero.
     """
-    # Obtener los mensajes adicionales (horario, bienvenida, menú)
+    agregar_mensajes_log(f"En merge_responses: {state}")
+
     additional = state.pop("additional_messages", [])
-    
-    # Obtener las respuestas normales del flujo
     main_responses = state.get("response_data", [])
     
-    # Combinar manteniendo el orden (primero los adicionales)
     state["response_data"] = additional + main_responses
-    
-    # Log para depuración
-    agregar_mensajes_log(
-        f"Merge completado - Adicionales: {len(additional)}, "
-        f"Principales: {len(main_responses)}, "
-        f"Total: {len(state['response_data'])}"
-    )
-    
     return state
 
 def is_human_message(platform: str, message_data: dict) -> bool:
@@ -634,7 +608,7 @@ def is_human_message(platform: str, message_data: dict) -> bool:
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
     """Guarda un mensaje en memoria y en la base de datos."""
     #agregar_mensajes_log(f"En agregar_mensajes_log: {state}")
-    
+
     try:
         texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
         
@@ -652,7 +626,7 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp"""
-    agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {json.dumps(data)}")
+    agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {data}")
 
     headers = {
         "Content-Type": "application/json",
