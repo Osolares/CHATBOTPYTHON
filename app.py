@@ -75,6 +75,12 @@ def block(source, to_compare):
     
     return {"status": "success"}
 
+# feriados configurables
+DIAS_FESTIVOS = {"2025-01-01","2025-04-17","2025-04-18","2025-05-01"}
+
+def es_dia_festivo(fecha: datetime) -> bool:
+    return fecha.strftime("%Y-%m-%d") in DIAS_FESTIVOS
+
 def pre_validaciones(state: BotState) -> BotState:
     """
     Middleware que valida:
@@ -92,12 +98,67 @@ def pre_validaciones(state: BotState) -> BotState:
     source = state.get("source")
     
     # Log mejorado con marca de tiempo
-    agregar_mensajes_log({
-        "timestamp": ahora.isoformat(),
-        "event": "pre_validaciones",
-        "session_id": session.idUser if session else None,
-        "phone_or_id": phone_or_id
-    })
+    #agregar_mensajes_log({
+    #    "timestamp": ahora.isoformat(),
+    #    "event": "pre_validaciones",
+    #    "session_id": session.idUser if session else None,
+    #    "phone_or_id": phone_or_id
+    #})
+
+    # contenedor de alertas
+    state.setdefault("additional_messages", [])
+
+
+    # --- BIENVENIDA CONTROLADA (Mejorado para manejo de zona horaria) ---
+    # 2) Bienvenida
+    #send_welcome, kind = False, None
+    
+    if session:
+        # Asegurar que last_interaction tenga zona horaria
+        last_interaction = session.last_interaction
+        if last_interaction and last_interaction.tzinfo is None:
+            last_interaction = GUATEMALA_TZ.localize(last_interaction)
+        
+        # Mostrar bienvenida si es primera vez o pasaron más de 24h
+
+        if not session.mostro_bienvenida:
+            send_welcome, kind = True, "nueva"
+
+        elif (ahora - last_interaction) > timedelta(hours=24):
+            send_welcome, kind = True, "retorno"
+    #else:
+    #    send_welcome, kind = True, "nueva"
+        
+    if send_welcome:
+        msg = (
+            "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. para tu vehículo 🚗 \n\n🗒️ Consulta nuestro menú."
+            if kind=="nueva" else
+            "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
+        )
+        state["additional_messages"].append({
+            "messaging_product": "whatsapp" if source=="whatsapp" else "other",
+            # action/buttons opcional
+            #"messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": phone_or_id,
+            "type": "image",
+            "image": {
+                "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png",
+                "caption": msg
+            }
+        })
+
+        # 2. Menú de opciones (solo WhatsApp)
+        if source == "whatsapp":
+            menu_msg = generar_menu_principal(phone_or_id)
+            state["additional_messages"].append(menu_msg)  # <-- Segundo append
+
+        session.mostro_bienvenida = True
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            agregar_mensajes_log(f"Error al guardar mostro_bienvenida: {str(e)}")
 
     # --- HORARIO DE ATENCIÓN (Mejorado para manejo de zona horaria) ---
     HORARIO = {
@@ -154,93 +215,6 @@ def pre_validaciones(state: BotState) -> BotState:
                             #"Horario: L-V 8:00-17:00, Sáb 8:00-12:00\n\n"
                 }
             })
-
-    # --- BIENVENIDA CONTROLADA (Mejorado para manejo de zona horaria) ---
-    if session:
-        # Asegurar que last_interaction tenga zona horaria
-        last_interaction = session.last_interaction
-        if last_interaction and last_interaction.tzinfo is None:
-            last_interaction = GUATEMALA_TZ.localize(last_interaction)
-        
-        # Mostrar bienvenida si es primera vez o pasaron más de 24h
-
-        if not session.mostro_bienvenida or (ahora - last_interaction > timedelta(hours=24)):
-            state.setdefault("additional_messages", []).append({
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                "to": phone_or_id,
-                "type": "interactive",  # Tipo compuesto
-                "interactive": {
-                    "type": "button",
-                    "header": {
-                        "type": "image",
-                        "image": {
-                            "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                        }
-                    },
-                    "body": {
-                        "text": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗\n\n"
-                                "🗒️Consulta nuestro menú."
-                    },
-                    "action": {
-                        #"buttons": [{
-                        #    "type": "reply",
-                        #    "reply": {
-                        #        "id": "welcome_ok",
-                        #        "title": "Entendido"
-                        #    }
-                        #}]
-                    }
-                }
-            })
-
-            # 2. Menú de opciones (solo WhatsApp)
-            if source == "whatsapp":
-
-                menu_msg = generar_menu_principal(phone_or_id)
-                state["additional_messages"].append(menu_msg)  # <-- Segundo append
-
-            session.mostro_bienvenida = True
-            try:
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                agregar_mensajes_log(f"Error al guardar mostro_bienvenida: {str(e)}")
-
-    else:
-        # Bienvenida mínima para nuevos usuarios
-        state.setdefault("additional_messages", []).append({
-            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-            "to": phone_or_id,
-            "type": "interactive",  # Tipo compuesto
-            "interactive": {
-                "type": "button",
-                "header": {
-                    "type": "image",
-                    "image": {
-                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                    }
-                },
-                "body": {
-                    "text": "👋 ¡Hola Bienvenido(a) que gusto tenerte de nuevo, Gracias por contactar a Intermotores! ¿En qué podemos ayudarte hoy? 🚗\n\n"
-                            "🗒️Consulta nuestro menú."
-                },
-                "action": {
-                    #"buttons": [{
-                    #    "type": "reply",
-                    #    "reply": {
-                    #        "id": "welcome_ok",
-                    #        "title": "Entendido"
-                    #    }
-                    #}]
-                }
-            }
-        })
-
-        # 2. Menú de opciones (solo WhatsApp)
-        if source == "whatsapp":
-            from menus import generar_list_menu
-            menu_msg = generar_list_menu(phone_or_id)
-            state["additional_messages"].append(menu_msg)  # <-- Segundo append
 
 
     agregar_mensajes_log(f"saliendo de pre_validaciones: {state}")
