@@ -89,10 +89,44 @@ def pre_validaciones(state: BotState) -> BotState:
     # contenedor de alertas
     state.setdefault("additional_messages", [])
 
+    # 2) Bienvenida
+    send_welcome, kind = False, None
+    if session:
+        last_i = session.last_interaction
+        if not session.mostro_bienvenida:
+            send_welcome, kind = True, "nueva"
+        elif (ahora - last_i) > timedelta(hours=24):
+            send_welcome, kind = True, "retorno"
+    else:
+        send_welcome, kind = True, "nueva"
+
+    if send_welcome:
+        msg = (
+            "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. para tu vehículo 🚗 \n\n🗒️ Consulta nuestro menú."
+            if kind=="nueva" else
+            "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
+        )
+        state["additional_messages"].append({
+            "messaging_product": "whatsapp" if src=="whatsapp" else "other",
+            # action/buttons opcional
+            #"messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": key,
+            "type": "image",
+            "image": {
+                "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png",
+                "caption": msg
+            }
+        })
+
     # 1) Fuera de horario y feriado
     HORARIO = {
-      0:("08:00","17:30"),1:("08:00","17:30"),2:("08:00","17:30"),
-      3:("08:00","17:30"),4:("08:00","17:30"),5:("08:00","12:30"),
+      0:("08:00","17:30"),
+      1:("08:00","17:30"),
+      2:("08:00","17:30"),
+      3:("08:00","17:30"),
+      4:("08:00","17:30"),
+      5:("08:00","12:30"),
       6:(None,None)
     }
     h_ini, h_fin = HORARIO[ahora.weekday()]
@@ -109,48 +143,13 @@ def pre_validaciones(state: BotState) -> BotState:
               "messaging_product": "whatsapp" if src=="whatsapp" else "other",
               "to": key, "type":"text",
               "text":{"body":
-                "🕒 Estamos fuera de horario o es feriado. Puedes usar el asistente automático; "
-                "te atenderemos en cuanto estemos disponibles."
+                    "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n"
+                    "💬 Consulta nuestro menú, envíanos tus consultas y nuestro equipo te atenderá lo más pronto posible."
               }
             })
             if session:
                 session.ultima_alerta_horario = ahora
-
-    # 2) Bienvenida
-    send_welcome, kind = False, None
-    if session:
-        last_i = session.last_interaction
-        if not session.mostro_bienvenida:
-            send_welcome, kind = True, "nueva"
-        elif (ahora - last_i) > timedelta(hours=24):
-            send_welcome, kind = True, "retorno"
-    else:
-        send_welcome, kind = True, "nueva"
-
-    if send_welcome:
-        msg = (
-            "👋 ¡Bienvenido a Intermotores! 🚗 Consulta nuestro menú."
-            if kind=="nueva" else
-            "👋 ¡Hola de nuevo! 🚗 ¿En qué podemos ayudarte hoy?"
-        )
-        state["additional_messages"].append({
-              "messaging_product": "whatsapp" if src=="whatsapp" else "other",
-              "to": key, "type":"text",
-              "text":{"body":
-                "🕒  Puedes usar el asistente automático; "
-                "te atenderemos en cuanto estemos disponibles."
-              }
-            })
-
-        #{
-        #    "messaging_product": "whatsapp",
-        #    "recipient_type": "individual",
-        #    "to": number,
-        #    "type": "image",
-        #    "image": {
-        #        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-        #    }
-        #}
+        
         if src=="whatsapp":
             state["additional_messages"].append(generar_menu_principal(key))
         if session:
@@ -162,7 +161,6 @@ def pre_validaciones(state: BotState) -> BotState:
         db.session.commit()
 
     return state
-
 
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
