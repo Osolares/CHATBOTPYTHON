@@ -4,7 +4,7 @@ from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from config import db, Config
 from models import UserSession, Log, ProductModel
-from woocommerce_service import WooCommerceService
+from woocommerce_service import WooCommerceService, obtener_producto_por_url, buscar_producto_por_nombre, formatear_producto_whatsapp
 from datetime import datetime
 import json
 import time
@@ -17,6 +17,7 @@ from menus import generar_list_menu, generar_menu_principal
 from datetime import datetime, timedelta
 from pytz import timezone
 from config import now,GUATEMALA_TZ
+import re
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -131,7 +132,7 @@ def pre_validaciones(state: BotState) -> BotState:
         
     if send_welcome:
         msg = (
-            "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. para tu vehículo 🚗 \n\n🗒️ Consulta nuestro menú."
+            "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗 \n\n🗒️ Consulta nuestro menú."
             if kind=="nueva" else
             "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
         )
@@ -328,6 +329,18 @@ def handle_product_flow(state: BotState) -> BotState:
         state["response_data"] = response
     return state
 
+import re
+
+def mensaje_parece_interes_en_producto(texto):
+    texto = texto.lower()
+    patron = r"Hola, estoy interesado en el producto: .*? que se encuentra en https?://[^\s]+"
+    #patron = r"(interesado|quiero|me interesa|información|info|detalles).*https?://[^\s]+"
+    return re.search(patron, texto)
+
+def extraer_url(texto):
+    match = re.search(r"https?://[^\s]+", texto)
+    return match.group(0) if match else None
+
 
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
@@ -336,6 +349,40 @@ def handle_special_commands(state: BotState) -> BotState:
     texto = state["user_msg"].lower().strip()
     number = state.get("phone_number")
     source = state.get("source")
+
+
+    # Verifica si el mensaje parece interés en un producto con URL
+    if mensaje_parece_interes_en_producto(texto):
+        url = extraer_url(texto)
+        producto = obtener_producto_por_url(url)
+
+        if not producto:
+            producto = buscar_producto_por_nombre(texto)  # Opcional
+
+        if producto:
+            mensaje = formatear_producto_whatsapp(producto)
+            state["response_data"] = [{
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": mensaje
+                }
+            }]
+        else:
+            state["response_data"] = [{
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "😕 Lo sentimos, no encontramos el producto que buscas. Por favor revisa el enlace o nombre e intenta nuevamente."
+                }
+            }]
+        return state  # Finaliza aquí si encontró o no el producto
 
 
     # Dependiendo del source, podrías en el futuro mandar menús diferentes.
@@ -756,6 +803,68 @@ def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
             "type": "text",
             "text": {"body": "⚠️ Ocurrió un error al cargar las ofertas. Por favor intenta más tarde."}
         }]
+
+def manejar_producto_interesado(number: str, mensaje: str) -> List[Dict[str, Any]]:
+    try:
+        # Extraer URL y nombre del producto
+        patron = r"Hola, estoy interesado en el producto: (.*?) que se encuentra en (https?://[^\s]+)"
+        coincidencia = re.search(patron, mensaje.strip())
+        
+        if not coincidencia:
+            return [{
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "text",
+                "text": {"body": "❌ No logré identificar el producto en tu mensaje. Por favor revisa el formato."}
+            }]
+
+        nombre_producto = coincidencia.group(1).strip()
+        url_producto = coincidencia.group(2).strip()
+
+        # Intentar buscar por URL primero
+        producto = woo_service.obtener_producto_por_url(url_producto)
+
+        if not producto:
+            # Si no se encuentra, intentar por nombre
+            producto = woo_service.buscar_producto_por_nombre(nombre_producto)
+
+        if not producto:
+            return [{
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "text",
+                "text": {"body": f"⚠️ No encontré el producto *{nombre_producto}*. Por favor verifica el enlace o nombre."}
+            }]
+
+        # Verificar disponibilidad
+        stock_status = producto.get('stock_status', '')
+        if stock_status != 'instock':
+            return [{
+                "messaging_product": "whatsapp",
+                "to": number,
+                "type": "text",
+                "text": {"body": f"⛔ El producto *{producto['name']}* no se encuentra disponible actualmente."}
+            }]
+
+        # Formatear respuesta
+        mensaje_formateado = woo_service.formatear_producto_whatsapp(producto)
+
+        return [{
+            "messaging_product": "whatsapp",
+            "to": number,
+            "type": "text",
+            "text": {"preview_url": True, "body": mensaje_formateado}
+        }]
+
+    except Exception as e:
+        print(f"Error en manejar_producto_interesado: {str(e)}")
+        return [{
+            "messaging_product": "whatsapp",
+            "to": number,
+            "type": "text",
+            "text": {"body": "❌ Ocurrió un error al procesar tu solicitud. Por favor intenta más tarde."}
+        }]
+
 
 # ------------------------------------------
 # Construcción del Grafo de Flujo
