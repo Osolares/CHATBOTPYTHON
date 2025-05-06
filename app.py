@@ -2,8 +2,8 @@ from typing import TypedDict, Optional, List, Dict, Any, Union
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
-from config import db, Config
-from models import UserSession, Log, ProductModel
+from config import db, Config, now,GUATEMALA_TZ
+from models import UserSession, Log, ProductModel, db
 from woocommerce_service import WooCommerceService
 from datetime import datetime
 import json
@@ -16,7 +16,6 @@ from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
 from datetime import datetime, timedelta
 from pytz import timezone
-from config import now,GUATEMALA_TZ
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -75,150 +74,84 @@ def block(source, to_compare):
     
     return {"status": "success"}
 
+# feriados configurables
+DIAS_FESTIVOS = {"2025-01-01","2025-04-17","2025-04-18","2025-05-01"}
 
-from datetime import datetime, timedelta
-from pytz import timezone
-from models import db  # Asegúrate que tu ORM SQLAlchemy esté bien importado
-
-GUATEMALA_TZ = timezone("America/Guatemala")
-
-# Puedes luego cargar esto desde una tabla o archivo JSON
-DIAS_FESTIVOS = [
-    "2025-01-01",  # Año Nuevo
-    "2025-04-17",  # Jueves Santo
-    "2025-04-18",  # Viernes Santo
-    "2025-05-01",  # Día del Trabajo
-    # ...
-]
-
-def now():
-    return datetime.now(GUATEMALA_TZ)
-
-def es_dia_festivo(fecha):
+def es_dia_festivo(fecha: datetime) -> bool:
     return fecha.strftime("%Y-%m-%d") in DIAS_FESTIVOS
 
 def pre_validaciones(state: BotState) -> BotState:
     ahora = now()
     session = state.get("session")
-    phone_or_id = state.get("phone_number") or state["message_data"].get("email")
-    source = state.get("source")
+    key = state.get("phone_number") or state["message_data"].get("email")
+    src = state.get("source")
 
-    # Inicializar contenedor de mensajes
+    # contenedor de alertas
     state.setdefault("additional_messages", [])
 
-    # --- HORARIO Y FERIADOS ---
+    # 1) Fuera de horario y feriado
     HORARIO = {
-        0: ("08:00", "17:30"),  # Lunes
-        1: ("08:00", "17:30"),
-        2: ("08:00", "17:30"),
-        3: ("08:00", "17:30"),
-        4: ("08:00", "17:30"),
-        5: ("08:00", "12:30"),
-        6: (None, None)         # Domingo cerrado
+      0:("08:00","17:30"),1:("08:00","17:30"),2:("08:00","17:30"),
+      3:("08:00","17:30"),4:("08:00","17:30"),5:("08:00","12:30"),
+      6:(None,None)
     }
+    h_ini, h_fin = HORARIO[ahora.weekday()]
+    dentro = False
+    if h_ini and h_fin and not es_dia_festivo(ahora):
+        inicio = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_ini,"%H:%M").time()))
+        fin    = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_fin,"%H:%M").time()))
+        dentro = inicio <= ahora <= fin
 
-    dia = ahora.weekday()
-    h_ini_str, h_fin_str = HORARIO.get(dia, (None, None))
-    dentro_horario = False
-
-    if h_ini_str and h_fin_str and not es_dia_festivo(ahora):
-        h_ini = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_ini_str, "%H:%M").time()))
-        h_fin = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_fin_str, "%H:%M").time()))
-        dentro_horario = h_ini <= ahora <= h_fin
-
-    if not dentro_horario:
-        mostrar_alerta = False
-        if session:
-            ultima_alerta = session.ultima_alerta_horario or datetime.min.replace(tzinfo=GUATEMALA_TZ)
-            if (ahora - ultima_alerta) > timedelta(hours=1):
-                mostrar_alerta = True
-                session.ultima_alerta_horario = ahora
-                try:
-                    db.session.commit()
-                except Exception as e:
-                    db.session.rollback()
-        else:
-            mostrar_alerta = True
-
-        if mostrar_alerta:
+    if not dentro:
+        last = session.ultima_alerta_horario if session else None
+        if not last or (ahora - last) > timedelta(hours=1):
             state["additional_messages"].append({
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                "to": phone_or_id,
-                "type": "text",
-                "text": {
-                    "body": (
-                        "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención "
-                        "o es un día festivo. 💬Puedes continuar usando nuestro asistente, y nuestro equipo te responderá "
-                        "lo más pronto posible."
-                    )
-                }
+              "messaging_product": "whatsapp" if src=="whatsapp" else "other",
+              "to": key, "type":"text",
+              "text":{"body":
+                "🕒 Estamos fuera de horario o es feriado. Puedes usar el asistente automático; "
+                "te atenderemos en cuanto estemos disponibles."
+              }
             })
+            if session:
+                session.ultima_alerta_horario = ahora
 
-    # --- BIENVENIDA ---
-    enviar_bienvenida = False
-    tipo_bienvenida = "nueva"  # o "retorno"
-
+    # 2) Bienvenida
+    send_welcome, kind = False, None
     if session:
-        last_interaction = session.last_interaction
-        if last_interaction and last_interaction.tzinfo is None:
-            last_interaction = GUATEMALA_TZ.localize(last_interaction)
-
+        last_i = session.last_interaction
         if not session.mostro_bienvenida:
-            enviar_bienvenida = True
-        elif (ahora - last_interaction) > timedelta(hours=24):
-            enviar_bienvenida = True
-            tipo_bienvenida = "retorno"
+            send_welcome, kind = True, "nueva"
+        elif (ahora - last_i) > timedelta(hours=24):
+            send_welcome, kind = True, "retorno"
     else:
-        enviar_bienvenida = True  # nuevo usuario
-        tipo_bienvenida = "nueva"
+        send_welcome, kind = True, "nueva"
 
-    if enviar_bienvenida:
-        texto_bienvenida = (
-            "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal. 🚗\n\n"
-            "🗒️Consulta nuestro menú."
-        ) if tipo_bienvenida == "nueva" else (
-            "👋 ¡Hola de nuevo! Gracias por contactar nuevamente a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n"
-            "🗒️Consulta nuestro menú actualizado."
+    if send_welcome:
+        msg = (
+          "👋 ¡Bienvenido a Intermotores! 🚗 Consulta nuestro menú."
+          if kind=="nueva" else
+          "👋 ¡Hola de nuevo! 🚗 ¿En qué podemos ayudarte hoy?"
         )
-
-        bienvenida_msg = {
-            "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-            "to": phone_or_id,
-            "type": "interactive",
-            "interactive": {
-                "type": "button",
-                "header": {
-                    "type": "image",
-                    "image": {
-                        "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"
-                    }
-                },
-                "body": {
-                    "text": texto_bienvenida
-                },
-                "action": {
-                    #"buttons": [{
-                    #    "type": "reply",
-                    #    "reply": {"id": "welcome_ok", "title": "Entendido"}
-                    #}]
-                }
-            }
-        }
-
-        state["additional_messages"].append(bienvenida_msg)
-
-        # Si es WhatsApp agregamos también el menú
-        if source == "whatsapp":
-            menu_msg = generar_menu_principal(phone_or_id)
-            state["additional_messages"].append(menu_msg)
-
-        # Guardar que se mostró la bienvenida
+        state["additional_messages"].append({
+          "messaging_product": "whatsapp" if src=="whatsapp" else "other",
+          "to": key, "type":"interactive",
+          "interactive":{
+            "type":"button",
+            "header":{"type":"image","image":{"link":"https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png"}},
+            "body":{"text": msg},
+            # action/buttons opcional
+          }
+        })
+        if src=="whatsapp":
+            state["additional_messages"].append(generar_menu_principal(key))
         if session:
             session.mostro_bienvenida = True
-            try:
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
+
+    # 3) Actualizar última interacción y guardar sesión
+    if session:
+        session.last_interaction = ahora
+        db.session.commit()
 
     return state
 
@@ -546,16 +479,10 @@ def send_messages(state: BotState) -> BotState:
 # ------------------------------------------
 
 def merge_responses(state: BotState) -> BotState:
-    """
-    Combina los mensajes adicionales del middleware con las respuestas normales.
-    Los mensajes adicionales van primero.
-    """
-    agregar_mensajes_log(f"En merge_responses: {state}")
-
-    additional = state.pop("additional_messages", [])
-    main_responses = state.get("response_data", [])
-    
-    state["response_data"] = additional + main_responses
+    # pone primero las alertas, luego las respuestas “normales”
+    alerts = state.pop("additional_messages", [])
+    main   = state.get("response_data", [])
+    state["response_data"] = alerts + main
     return state
 
 def is_human_message(platform: str, message_data: dict) -> bool:
@@ -762,42 +689,42 @@ def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
 # ------------------------------------------
 # Construcción del Grafo de Flujo
 # ------------------------------------------
+from langgraph.graph import StateGraph, END
+
 workflow = StateGraph(BotState)
 
-# --- 1. Nodos ---
-workflow.add_node("load_session", load_or_create_session)
-workflow.add_node("pre_validaciones", pre_validaciones)
-workflow.add_node("load_product_flow", load_product_flow)
-workflow.add_node("handle_product_flow", handle_product_flow)
+# 1) Nodos
+workflow.add_node("load_session",       load_or_create_session)    # carga/crea sesión
+workflow.add_node("pre_validaciones",   pre_validaciones)          # tu middleware
+workflow.add_node("load_product_flow",  load_product_flow)         # flujo de producto
+workflow.add_node("handle_product_flow",handle_product_flow)       # procesa producto
 workflow.add_node("handle_special_commands", handle_special_commands)
-workflow.add_node("asistente", asistente)
-workflow.add_node("send_messages", send_messages)
-workflow.add_node("merge_responses", merge_responses)  # Nuevo nodo
+workflow.add_node("asistente",          asistente)                # LLM
+workflow.add_node("merge_responses",    merge_responses)           # combina alertas
+workflow.add_node("send_messages",      send_messages)             # envía
 
-# --- 2. Enlaces (Edges) ---
-workflow.add_edge("load_session", "pre_validaciones")
-workflow.add_edge("pre_validaciones", "load_product_flow")
-workflow.add_edge("load_product_flow", "handle_product_flow")
-workflow.add_edge("handle_product_flow", "handle_special_commands")
+# 2) Enlaces
+workflow.add_edge("load_session",       "pre_validaciones")
+workflow.add_edge("pre_validaciones",   "load_product_flow")
+workflow.add_edge("load_product_flow",  "handle_product_flow")
+workflow.add_edge("handle_product_flow","handle_special_commands")
 
-# Condicional entre comandos y asistente
-def enrutar_despues_comandos(state: BotState) -> str:
-    if state.get("skip_processing", False):
-        return "merge_responses"
-    if state.get("response_data"):
-        return "merge_responses"
-    return "asistente"
+# Condicional: si handle_special_commands produjo respuesta, va a merge; si no, a asistente
+def ruta(state: BotState)->str:
+    return "merge_responses" if state.get("response_data") else "asistente"
 
-workflow.add_conditional_edges("handle_special_commands", enrutar_despues_comandos)
-workflow.add_edge("asistente", "merge_responses")
+workflow.add_conditional_edges("handle_special_commands", ruta)
+
+workflow.add_edge("asistente",       "merge_responses")
 workflow.add_edge("merge_responses", "send_messages")
-workflow.add_edge("send_messages", END)
+workflow.add_edge("send_messages",   END)
 
-# --- Configurar punto de entrada
+# 3) Entrada y compilación
 workflow.set_entry_point("load_session")
+app_flow = workflow.compile()
 
 # --- Compilar
-app_flow = workflow.compile()# ------------------------------------------
+# ------------------------------------------
 # Configuración de Flask y Rutas
 # ------------------------------------------
 
@@ -986,21 +913,21 @@ def webhook_telegram():
     """Endpoint para Telegram."""
     try:
         data = request.get_json()
-        validation = MessageValidator.validate("telegram", data)
+        #validation = MessageValidator.validate("telegram", data)
         
-        if not validation["is_valid"]:
-            return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
+        #if not validation["is_valid"]:
+        #    return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
         
-        initial_state = {
-            "phone_number": validation["user_id"],
-            "user_msg": validation["message_content"],
-            "response_data": [],
-            "message_data": {"chat_id": validation["user_id"]},
-            "logs": [],
-            "source": "telegram"
-        }
+        #initial_state = {
+        #    "phone_number": validation["user_id"],
+        #    "user_msg": validation["message_content"],
+        #    "response_data": [],
+        #    "message_data": {"chat_id": validation["user_id"]},
+        #    "logs": [],
+        #    "source": "telegram"
+        #}
         
-        app_flow.invoke(initial_state)
+        #app_flow.invoke(initial_state)
         return jsonify({'status': 'processed'})
         
     except Exception as e:
@@ -1013,10 +940,10 @@ def webhook_messenger():
     """Endpoint para Facebook Messenger."""
     try:
         data = request.get_json()
-        validation = MessageValidator.validate("messenger", data)
+        #validation = MessageValidator.validate("messenger", data)
         
-        if not validation["is_valid"]:
-            return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
+        #if not validation["is_valid"]:
+        #    return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
         
         initial_state = {
             "phone_number": "",  # Messenger usa ID, no teléfono
