@@ -31,13 +31,18 @@
 
     <table>
         <tr>
+            <th>ID</th>
             <th>Fecha y Hora</th>
             <th>Mensaje</th>
+            <th>Session ID</th>
         </tr>
         {% for registro in registros %}
         <tr>
+            <td>{{ registro.id }}</td>
             <td>{{ registro.fecha_y_hora }}</td>
             <td>{{ registro.texto }}</td>
+            <td>{{ registro.session_id }}</td>
+
         </tr>
         {% endfor %}
     </table>

@@ -43,4 +43,4 @@ class Log(db.Model):
     fecha_y_hora = db.Column(db.DateTime, default=now)  # Usa la función centralizada
     texto = db.Column(db.Text)
     
-    session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'))
+    session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'), index=True)
