@@ -272,39 +272,6 @@ def load_or_create_session(state: BotState) -> BotState:
 
     return state
 
-#def load_or_create_session(state: BotState) -> BotState:
-#    """Carga o crea una sesión de usuario"""
-#    try:
-#        phone_number = state.get("phone_number")
-#        source = state.get("source")
-#        message_data = state.get("message_data", {})
-#
-#        with db.session.begin():
-#            if source == "whatsapp":
-#                session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
-#                if not session:
-#                    session = UserSession(
-#                        phone_number=phone_number,
-#                        #created_at=now(),
-#                        last_interaction=now(),
-#                        source=source
-#                    )
-#                    db.session.add(session)
-#                
-#                # Actualizar siempre la última interacción
-#                session.last_interaction = now()
-#                session.source = source
-#                db.session.commit()
-#
-#            state["session"] = session
-#            return state
-            
-#    except Exception as e:
-#        agregar_mensajes_log(f"Error en load_or_create_session: {str(e)}")
-#        # Crear estado mínimo si falla
-#        state["session"] = None
-#        return state
-
 def load_product_flow(state: BotState) -> BotState:
     """Carga el estado del flujo de producto para el usuario actual"""
     agregar_mensajes_log(f"En load_product_flow: {state}")
