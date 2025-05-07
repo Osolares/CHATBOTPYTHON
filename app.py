@@ -20,6 +20,7 @@ from pytz import timezone
 from config import now,GUATEMALA_TZ
 import re
 
+
 # Instancia global del servicio
 woo_service = WooCommerceService()
 
@@ -220,6 +221,7 @@ def pre_validaciones(state: BotState) -> BotState:
 
 
     agregar_mensajes_log(f"saliendo de pre_validaciones: {state}")
+    log_state(state, f"⏺️ Saliendo de pre_ validaciones: {{state['additional_messages']}} at {{now().isoformat()}}")
 
     return state
 
@@ -270,6 +272,7 @@ def load_or_create_session(state: BotState) -> BotState:
 
         state["session"] = session
 
+    log_state(state, f"⏺️ Saliendo de load or create session: {{state['session']}} at {{now().isoformat()}}")
     return state
 
 def load_product_flow(state: BotState) -> BotState:
@@ -282,6 +285,8 @@ def load_product_flow(state: BotState) -> BotState:
             session_id=state["session"].idUser
         ).first()
         state["flujo_producto"] = flujo_producto
+
+    log_state(state, f"⏺️ Saliendo de load product flow: {{state['flujo_producto']}} at {{now().isoformat()}}")
     return state
 
 def handle_product_flow(state: BotState) -> BotState:
@@ -295,6 +300,7 @@ def handle_product_flow(state: BotState) -> BotState:
         )
         # FUTURO: Aquí podríamos modificar 'response' si quisiéramos respuestas distintas por source.
         state["response_data"] = response
+    log_state(state, f"⏺️ Saliendo de handle product flow: {{state['response_data']}} at {{now().isoformat()}}")
     return state
 
 def mensaje_parece_interes_en_producto(texto):
@@ -501,6 +507,7 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
 
+    log_state(state, f"⏺️ Saliendo de handle special products: {{state['response_data']}} at {{now().isoformat()}}")
     return state
 
 
@@ -530,6 +537,8 @@ def asistente(state: BotState) -> BotState:
                 "type": "text",
                 "text": {"body": body}
             }]
+
+    log_state(state, f"⏺️ Saliendo de asistente: {{state['response_data']}} at {{now().isoformat()}}")
 
     return state
 
@@ -561,6 +570,9 @@ def send_messages(state: BotState) -> BotState:
         except Exception as e:
             agregar_mensajes_log(f"Error enviando mensaje ({state['source']}): {str(e)}",
                                state["session"].idUser if state["session"] else None)
+            
+    log_state(state, f"⏺️ Saliendo de send messages: {{state['response_data']}} at {{now().isoformat()}}")
+
     return state
 # ------------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
@@ -577,6 +589,9 @@ def merge_responses(state: BotState) -> BotState:
     main_responses = state.get("response_data", [])
     
     state["response_data"] = additional + main_responses
+
+    log_state(state, f"⏺️ Saliendo de merge responses: {{state['response_data']}} at {{now().isoformat()}}")
+
     return state
 
 def is_human_message(platform: str, message_data: dict) -> bool:
@@ -625,6 +640,12 @@ def is_human_message(platform: str, message_data: dict) -> bool:
         agregar_mensajes_log(f"Error en is_human_message: {str(e)}")
         return False
 
+def log_state(state: BotState, mensaje: str) -> None:
+    # 1) append al estado en memoria
+    state["logs"].append(mensaje)
+    # 2) persiste en base de datos
+    agregar_mensajes_log(mensaje, state["session"].idUser if state.get("session") else None)
+
 
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
     """Guarda un mensaje en memoria y en la base de datos."""
@@ -648,6 +669,7 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp"""
     agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {data}")
+    log_state(f"⏺️ en bot enviar whatsapp: {data}")
 
     headers = {
         "Content-Type": "application/json",
@@ -891,7 +913,7 @@ db.init_app(flask_app)
 @flask_app.route('/')
 def index():
     try:
-        registros = Log.query.order_by(Log.fecha_y_hora.desc()).limit(100).all()
+        registros = Log.query.order_by(Log.fecha_y_hora.desc()).limit(500).all()
     except Exception as e:
         registros = []
         agregar_mensajes_log(f"Error cargando registros: {str(e)}")
@@ -1042,15 +1064,23 @@ def recibir_mensajes(req):
                     initial_state["user_msg"] = text
                     #enviar_mensajes_whatsapp(text, phone_number)
 
-            agregar_mensajes_log(f"📥 Mensaje a enviar: {json.dumps(initial_state)}")
+            agregar_mensajes_log(f"📥 Mensaje recibido initial_state: {json.dumps(initial_state)}")
 
             # Ejecuta el flujo
-            app_flow.invoke(initial_state)
+            #app_flow.invoke(initial_state)
+            final_state = app_flow.invoke(initial_state)
+
+            # Ahora sí tienes todos los logs en final_state["logs"]
+            print(final_state["logs"])
+            # O persístelos de una vez:
+            for msg in final_state["logs"]:
+                agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
+
 
             return jsonify({'status': 'processed'}), 200
         
         else:
-            return jsonify({'status': 'ignored', 'reason': 'no_messages'}), 200
+            return jsonify({'status': 'ignored', 'reason': 'no_messages'}), 500
 
         #return jsonify({'message': 'EVENT_RECEIVED'})
 
@@ -1083,7 +1113,15 @@ def webhook_telegram():
             "source": "telegram"
         }
         
-        app_flow.invoke(initial_state)
+        #app_flow.invoke(initial_state)
+        final_state = app_flow.invoke(initial_state)
+
+        # Ahora sí tienes todos los logs en final_state["logs"]
+        print(final_state["logs"])
+        # O persístelos de una vez:
+        for msg in final_state["logs"]:
+            agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
+
         return jsonify({'status': 'processed'})
         
     except Exception as e:
@@ -1162,6 +1200,7 @@ def enrutar_despues_comandos(state: BotState) -> str:
     - Si no, pasar al asistente.
     """
     agregar_mensajes_log(f"En agregar_despues_comandos: {state}")
+    log_state(state, f"⏺️ Saliendo de enrutar despues comandos:")
 
     if state.get("response_data"):
         return "send_messages"
