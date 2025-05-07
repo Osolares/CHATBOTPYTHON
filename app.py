@@ -205,7 +205,7 @@ def pre_validaciones(state: BotState) -> BotState:
     return state
 
 def load_or_create_session(state: BotState) -> BotState:
-    """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web"""
+    """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web."""
     phone_number = state.get("phone_number")
     source = state.get("source")
     message_data = state.get("message_data", {})
@@ -214,25 +214,22 @@ def load_or_create_session(state: BotState) -> BotState:
     session = None
     agregar_mensajes_log(f"Entrando En userSession: {state}")
 
-    with db.session.begin():
-        log_state(state, f"⏺️ En db.session: ")
+    try:
+        log_state(state, f"⏺️ Iniciando búsqueda o creación de sesión...")
 
         if source == "whatsapp":
-            log_state(state, f"⏺️ session whatsapp: ")
-
+            log_state(state, f"⏺️ Canal: WhatsApp")
             session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
             if not session:
-
-                log_state(state, f"⏺️ no hay session: ")
-
+                log_state(state, f"⏺️ No existe sesión previa. Creando nueva...")
                 session = UserSession(phone_number=phone_number)
                 db.session.add(session)
                 db.session.flush()
-                log_state(state, f"⏺️ usario creado: ")
-
+                log_state(state, f"⏺️ Usuario creado en base de datos.")
 
         elif source == "telegram":
             chat_id = message_data.get("chat_id")
+            log_state(state, f"⏺️ Canal: Telegram")
             session = db.session.query(UserSession).filter_by(telegram_id=chat_id).first()
             if not session:
                 session = UserSession(telegram_id=chat_id)
@@ -241,6 +238,7 @@ def load_or_create_session(state: BotState) -> BotState:
 
         elif source == "messenger":
             messenger_id = message_data.get("recipient", {}).get("id")
+            log_state(state, f"⏺️ Canal: Messenger")
             session = db.session.query(UserSession).filter_by(messenger_id=messenger_id).first()
             if not session:
                 session = UserSession(messenger_id=messenger_id)
@@ -249,6 +247,7 @@ def load_or_create_session(state: BotState) -> BotState:
 
         elif source == "web":
             email = message_data.get("email")
+            log_state(state, f"⏺️ Canal: Web")
             session = db.session.query(UserSession).filter_by(email=email).first()
             if not session and email:
                 session = UserSession(email=email)
@@ -256,13 +255,23 @@ def load_or_create_session(state: BotState) -> BotState:
                 db.session.flush()
 
         if session:
-            log_state(state, f"⏺️ actualizando hora ultimo mensaje: ")
-
-            session.last_interaction =now()
-        #agregar_mensajes_log(f"Saliendo de userSession: {session}")
-            log_state(state, f"⏺️ actualizando state session: ")
-
+            log_state(state, f"⏺️ Actualizando timestamp de última interacción.")
+            session.last_interaction = now()
             state["session"] = session
+
+        db.session.commit()
+
+    except Exception as e:
+        db.session.rollback()
+        log_state(state, f"❌ Error al crear o cargar sesión: {str(e)}")
+
+    if not state.get("session"):
+        log_state(state, "⚠️ No se encontró o creó una sesión válida.")
+    else:
+        session_id = getattr(state["session"], "idUser", "sin sesión")
+        log_state(state, f"⏺️ Saliendo de load_or_create_session: sesión con id {session_id} a las {now().isoformat()}")
+
+    return state
 
 
     if not state.get("session"):
