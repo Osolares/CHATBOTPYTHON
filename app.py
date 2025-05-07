@@ -97,6 +97,7 @@ def load_or_create_session(state: BotState) -> BotState:
     phone_number = state.get("phone_number")
     source = state.get("source")
     message_data = state.get("message_data", {})
+    state.setdefault("logs", [])
 
     session = None
     agregar_mensajes_log(f"Entrando En userSession: {state}")
@@ -135,11 +136,12 @@ def load_or_create_session(state: BotState) -> BotState:
 
         if session:
             session.last_interaction =now()
-        agregar_mensajes_log(f"Saliendo de userSession: {session}")
+        #agregar_mensajes_log(f"Saliendo de userSession: {session}")
+            state["session"] = session
 
-        state["session"] = session
+    session_id = getattr(state["session"], "idUser", "sin id")
+    log_state(state, f"⏺️ Saliendo de load_or_create_session: sesión con id {session_id} a las {now().isoformat()}")
 
-    log_state(state, f"⏺️ Saliendo de load or create session: {{state['session']}} at {{now().isoformat()}}")
     return state
 
 def load_product_flow(state: BotState) -> BotState:
@@ -1060,18 +1062,18 @@ def webhook_web():
 #    else:
 #        return jsonify({'error': 'Token Invalido'}), 401
 
-def enrutar_despues_comandos(state: BotState) -> str:
-    """
-    Decide a dónde ir después de procesar comandos especiales:
-    - Si ya hay respuesta en state["response_data"], saltar asistente y enviar directamente.
-    - Si no, pasar al asistente.
-    """
-    agregar_mensajes_log(f"En agregar_despues_comandos: {state}")
-    log_state(state, f"⏺️ Saliendo de enrutar despues comandos:")
-
-    if state.get("response_data"):
-        return "send_messages"
-    return "asistente"
+#def enrutar_despues_comandos(state: BotState) -> str:
+#    """
+#    Decide a dónde ir después de procesar comandos especiales:
+#    - Si ya hay respuesta en state["response_data"], saltar asistente y enviar directamente.
+#    - Si no, pasar al asistente.
+#    """
+#    agregar_mensajes_log(f"En agregar_despues_comandos: {state}")
+#    log_state(state, f"⏺️ Saliendo de enrutar despues comandos:")
+#
+#    if state.get("response_data"):
+#        return "send_messages"
+#    return "asistente"
 
 # ------------------------------------------
 # Inicialización
