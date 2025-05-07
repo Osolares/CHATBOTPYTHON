@@ -671,23 +671,45 @@ def log_state(state: BotState, mensaje: str) -> None:
     agregar_mensajes_log(mensaje, state["session"].idUser if state.get("session") else None)
 
 
+#def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
+#    """Guarda un mensaje en memoria y en la base de datos."""
+#    #agregar_mensajes_log(f"En agregar_mensajes_log: {state}")
+#
+#    try:
+#        texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
+#        
+#        with db.session.begin():
+#            nuevo_registro = Log(texto=texto_str, session_id=session_id)
+#            db.session.add(nuevo_registro)
+#    except Exception as e:
+#        fallback = f"[ERROR LOG] No se pudo guardar: {str(texto)[:200]}... | Error: {str(e)}"
+#        try:
+#            with db.session.begin():
+#                fallback_registro = Log(texto=fallback, session_id=session_id)
+#                db.session.add(fallback_registro)
+#        except Exception as e2:
+#            pass
+
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
     """Guarda un mensaje en memoria y en la base de datos."""
-    #agregar_mensajes_log(f"En agregar_mensajes_log: {state}")
-
     try:
         texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
-        
+
         with db.session.begin():
-            nuevo_registro = Log(texto=texto_str, session_id=session_id)
+            if session_id is not None:
+                nuevo_registro = Log(texto=texto_str, session_id=session_id)
+            else:
+                nuevo_registro = Log(texto=texto_str)
             db.session.add(nuevo_registro)
+
     except Exception as e:
         fallback = f"[ERROR LOG] No se pudo guardar: {str(texto)[:200]}... | Error: {str(e)}"
         try:
             with db.session.begin():
-                fallback_registro = Log(texto=fallback, session_id=session_id)
+                fallback_registro = Log(texto=fallback)
                 db.session.add(fallback_registro)
         except Exception as e2:
+            print("ERROR AL GUARDAR EL FALLO DEL LOG:", e2)
             pass
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
