@@ -226,7 +226,7 @@ class WooCommerceService:
             mensaje += (
                 "\n\n🚚 Envío a domicilio\n"
                 "🤝 Pago contra entrega disponible\n"
-                "💳 Aceptamos tarjetas de crédito sin recargob (precio normal)\n"
+                "💳 Aceptamos tarjetas de crédito sin recargo (precio normal)\n"
                 "🚦 Aplican restricciones\n\n"
 
                 "⚠️ *Nota:* Los precios y disponibilidad pueden cambiar sin previo aviso."

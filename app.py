@@ -49,14 +49,6 @@ class BotState(TypedDict):
     source: str  # NUEVO: whatsapp, telegram, messenger, web, etc
     additional_messages: List[Dict[str, Any]]  # Añade este campo
 
-# ------------------------------------------
-# Nodos del Grafo para Manejo de Usuarios
-# ------------------------------------------
-#from datetime import datetime, time, timedelta
-#from typing import Optional
-#from config import db
-#from models import UserSession
-#
 #GUATEMALA_TZ = timezone('America/Guatemala')
 #
 #def now():
@@ -85,32 +77,16 @@ def es_dia_festivo(fecha: datetime) -> bool:
     return fecha.strftime("%Y-%m-%d") in DIAS_FESTIVOS
 
 def pre_validaciones(state: BotState) -> BotState:
-    """
-    Middleware que valida:
-    - Usuarios bloqueados
-    - Horario de atención (zona horaria de Guatemala)
-    - Bienvenida con control de frecuencia
-    
-    Mantiene la misma lógica pero con mejor manejo de zonas horarias
-    """
+
     #agregar_mensajes_log(f"En pre_validaciones: {state}")
 
     ahora = now()  # Usa la función centralizada que ya incluye la zona horaria
     session = state.get("session")
     phone_or_id = state.get("phone_number") or state["message_data"].get("email")
     source = state.get("source")
-    
-    # Log mejorado con marca de tiempo
-    #agregar_mensajes_log({
-    #    "timestamp": ahora.isoformat(),
-    #    "event": "pre_validaciones",
-    #    "session_id": session.idUser if session else None,
-    #    "phone_or_id": phone_or_id
-    #})
 
     # contenedor de alertas
     state.setdefault("additional_messages", [])
-
 
     # --- BIENVENIDA CONTROLADA (Mejorado para manejo de zona horaria) ---
     # 2) Bienvenida
@@ -153,7 +129,7 @@ def pre_validaciones(state: BotState) -> BotState:
 
         # 2. Menú de opciones (solo WhatsApp)
         if source == "whatsapp":
-            menu_msg = generar_menu_principal(phone_or_id)
+            menu_msg = generar_list_menu(phone_or_id)
             state["additional_messages"].append(menu_msg)  # <-- Segundo append
 
         session.mostro_bienvenida = True
@@ -219,9 +195,7 @@ def pre_validaciones(state: BotState) -> BotState:
                 }
             })
 
-
     agregar_mensajes_log(f"saliendo de pre_validaciones: {state}")
-
 
     log_state(state, f"⏺️ en pre_validaciones: ")
 
