@@ -139,8 +139,11 @@ def load_or_create_session(state: BotState) -> BotState:
         #agregar_mensajes_log(f"Saliendo de userSession: {session}")
             state["session"] = session
 
-    session_id = getattr(state["session"], "idUser", "sin id")
+    session_id = getattr(state.get("session"), "idUser", "sin sesión")
     log_state(state, f"⏺️ Saliendo de load_or_create_session: sesión con id {session_id} a las {now().isoformat()}")
+
+    if not state.get("session"):
+        log_state(state, "⚠️ No se encontró o creó una sesión válida en load_or_create_session")
 
     return state
 
