@@ -310,7 +310,7 @@ def load_product_flow(state: BotState) -> BotState:
         ).first()
         state["flujo_producto"] = flujo_producto
 
-    log_state(state, f"⏺️ Saliendo de load product flow: {{state['flujo_producto']}} at {{now().isoformat()}}")
+    log_state(state, f"⏺️ Saliendo de load product flow: {state['flujo_producto']} at {now().isoformat()}")
     return state
 
 def handle_product_flow(state: BotState) -> BotState:
@@ -324,7 +324,7 @@ def handle_product_flow(state: BotState) -> BotState:
         )
         # FUTURO: Aquí podríamos modificar 'response' si quisiéramos respuestas distintas por source.
         state["response_data"] = response
-    log_state(state, f"⏺️ Saliendo de handle product flow: {{state['response_data']}} at {{now().isoformat()}}")
+    log_state(state, f"⏺️ Saliendo de handle product flow: {state['response_data']} at {now().isoformat()}")
     return state
 
 def mensaje_parece_interes_en_producto(texto):
@@ -531,7 +531,7 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
 
-    log_state(state, f"⏺️ Saliendo de handle special products: {{state['response_data']}} at {{now().isoformat()}}")
+    log_state(state, f"⏺️ Saliendo de handle special products: {state['response_data']} at {now().isoformat()}")
     return state
 
 
@@ -562,7 +562,7 @@ def asistente(state: BotState) -> BotState:
                 "text": {"body": body}
             }]
 
-    log_state(state, f"⏺️ Saliendo de asistente: {{state['response_data']}} at {{now().isoformat()}}")
+    log_state(state, f"⏺️ Saliendo de asistente: {state['response_data']} at {now().isoformat()}")
 
     return state
 
@@ -595,7 +595,7 @@ def send_messages(state: BotState) -> BotState:
             agregar_mensajes_log(f"Error enviando mensaje ({state['source']}): {str(e)}",
                                state["session"].idUser if state["session"] else None)
             
-    log_state(state, f"⏺️ Saliendo de send messages: {{state['response_data']}} at {{now().isoformat()}}")
+    log_state(state, f"⏺️ Saliendo de send messages: {state['response_data']} at {now().isoformat()}")
 
     return state
 # ------------------------------------------
@@ -614,7 +614,7 @@ def merge_responses(state: BotState) -> BotState:
     
     state["response_data"] = additional + main_responses
 
-    log_state(state, f"⏺️ Saliendo de merge responses: {{state['response_data']}} at {{now().isoformat()}}")
+    log_state(state, f"⏺️ Saliendo de merge responses: {state['response_data']} at {now().isoformat()}")
 
     return state
 
@@ -715,6 +715,7 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp"""
     agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {data}")
+    log_state(data, f"⏺️ En bot enviar mensaje whatsapp log_state: {data} at {now().isoformat()}")
 
     headers = {
         "Content-Type": "application/json",
