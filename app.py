@@ -557,7 +557,9 @@ def send_messages(state: BotState) -> BotState:
             if state["source"] == "whatsapp":
                 log_state(state, f"⏺️enviando mensaje de whatsapp: {state['response_data']} at {now().isoformat()}")
 
-                bot_enviar_mensaje_whatsapp(mensaje)
+                #bot_enviar_mensaje_whatsapp(mensaje)
+                bot_enviar_mensaje_whatsapp(mensaje, state)
+
             elif state["source"] == "telegram":
                 bot_enviar_mensaje_telegram(mensaje)
             elif state["source"] == "messenger":
@@ -672,34 +674,26 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
     """Guarda un mensaje en memoria y en la base de datos."""
     try:
         texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
-
-        with db.session.begin():
-            if session_id is not None:
-                nuevo_registro = Log(texto=texto_str, session_id=session_id)
-            else:
-                nuevo_registro = Log(texto=texto_str)
-            db.session.add(nuevo_registro)
-
+        log = Log(texto=texto_str, session_id=session_id)
+        db.session.add(log)
+        db.session.commit()  # <-- Hacer commit aquí de forma directa
     except Exception as e:
         fallback = f"[ERROR LOG] No se pudo guardar: {str(texto)[:200]}... | Error: {str(e)}"
         try:
-            with db.session.begin():
-                fallback_registro = Log(texto=fallback)
-                db.session.add(fallback_registro)
+            fallback_log = Log(texto=fallback)
+            db.session.add(fallback_log)
+            db.session.commit()
         except Exception as e2:
-            print("ERROR AL GUARDAR EL FALLO DEL LOG:", e2)
-            pass
+            print("❌ ERROR al guardar el error del log:", e2)
 
-def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
-    """Envía un mensaje a WhatsApp"""
-    agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {data}")
-    #log_state(data, f"⏺️ En bot enviar mensaje whatsapp log_state: {data} at {now().isoformat()}")
+def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], state: BotState) -> Optional[bytes]:
+    log_state(state, f"⏺️ En bot_enviar_mensaje_whatsapp: {data}")
 
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"{Config.WHATSAPP_TOKEN}"
     }
-    
+
     try:
         connection = http.client.HTTPSConnection("graph.facebook.com")
         json_data = json.dumps(data)
@@ -707,10 +701,11 @@ def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
         response = connection.getresponse()
         return response.read()
     except Exception as e:
-        agregar_mensajes_log(f"Error enviando a WhatsApp: {str(e)}")
+        log_state(state, f"⏺️ Error enviando a WhatsApp: {str(e)}")
         return None
     finally:
         connection.close()
+
 
 def bot_enviar_mensaje_telegram(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a Telegram"""
@@ -997,38 +992,15 @@ def recibir_mensajes(req):
             agregar_mensajes_log("Error: JSON sin 'entry' o 'Data'")
             return jsonify({'message': 'EVENT_RECEIVED'}), 401
 
-        # Guardar el evento recibido
-        #agregar_mensajes_log(f"📥 Entrada cruda WhatsApp: {json.dumps(data)}")
-
         # Filtro inicial: solo humanos
         #if not is_human_message("whatsapp", data):
         #    agregar_mensajes_log("🚫 Evento ignorado: no es mensaje humano", None)
         #    return jsonify({'status': 'ignored', 'reason': 'non_human_event'})
-        
-        ## Versión más limpia (opcional)
-        #if not is_human_message("whatsapp", data):
-        #    # Puedes comentar esto si no quieres ni siquiera registrar eventos no humanos
-        #    # agregar_mensajes_log("🚫 Evento ignorado: no es mensaje humano", None)
-        #    return jsonify({'status': 'ignored'})
-#
-        ## Validación de estructura
-        #validation = MessageValidator.validate("whatsapp", data)
-#
-        #if not validation["is_valid"]:
-        #    agregar_mensajes_log("🚫 Mensaje inválido detectado en webhook", None)
-        #    return jsonify({'status': 'ignored', 'reason': 'invalid_message'})
-
 
         entry = data['entry'][0]
         changes = entry.get('changes', [])[0]
         value = changes.get('value', {})
         messages_list = value.get('messages', [])
-
-#        if messages_list:
-#            message = messages_list[0]
-#            phone_number = message.get("from")
-#
-#            block("whatsapp", phone_number)
 
         if messages_list:
             message = messages_list[0]
@@ -1039,16 +1011,6 @@ def recibir_mensajes(req):
             if block_result.get("status") == "blocked":
                 agregar_mensajes_log(f"Usuario bloqueado intentó contactar: {phone_number}")
                 return jsonify({'status': 'blocked', 'message': 'Usuario bloqueado'}), 200
-
-            #session = load_or_create_session(phone_number)
-            #if not session:
-            #    session = load_or_create_session(phone_number)
-
-            ## Guardar log
-            #try:
-            #    agregar_mensajes_log(json.dumps(message, ensure_ascii=False))
-            #except TypeError as e:
-            #    agregar_mensajes_log(f"[Log ignorado] No se pudo serializar message: {str(e)}")
 
             # Crea estado inicial
             initial_state = {
@@ -1107,10 +1069,6 @@ def recibir_mensajes(req):
             return jsonify({'status': 'ignored', 'reason': 'no_messages'}), 500
 
         #return jsonify({'message': 'EVENT_RECEIVED'})
-
-    #except Exception as e:
-    #    agregar_mensajes_log(f"Error en recibir_mensajes: {str(e)}")
-    #    return jsonify({'message': 'EVENT_RECEIVED'})
 
     except Exception as e:
         error_msg = f"❌ Error procesando webhook WhatsApp: {str(e)}"
@@ -1206,29 +1164,6 @@ def webhook_web():
         error_msg = f"Web webhook error: {str(e)}"
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
-
-#def verificar_token_whatsapp(req):
-#    """Verificación del token de WhatsApp"""
-#    token = req.args.get('hub.verify_token')
-#    challenge = req.args.get('hub.challenge')
-#
-#    if challenge and token == Config.TOKEN_WEBHOOK_WHATSAPP:
-#        return challenge
-#    else:
-#        return jsonify({'error': 'Token Invalido'}), 401
-
-#def enrutar_despues_comandos(state: BotState) -> str:
-#    """
-#    Decide a dónde ir después de procesar comandos especiales:
-#    - Si ya hay respuesta en state["response_data"], saltar asistente y enviar directamente.
-#    - Si no, pasar al asistente.
-#    """
-#    agregar_mensajes_log(f"En agregar_despues_comandos: {state}")
-#    log_state(state, f"⏺️ Saliendo de enrutar despues comandos:")
-#
-#    if state.get("response_data"):
-#        return "send_messages"
-#    return "asistente"
 
 # ------------------------------------------
 # Inicialización
