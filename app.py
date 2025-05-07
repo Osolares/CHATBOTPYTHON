@@ -578,15 +578,12 @@ def send_messages(state: BotState) -> BotState:
     for mensaje in messages:
         try:
             agregar_mensajes_log(f"📥 Enviando Mensaje: {mensaje}")
-            log_state(state, f"⏺️preparando mensaje send messages : {mensaje} at {now().isoformat()}")
 
             #agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             if state["source"] == "whatsapp":
-                log_state(state, f"⏺️preparando mensaje send messages por Whatsapp: {mensaje} at {now().isoformat()}")
+                log_state(state, f"⏺️enviando mensaje de whatsapp: {state['response_data']} at {now().isoformat()}")
 
                 bot_enviar_mensaje_whatsapp(mensaje)
-                log_state(state, f"⏺️enviando mensaje send messages por Whatsapp: {mensaje} at {now().isoformat()}")
-
             elif state["source"] == "telegram":
                 bot_enviar_mensaje_telegram(mensaje)
             elif state["source"] == "messenger":
@@ -595,12 +592,12 @@ def send_messages(state: BotState) -> BotState:
                 bot_enviar_mensaje_web(mensaje)
 
             agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
-
             time.sleep(1)
         except Exception as e:
-            agregar_mensajes_log(f"Error enviando mensaje ({state['source']}): {str(e)}", state["session"].idUser if state["session"] else None)
+            agregar_mensajes_log(f"Error enviando mensaje ({state['source']}): {str(e)}",
+                               state["session"].idUser if state["session"] else None)
             
-            log_state(state, f"⏺️ Enviando mensajes send messages hubo un error no se pudo enviar el mensaje : at {now().isoformat()}")
+            log_state(state, f"⏺️ ERROR de send messages hubo un error : no se pudo enviar el mensaje at {now().isoformat()}")
 
     log_state(state, f"⏺️ Saliendo de send messages: {state['response_data']} at {now().isoformat()}")
 
@@ -722,9 +719,6 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp"""
     agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {data}")
-
-    #agregar_mensajes_log(mensaje, state["session"].idUser if state.get("session") else None)
-
     log_state(data, f"⏺️ En bot enviar mensaje whatsapp log_state: {data} at {now().isoformat()}")
 
     headers = {
