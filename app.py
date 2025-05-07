@@ -86,9 +86,10 @@ def es_dia_festivo(fecha: datetime) -> bool:
 
 def pre_validaciones(state: BotState) -> BotState:
 
+    log_state(state, f"⏺️ en pre_validaciones: ")
 
     agregar_mensajes_log(f"saliendo de pre_validaciones: {state}")
-    log_state(state, f"⏺️ Saliendo de pre_ validaciones: {state['additional_messages']} at {now().isoformat()}")
+    log_state(state, f"⏺️ Saliendo de pre_ validaciones: {state} at {now().isoformat()}")
 
     return state
 
@@ -103,20 +104,20 @@ def load_or_create_session(state: BotState) -> BotState:
     agregar_mensajes_log(f"Entrando En userSession: {state}")
 
     with db.session.begin():
-        log_state( f"⏺️ En db.session: ")
+        log_state(state, f"⏺️ En db.session: ")
 
         if source == "whatsapp":
-            log_state( f"⏺️ session whatsapp: ")
+            log_state(state, f"⏺️ session whatsapp: ")
 
             session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
             if not session:
 
-                log_state( f"⏺️ no hay session: ")
+                log_state(state, f"⏺️ no hay session: ")
 
                 session = UserSession(phone_number=phone_number)
                 db.session.add(session)
                 db.session.flush()
-                log_state( f"⏺️ usario creado: ")
+                log_state(state, f"⏺️ usario creado: ")
 
 
         elif source == "telegram":
@@ -144,11 +145,11 @@ def load_or_create_session(state: BotState) -> BotState:
                 db.session.flush()
 
         if session:
-            log_state( f"⏺️ actualizando hora ultimo mensaje: ")
+            log_state(state, f"⏺️ actualizando hora ultimo mensaje: ")
 
             session.last_interaction =now()
         #agregar_mensajes_log(f"Saliendo de userSession: {session}")
-            log_state( f"⏺️ actualizando state session: ")
+            log_state(state, f"⏺️ actualizando state session: ")
 
             state["session"] = session
 
@@ -555,7 +556,6 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any]) -> Optional[bytes]:
     """Envía un mensaje a WhatsApp"""
     agregar_mensajes_log(f"En bot_enviar_mensaje_whatsapp: {data}")
-    log_state(f"⏺️ en bot enviar whatsapp: {data}")
 
     headers = {
         "Content-Type": "application/json",
