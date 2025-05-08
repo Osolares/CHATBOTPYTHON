@@ -273,7 +273,7 @@ def handle_product_flow(state: BotState) -> BotState:
         )
         # FUTURO: Aquí podríamos modificar 'response' si quisiéramos respuestas distintas por source.
         state["response_data"] = response
-    log_state(state, f"⏺️ Saliendo de handle product flow: {response} at {now().isoformat()}")
+    log_state(state, f"⏺️ Saliendo de handle product flow: {state['flujo_producto']} at {now().isoformat()}")
     return state
 
 def mensaje_parece_interes_en_producto(texto):
