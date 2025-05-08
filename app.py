@@ -77,77 +77,61 @@ def es_dia_festivo(fecha: datetime) -> bool:
     return fecha.strftime("%Y-%m-%d") in DIAS_FESTIVOS
 
 def pre_validaciones(state: BotState) -> BotState:
-
-    #agregar_mensajes_log(f"En pre_validaciones: {state}")
-
-    ahora = now()  # Usa la función centralizada que ya incluye la zona horaria
+    ahora = now()
     session = state.get("session")
-    phone_or_id = state.get("phone_number") or state["message_data"].get("email")
+    phone_or_id = state.get("phone_number") or state.get("message_data", {}).get("email")
     source = state.get("source")
 
-    # contenedor de alertas
     state.setdefault("additional_messages", [])
 
-    # --- BIENVENIDA CONTROLADA (Mejorado para manejo de zona horaria) ---
-    # 2) Bienvenida
     send_welcome, kind = False, None
-    
-    if session:
-        # Asegurar que last_interaction tenga zona horaria
-        last_interaction = session.last_interaction
-        if last_interaction and last_interaction.tzinfo is None:
-            last_interaction = GUATEMALA_TZ.localize(last_interaction)
-        
-        # Mostrar bienvenida si es primera vez o pasaron más de 24h
 
-        if not session.mostro_bienvenida:
-            send_welcome, kind = True, "nueva"
+    try:
+        # --- BIENVENIDA ---
+        if session:
+            last_interaction = session.last_interaction
+            if last_interaction and last_interaction.tzinfo is None:
+                last_interaction = GUATEMALA_TZ.localize(last_interaction)
 
-        elif (ahora - last_interaction) > timedelta(hours=24):
-            send_welcome, kind = True, "retorno"
-    #else:
-    #    send_welcome, kind = True, "nueva"
-        
-    if send_welcome:
-        msg = (
-            "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗 \n\n🗒️ Consulta nuestro menú."
-            if kind=="nueva" else
-            "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
-        )
-        state["additional_messages"].append({
-            "messaging_product": "whatsapp" if source=="whatsapp" else "other",
-            # action/buttons opcional
-            #"messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": phone_or_id,
-            "type": "image",
-            "image": {
-                "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png",
-                "caption": msg
-            }
-        })
+            if not session.mostro_bienvenida:
+                send_welcome, kind = True, "nueva"
+            elif (ahora - last_interaction) > timedelta(hours=24):
+                send_welcome, kind = True, "retorno"
 
-        # 2. Menú de opciones (solo WhatsApp)
-        if source == "whatsapp":
-            menu_msg = generar_list_menu(phone_or_id)
-            state["additional_messages"].append(menu_msg)  # <-- Segundo append
+        if send_welcome:
+            msg = (
+                "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗 \n\n🗒️ Consulta nuestro menú."
+                if kind == "nueva" else
+                "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
+            )
 
-        session.mostro_bienvenida = True
-        try:
+            state["additional_messages"].append({
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "recipient_type": "individual",
+                "to": phone_or_id,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png",
+                    "caption": msg
+                }
+            })
+
+            if source == "whatsapp":
+                menu_msg = generar_list_menu(phone_or_id)
+                state["additional_messages"].append(menu_msg)
+
+            session.mostro_bienvenida = True
             db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            agregar_mensajes_log(f"Error al guardar mostro_bienvenida: {str(e)}")
+            log_state(state, "✅ Bienvenida enviada y marcada como mostrada.")
 
-    # --- HORARIO DE ATENCIÓN (Mejorado para manejo de zona horaria) ---
+    except Exception as e:
+        db.session.rollback()
+        log_state(state, f"❌ Error al guardar mostro_bienvenida: {str(e)}")
+
+    # --- HORARIO ---
     HORARIO = {
-        0: ("08:00", "17:30"),  # Lunes
-        1: ("08:00", "17:30"),
-        2: ("08:00", "17:30"),
-        3: ("08:00", "17:30"),
-        4: ("08:00", "17:30"),
-        5: ("08:00", "12:30"),
-        6: (None, None)         # Domingo cerrado
+        0: ("08:00", "17:30"), 1: ("08:00", "17:30"), 2: ("08:00", "17:30"),
+        3: ("08:00", "17:30"), 4: ("08:00", "17:30"), 5: ("08:00", "12:30"), 6: (None, None)
     }
 
     dia = ahora.weekday()
@@ -155,54 +139,45 @@ def pre_validaciones(state: BotState) -> BotState:
     dentro_horario = False
 
     if h_ini_str and h_fin_str:
-        # Crear objetos datetime completos con la fecha actual y zona horaria
-        h_ini = GUATEMALA_TZ.localize(
-            datetime.combine(ahora.date(), datetime.strptime(h_ini_str, "%H:%M").time())
-        )
-        h_fin = GUATEMALA_TZ.localize(
-            datetime.combine(ahora.date(), datetime.strptime(h_fin_str, "%H:%M").time())
-        )
+        h_ini = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_ini_str, "%H:%M").time()))
+        h_fin = GUATEMALA_TZ.localize(datetime.combine(ahora.date(), datetime.strptime(h_fin_str, "%H:%M").time()))
         dentro_horario = h_ini <= ahora <= h_fin
 
-    if not dentro_horario:
-        mostrar_alerta = False
-        
-        if session:
-            # Asegurar que ultima_alerta_horario tenga zona horaria
-            ultima_alerta = session.ultima_alerta_horario or datetime.min.replace(tzinfo=GUATEMALA_TZ)
-            if ultima_alerta.tzinfo is None:  # Si no tiene zona horaria
-                ultima_alerta = GUATEMALA_TZ.localize(ultima_alerta)
-                
-            if ahora - ultima_alerta > timedelta(hours=1):
-                mostrar_alerta = True
-                session.ultima_alerta_horario = ahora
-                try:
+    try:
+        if not dentro_horario:
+            mostrar_alerta = False
+
+            if session:
+                ultima_alerta = session.ultima_alerta_horario or datetime.min.replace(tzinfo=GUATEMALA_TZ)
+                if ultima_alerta.tzinfo is None:
+                    ultima_alerta = GUATEMALA_TZ.localize(ultima_alerta)
+
+                if ahora - ultima_alerta > timedelta(hours=1):
+                    mostrar_alerta = True
+                    session.ultima_alerta_horario = ahora
                     db.session.commit()
-                except Exception as e:
-                    db.session.rollback()
-                    agregar_mensajes_log(f"Error al guardar ultima_alerta_horario: {str(e)}")
+                    log_state(state, "⏰ Alerta de fuera de horario enviada.")
+            else:
+                mostrar_alerta = True  # Si no hay sesión, se muestra igual
 
-        if mostrar_alerta or not session:
-            state.setdefault("additional_messages", []).append({
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                "to": phone_or_id,
-                "type": "text",
-                "text": {
-                    "body": "🕒 Gracias por comunicarte con nosotros en este momento estamos fuera de nuestro horario de atención.\n\n"
-                            "💬Puedes continuar usando nuestro asistente, envíanos tus consultas y nuestro equipo te atenderá lo más pronto posible."
-                            #"Nuestro equipo le responderá en el siguiente horario disponible.\n\n"
-                            #"Horario: L-V 8:00-17:00, Sáb 8:00-12:00\n\n"
-                }
-            })
+            if mostrar_alerta:
+                state["additional_messages"].append({
+                    "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                    "to": phone_or_id,
+                    "type": "text",
+                    "text": {
+                        "body": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente. Nuestro equipo te atenderá lo más pronto posible."
+                    }
+                })
 
-    agregar_mensajes_log(f"saliendo de pre_validaciones: {state}")
+    except Exception as e:
+        db.session.rollback()
+        log_state(state, f"❌ Error al guardar alerta de horario: {str(e)}")
 
-    log_state(state, f"⏺️ en pre_validaciones: ")
-
-    agregar_mensajes_log(f"saliendo de pre_validaciones: {state}")
-    log_state(state, f"⏺️ Saliendo de pre_ validaciones: {state} at {now().isoformat()}")
+    log_state(state, f"⏺️ Saliendo de pre_validaciones a las {ahora.isoformat()}")
 
     return state
+
 
 def load_or_create_session(state: BotState) -> BotState:
     """Carga o crea una sesión de usuario, compatible con múltiples fuentes: WhatsApp, Telegram, Messenger, Web."""
@@ -212,7 +187,7 @@ def load_or_create_session(state: BotState) -> BotState:
     state.setdefault("logs", [])
 
     session = None
-    agregar_mensajes_log(f"Entrando En userSession: {state}")
+    #agregar_mensajes_log(f"Entrando En userSession: {state}")
 
     try:
         log_state(state, f"⏺️ Iniciando búsqueda o creación de sesión...")
@@ -269,22 +244,13 @@ def load_or_create_session(state: BotState) -> BotState:
         log_state(state, "⚠️ No se encontró o creó una sesión válida.")
     else:
         session_id = getattr(state["session"], "idUser", "sin sesión")
-        log_state(state, f"⏺️ Saliendo de load_or_create_session: sesión con id {session_id} a las {now().isoformat()}")
-
-    return state
-
-
-    if not state.get("session"):
-        log_state(state, "⚠️ No se encontró o creó una sesión válida en load_or_create_session")
-    else :
-        session_id = getattr(state.get("session"), "idUser", "sin sesión")
-        log_state(state, f"⏺️ Saliendo de load_or_create_session: sesión con id {session_id} a las {now().isoformat()}")
+        #log_state(state, f"⏺️ Saliendo de load_or_create_session: sesión con id {session_id} a las {now().isoformat()}")
 
     return state
 
 def load_product_flow(state: BotState) -> BotState:
     """Carga el estado del flujo de producto para el usuario actual"""
-    agregar_mensajes_log(f"En load_product_flow: {state}")
+    #agregar_mensajes_log(f"En load_product_flow: {state}")
 
     if state["session"]:
 
@@ -298,7 +264,7 @@ def load_product_flow(state: BotState) -> BotState:
 
 def handle_product_flow(state: BotState) -> BotState:
     """Maneja el flujo de producto si existe para el usuario"""
-    agregar_mensajes_log(f"En handle_product_flow: {state}")
+    #agregar_mensajes_log(f"En handle_product_flow: {state}")
 
     if state["flujo_producto"]:
         response = manejar_paso_actual(
@@ -307,7 +273,7 @@ def handle_product_flow(state: BotState) -> BotState:
         )
         # FUTURO: Aquí podríamos modificar 'response' si quisiéramos respuestas distintas por source.
         state["response_data"] = response
-    log_state(state, f"⏺️ Saliendo de handle product flow: {state['response_data']} at {now().isoformat()}")
+    log_state(state, f"⏺️ Saliendo de handle product flow: {response} at {now().isoformat()}")
     return state
 
 def mensaje_parece_interes_en_producto(texto):
@@ -323,7 +289,7 @@ def extraer_url(texto):
 
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
-    agregar_mensajes_log(f"En handle_special_commands: {state}")
+    #agregar_mensajes_log(f"En handle_special_commands: {state}")
 
     texto = state["user_msg"].lower().strip()
     number = state.get("phone_number")
@@ -520,7 +486,7 @@ def handle_special_commands(state: BotState) -> BotState:
 
 def asistente(state: BotState) -> BotState:
     """Maneja mensajes no reconocidos usando DeepSeek"""
-    agregar_mensajes_log(f"En asistente: {state}")
+    #agregar_mensajes_log(f"En asistente: {state}")
 
     if not state.get("response_data"):
         user_msg = state["user_msg"]
@@ -551,7 +517,7 @@ def asistente(state: BotState) -> BotState:
 
 def send_messages(state: BotState) -> BotState:
     """Envía mensajes al canal correcto según la fuente."""
-    agregar_mensajes_log(f"En send_messages: {state}")
+    #agregar_mensajes_log(f"En send_messages: {state}")
 
     messages = state.get("response_data", [])
 
@@ -560,11 +526,11 @@ def send_messages(state: BotState) -> BotState:
     
     for mensaje in messages:
         try:
-            agregar_mensajes_log(f"📥 Enviando Mensaje: {mensaje}")
+            #agregar_mensajes_log(f"📥 Enviando Mensaje: {mensaje}")
 
             #agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             if state["source"] == "whatsapp":
-                log_state(state, f"⏺️enviando mensaje de whatsapp: {state['response_data']} at {now().isoformat()}")
+                #log_state(state, f"⏺️enviando mensaje de whatsapp: {state['response_data']} at {now().isoformat()}")
 
                 #bot_enviar_mensaje_whatsapp(mensaje)
                 bot_enviar_mensaje_whatsapp(mensaje, state)
@@ -576,7 +542,7 @@ def send_messages(state: BotState) -> BotState:
             elif state["source"] == "web":
                 bot_enviar_mensaje_web(mensaje)
 
-            agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
+            #agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
             time.sleep(1)
         except Exception as e:
             agregar_mensajes_log(f"Error enviando mensaje ({state['source']}): {str(e)}",
@@ -696,7 +662,6 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
             print("❌ ERROR al guardar el error del log:", e2)
 
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], state: BotState) -> Optional[bytes]:
-    log_state(state, f"⏺️ En bot_enviar_mensaje_whatsapp: {data}")
 
     headers = {
         "Content-Type": "application/json",
@@ -707,6 +672,8 @@ def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], state: BotState) -> Option
         connection = http.client.HTTPSConnection("graph.facebook.com")
         json_data = json.dumps(data)
         connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
+        log_state(state, f"⏺️ Mensaje enviado en bot_enviar_mensaje_whatsapp: {data}")
+
         response = connection.getresponse()
         return response.read()
     except Exception as e:
@@ -981,6 +948,7 @@ def verificar_token_whatsapp(req):
     challenge = req.args.get('hub.challenge')
 
     if challenge and token == TOKEN_WEBHOOK_WHATSAPP:
+
         return challenge
     else:
         return jsonify({'error':'Token Invalido'}),401
