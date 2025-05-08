@@ -535,6 +535,8 @@ def send_messages(state: BotState) -> BotState:
 
             if source == "whatsapp":
                 bot_enviar_mensaje_whatsapp(mensaje, state)
+                time.sleep(3)
+
             elif source == "telegram":
                 bot_enviar_mensaje_telegram(mensaje, state)
             elif source == "messenger":
@@ -545,6 +547,7 @@ def send_messages(state: BotState) -> BotState:
                 log_state(state, f"❌ Fuente no soportada: {source}")
 
             #agregar_mensajes_log(json.dumps(mensaje, ensure_ascii=False), session_id)
+
 
             # Espera prudente entre mensajes para no saturar el canal (WhatsApp sobre todo)
             time.sleep(1.2)
@@ -567,7 +570,7 @@ def merge_responses(state: BotState) -> BotState:
     Combina los mensajes adicionales del middleware con las respuestas normales.
     Los mensajes adicionales van primero.
     """
-    agregar_mensajes_log(f"En merge_responses: {state}")
+    #agregar_mensajes_log(f"En merge_responses: {state}")
 
     additional = state.pop("additional_messages", [])
     main_responses = state.get("response_data", [])
@@ -677,6 +680,7 @@ def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], state: BotState) -> Option
         connection = http.client.HTTPSConnection("graph.facebook.com")
         json_data = json.dumps(data)
         connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
+        agregar_mensajes_log(f"✅ Mensaje enviado a whatsapp: {state['phone_number']}, {json_data}")
         log_state(state, f"⏺️ Mensaje enviado en bot_enviar_mensaje_whatsapp: {data}")
 
         response = connection.getresponse()
@@ -1041,9 +1045,8 @@ def recibir_mensajes(req):
             # Ahora sí tienes todos los logs en final_state["logs"]
             print(final_state["logs"])
             # O persístelos de una vez:
-            for msg in final_state["logs"]:
-                agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
-
+            #for msg in final_state["logs"]:
+            #    agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
 
             return jsonify({'status': 'processed'}), 200
         
