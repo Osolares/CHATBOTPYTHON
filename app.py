@@ -537,6 +537,7 @@ def send_messages(state: BotState) -> BotState:
                 bot_enviar_mensaje_whatsapp(mensaje, state)
                 time.sleep(3)
 
+
             elif source == "telegram":
                 bot_enviar_mensaje_telegram(mensaje, state)
             elif source == "messenger":
