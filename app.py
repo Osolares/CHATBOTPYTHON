@@ -1083,71 +1083,76 @@ def webhook():
 
 
 def procesar_mensaje_entrada(data):
-    try:
-        if not data or 'entry' not in data:
-            agregar_mensajes_log("⚠️ Entrada inválida: falta 'entry'")
-            return
+    from app import flask_app  # Asegúrate que esta es tu instancia Flask global
 
-        entry = data['entry'][0]
-        changes = entry.get('changes', [])[0]
-        value = changes.get('value', {})
-        messages_list = value.get('messages', [])
+    with flask_app.app_context():
+        try:
+            if not data or 'entry' not in data:
+                agregar_mensajes_log("⚠️ Entrada inválida: falta 'entry'")
+                return
 
-        if not messages_list:
-            agregar_mensajes_log("⚠️ No hay mensajes en el evento recibido")
-            return
+            entry = data['entry'][0]
+            changes = entry.get('changes', [])[0]
+            value = changes.get('value', {})
+            messages_list = value.get('messages', [])
 
-        message = messages_list[0]
-        phone_number = message.get("from")
+            if not messages_list:
+                agregar_mensajes_log("⚠️ No hay mensajes en el evento recibido")
+                return
 
-        # Bloqueo de usuarios
-        block_result = block("whatsapp", phone_number)
-        if block_result.get("status") == "blocked":
-            agregar_mensajes_log(f"⛔ Usuario bloqueado intentó contactar: {phone_number}")
-            return
+            message = messages_list[0]
+            phone_number = message.get("from")
 
-        initial_state = {
-            "phone_number": phone_number,
-            "user_msg": message,
-            "response_data": [],
-            "message_data": message,
-            "logs": [],
-            "source": "whatsapp"
-        }
+            # Verificar si el usuario está bloqueado
+            block_result = block("whatsapp", phone_number)
+            if block_result.get("status") == "blocked":
+                agregar_mensajes_log(f"⛔ Usuario bloqueado intentó contactar: {phone_number}")
+                return
 
-        # Procesar tipo de mensaje
-        msg_type = message.get("type")
-        if msg_type == "interactive":
-            interactive = message.get("interactive", {})
-            tipo_interactivo = interactive.get("type")
+            # Estado inicial del bot
+            initial_state = {
+                "phone_number": phone_number,
+                "user_msg": message,
+                "response_data": [],
+                "message_data": message,
+                "logs": [],
+                "source": "whatsapp"
+            }
 
-            if tipo_interactivo == "button_reply":
-                text = interactive.get("button_reply", {}).get("id")
+            # Procesamiento de tipo de mensaje
+            msg_type = message.get("type")
+
+            if msg_type == "interactive":
+                interactive = message.get("interactive", {})
+                tipo_interactivo = interactive.get("type")
+
+                if tipo_interactivo == "button_reply":
+                    text = interactive.get("button_reply", {}).get("id")
+                    if text:
+                        initial_state["user_msg"] = text
+
+                elif tipo_interactivo == "list_reply":
+                    text = interactive.get("list_reply", {}).get("id")
+                    if text:
+                        initial_state["user_msg"] = text
+
+            elif msg_type == "text":
+                text = message.get("text", {}).get("body")
                 if text:
                     initial_state["user_msg"] = text
 
-            elif tipo_interactivo == "list_reply":
-                text = interactive.get("list_reply", {}).get("id")
-                if text:
-                    initial_state["user_msg"] = text
+            agregar_mensajes_log(f"📥 Mensaje recibido initial_state: {json.dumps(initial_state)}")
 
-        elif msg_type == "text":
-            text = message.get("text", {}).get("body")
-            if text:
-                initial_state["user_msg"] = text
+            # Ejecutar el flujo del bot
+            final_state = app_flow.invoke(initial_state)
 
-        agregar_mensajes_log(f"📥 Mensaje recibido initial_state: {json.dumps(initial_state)}")
+            # Guardar todos los logs una vez finalizado el flujo
+            for msg in final_state["logs"]:
+                agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
 
-        # Ejecutar flujo principal
-        final_state = app_flow.invoke(initial_state)
+        except Exception as e:
+            agregar_mensajes_log(f"❌ Error en procesar_mensaje_entrada: {str(e)}")
 
-        # Guardar logs centralizados al final
-        for msg in final_state["logs"]:
-            agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
-
-    except Exception as e:
-        error_msg = f"❌ Error en procesar_mensaje_entrada: {str(e)}"
-        agregar_mensajes_log(error_msg)
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
 def webhook_telegram():
