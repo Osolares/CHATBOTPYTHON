@@ -515,44 +515,49 @@ def asistente(state: BotState) -> BotState:
 
     return state
 
+import time  # Ya deberías tenerlo importado
+
 def send_messages(state: BotState) -> BotState:
     """Envía mensajes al canal correcto según la fuente."""
-    #agregar_mensajes_log(f"En send_messages: {state}")
-
+    session_id = state["session"].idUser if state.get("session") else None
+    source = state.get("source")
     messages = state.get("response_data", [])
 
+    #agregar_mensajes_log(f"🔁 Iniciando envío de mensajes para {source}...", session_id)
+
     if not messages:
+        log_state(state, "⚠️ No hay mensajes para enviar.")
         return state
-    
-    for mensaje in messages:
+
+    for index, mensaje in enumerate(messages):
         try:
-            #agregar_mensajes_log(f"📥 Enviando Mensaje: {mensaje}")
+            #log_state(state, f"📤 Enviando mensaje {index + 1} de {len(messages)}: {mensaje}")
 
-            #agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
-            if state["source"] == "whatsapp":
-                #log_state(state, f"⏺️enviando mensaje de whatsapp: {state['response_data']} at {now().isoformat()}")
-
-                #bot_enviar_mensaje_whatsapp(mensaje)
+            if source == "whatsapp":
                 bot_enviar_mensaje_whatsapp(mensaje, state)
+            elif source == "telegram":
+                bot_enviar_mensaje_telegram(mensaje, state)
+            elif source == "messenger":
+                bot_enviar_mensaje_messenger(mensaje, state)
+            elif source == "web":
+                bot_enviar_mensaje_web(mensaje, state)
+            else:
+                log_state(state, f"❌ Fuente no soportada: {source}")
 
-            elif state["source"] == "telegram":
-                bot_enviar_mensaje_telegram(mensaje)
-            elif state["source"] == "messenger":
-                bot_enviar_mensaje_messenger(mensaje)
-            elif state["source"] == "web":
-                bot_enviar_mensaje_web(mensaje)
+            #agregar_mensajes_log(json.dumps(mensaje, ensure_ascii=False), session_id)
 
-            #agregar_mensajes_log(json.dumps(mensaje), state["session"].idUser if state["session"] else None)
-            time.sleep(1)
+            # Espera prudente entre mensajes para no saturar el canal (WhatsApp sobre todo)
+            time.sleep(1.2)
+
         except Exception as e:
-            agregar_mensajes_log(f"Error enviando mensaje ({state['source']}): {str(e)}",
-                               state["session"].idUser if state["session"] else None)
-            
-            log_state(state, f"⏺️ ERROR de send messages hubo un error : no se pudo enviar el mensaje at {now().isoformat()}")
+            error_msg = f"❌ Error enviando mensaje ({source}): {str(e)}"
+            agregar_mensajes_log(error_msg, session_id)
+            log_state(state, f"⏺️ ERROR en send_messages: {error_msg}")
 
-    log_state(state, f"⏺️ Saliendo de send messages: {state['response_data']} at {now().isoformat()}")
+    log_state(state, f"✅ Envío de mensajes completado para {source}")
 
     return state
+
 # ------------------------------------------
 # Funciones Auxiliares (Mantenidas de tu código original)
 # ------------------------------------------
@@ -623,7 +628,7 @@ def log_state(state: BotState, mensaje: str) -> None:
     # 1) append al estado en memoria
     state["logs"].append(mensaje)
     # 2) persiste en base de datos
-    agregar_mensajes_log(mensaje, state["session"].idUser if state.get("session") else None)
+    #agregar_mensajes_log(mensaje, state["session"].idUser if state.get("session") else None)
 
 
 #def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
