@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from pytz import timezone
 from config import now,GUATEMALA_TZ
 import re
+import threading
 
 
 # Instancia global del servicio
@@ -944,14 +945,14 @@ def index():
 #Token de verificacion para la configuracion
 TOKEN_WEBHOOK_WHATSAPP = f"{Config.TOKEN_WEBHOOK_WHATSAPP}"
 
-@flask_app.route('/webhook', methods=['GET','POST'])
-def webhook():
-    if request.method == 'GET':
-        challenge = verificar_token_whatsapp(request)
-        return challenge
-    elif request.method == 'POST':
-        response = recibir_mensajes(request)
-        return response
+#@flask_app.route('/webhook', methods=['GET','POST'])
+#def webhook():
+#    if request.method == 'GET':
+#        challenge = verificar_token_whatsapp(request)
+#        return challenge
+#    elif request.method == 'POST':
+#        response = recibir_mensajes(request)
+#        return response
 
 def verificar_token_whatsapp(req):
     token = req.args.get('hub.verify_token')
@@ -1061,6 +1062,92 @@ def recibir_mensajes(req):
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
 
+@flask_app.route('/webhook', methods=['GET', 'POST'])
+def webhook():
+    if request.method == 'GET':
+        return verificar_token_whatsapp(request)
+    elif request.method == 'POST':
+        try:
+            data = request.get_json()
+
+            # Procesar en segundo plano para no bloquear la respuesta del webhook
+            threading.Thread(target=procesar_mensaje_entrada, args=(data,)).start()
+
+            # Respuesta inmediata a WhatsApp para evitar reintentos
+            return jsonify({'status': 'received'}), 200
+
+        except Exception as e:
+            error_msg = f"❌ Error al recibir webhook: {str(e)}"
+            agregar_mensajes_log(error_msg)
+            return jsonify({'status': 'error', 'message': error_msg}), 500
+
+
+def procesar_mensaje_entrada(data):
+    try:
+        if not data or 'entry' not in data:
+            agregar_mensajes_log("⚠️ Entrada inválida: falta 'entry'")
+            return
+
+        entry = data['entry'][0]
+        changes = entry.get('changes', [])[0]
+        value = changes.get('value', {})
+        messages_list = value.get('messages', [])
+
+        if not messages_list:
+            agregar_mensajes_log("⚠️ No hay mensajes en el evento recibido")
+            return
+
+        message = messages_list[0]
+        phone_number = message.get("from")
+
+        # Bloqueo de usuarios
+        block_result = block("whatsapp", phone_number)
+        if block_result.get("status") == "blocked":
+            agregar_mensajes_log(f"⛔ Usuario bloqueado intentó contactar: {phone_number}")
+            return
+
+        initial_state = {
+            "phone_number": phone_number,
+            "user_msg": message,
+            "response_data": [],
+            "message_data": message,
+            "logs": [],
+            "source": "whatsapp"
+        }
+
+        # Procesar tipo de mensaje
+        msg_type = message.get("type")
+        if msg_type == "interactive":
+            interactive = message.get("interactive", {})
+            tipo_interactivo = interactive.get("type")
+
+            if tipo_interactivo == "button_reply":
+                text = interactive.get("button_reply", {}).get("id")
+                if text:
+                    initial_state["user_msg"] = text
+
+            elif tipo_interactivo == "list_reply":
+                text = interactive.get("list_reply", {}).get("id")
+                if text:
+                    initial_state["user_msg"] = text
+
+        elif msg_type == "text":
+            text = message.get("text", {}).get("body")
+            if text:
+                initial_state["user_msg"] = text
+
+        agregar_mensajes_log(f"📥 Mensaje recibido initial_state: {json.dumps(initial_state)}")
+
+        # Ejecutar flujo principal
+        final_state = app_flow.invoke(initial_state)
+
+        # Guardar logs centralizados al final
+        for msg in final_state["logs"]:
+            agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
+
+    except Exception as e:
+        error_msg = f"❌ Error en procesar_mensaje_entrada: {str(e)}"
+        agregar_mensajes_log(error_msg)
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
 def webhook_telegram():
