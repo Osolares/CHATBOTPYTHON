@@ -20,6 +20,7 @@ from pytz import timezone
 from config import now,GUATEMALA_TZ
 import re
 import threading
+from collections import deque
 
 
 # Instancia global del servicio
@@ -50,6 +51,10 @@ class BotState(TypedDict):
     source: str  # NUEVO: whatsapp, telegram, messenger, web, etc
     additional_messages: List[Dict[str, Any]]  # Añade este campo
 
+
+# Guardará los últimos 1000 message_id procesados
+mensajes_procesados = deque(maxlen=1000)
+mensajes_lock = threading.Lock()  # para evitar condiciones de carrera
 #GUATEMALA_TZ = timezone('America/Guatemala')
 #
 #def now():
@@ -58,7 +63,7 @@ def block(source, message):
     # --- BLOQUEO DE USUARIOS ---
 
     BLOQUEADOS = {
-        "whatsapp": ["502123456", "50233334444"],
+        "whatsapp": ["502123456", "50233334444","reaction"],
         "telegram": ["123456789"],
         "web": ["correo@ejemplo.com"]
     }
@@ -72,13 +77,23 @@ def block(source, message):
     type_msg = message.get("type")
 
 
-    if phone_number in BLOQUEADOS.get(source, []) or type_msg in TIPOS_BLOQUEADOS.get(types, []) :
+    #if phone_number in BLOQUEADOS.get(source, []) or type_msg in TIPOS_BLOQUEADOS.get(types, []) :
+    if phone_number in BLOQUEADOS.get(source, []) or type_msg in BLOQUEADOS.get(source, []) :
+
         # Para usuarios bloqueados SI interrumpimos el flujo
         error_msg = f"❌ Error Usuario bloqueado"
         agregar_mensajes_log(error_msg)
         return {"status": "blocked", "message": error_msg}
     
     return {"status": "success"}
+
+def ya_esta_procesado(message_id: str) -> bool:
+    with mensajes_lock:
+        if message_id in mensajes_procesados:
+            return True
+        mensajes_procesados.append(message_id)
+        return False
+
 
 # feriados configurables
 DIAS_FESTIVOS = {"2025-01-01","2025-04-17","2025-04-18","2025-05-01"}
@@ -512,7 +527,6 @@ def asistente(state: BotState) -> BotState:
         # Llama DeepSeek solo si no es duplicado
 
         prompt = f"""
-        Eres un asistente de Intermotores llamdo Boty especializado en motores y repuestos para vehículos.
         Mensaje del usuario: {user_msg}
 
         Responde de manera concisa (máx. 50 palabras) de forma muy directa y profesional.
@@ -520,14 +534,14 @@ def asistente(state: BotState) -> BotState:
         """
     
         safety_prompt = f"""
-        Eres un asistente especializado en repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores.
+        Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, enfocado principalmente en motores y piezas o repuestos para los mismos.
         Solo responde sobre temas relacionados con:
-        - Partes automotrices
         - Motores y repuestos para vehiculos en general
-        - Horarios/ubicación de Intermotores
-        - Piezas o partes de 
+        - Piezas, partes o repuestos de automóviles 
         - Motores y repuestos para vehículos de las marcas japonesas y coreanas y sus equivalencias en otras marcas 
-        - Información de envíos
+
+        No incluyas en el mensaje:
+        - Información irrelevante que afecte la respuesta profesional hacia el cliente como el número de palabras que contiene el mensaje
 
         Si el mensaje no está relacionado, responde cortésmente indicando
         que solo puedes ayudar con temas de motores y repuestos para vehículos de las marcas japonesas y coreanas.
@@ -1138,6 +1152,11 @@ def procesar_mensaje_entrada(data):
 
             message = messages_list[0]
             phone_number = message.get("from")
+            message_id = message.get("id")
+
+            if ya_esta_procesado(message_id):
+                agregar_mensajes_log(f"⚠️ Mensaje duplicado detectado y omitido: {message_id}")
+                return  # No procesar de nuevo
 
             # Verificar si el usuario está bloqueado
             #block_result = block("whatsapp", phone_number)
