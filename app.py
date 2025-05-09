@@ -54,16 +54,25 @@ class BotState(TypedDict):
 #
 #def now():
 #    return datetime.now(GUATEMALA_TZ)
-def block(source, to_compare):
+def block(source, message):
     # --- BLOQUEO DE USUARIOS ---
+
     BLOQUEADOS = {
         "whatsapp": ["502123456", "50233334444"],
         "telegram": ["123456789"],
         "web": ["correo@ejemplo.com"]
     }
 
+    TIPOS_BLOQUEADOS = {
+        "type": ["emoji", "reaction"]
+    }
 
-    if to_compare in BLOQUEADOS.get(source, []):
+    phone_number = message.get("from")
+    types = "type"
+    type_msg = message.get("type")
+
+
+    if phone_number in BLOQUEADOS.get(source, []) or type_msg in TIPOS_BLOQUEADOS.get(types, []) :
         # Para usuarios bloqueados SI interrumpimos el flujo
         error_msg = f"❌ Error Usuario bloqueado"
         agregar_mensajes_log(error_msg)
@@ -502,7 +511,33 @@ def asistente(state: BotState) -> BotState:
 
         # Llama DeepSeek solo si no es duplicado
 
-        response = model.invoke([HumanMessage(content=f"Eres un agente tipo chatbot llamado Boty y que responde mensajes como vendedor de repuestos y motores para vehículos de marcas japonesas y coreanas que labora para la empresa Intermotores, Responde en maximo 50 palabras de forma muy directa, concisa y resumida esta consulta de un cliente: {user_msg}")])
+        prompt = f"""
+        Eres un asistente de Intermotores llamdo Boty especializado en motores y repuestos para vehículos.
+        Mensaje del usuario: {user_msg}
+
+        Responde de manera concisa (máx. 50 palabras) de forma muy directa y profesional.
+        Si necesitas más información, pregunta especificando qué dato necesitas.
+        """
+    
+        safety_prompt = f"""
+        Eres un asistente especializado en repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores.
+        Solo responde sobre temas relacionados con:
+        - Partes automotrices
+        - Motores y repuestos para vehiculos en general
+        - Horarios/ubicación de Intermotores
+        - Piezas o partes de 
+        - Motores y repuestos para vehículos de las marcas japonesas y coreanas y sus equivalencias en otras marcas 
+        - Información de envíos
+
+        Si el mensaje no está relacionado, responde cortésmente indicando
+        que solo puedes ayudar con temas de motores y repuestos para vehículos de las marcas japonesas y coreanas.
+
+        Mensaje del usuario: {prompt}
+        """
+
+        #response = model.invoke([HumanMessage(content=f"Eres un agente tipo chatbot llamado Boty y que responde mensajes como vendedor de repuestos y motores para vehículos de marcas japonesas y coreanas que labora para la empresa Intermotores y si necesitas más información, pregunta especificando qué dato necesitas., Responde en maximo 50 palabras de forma muy directa, concisa y resumida esta consulta de un cliente: {user_msg}")])
+        response = model.invoke([HumanMessage(content=safety_prompt)])
+
         body = response.content
 
         if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
@@ -1098,14 +1133,16 @@ def procesar_mensaje_entrada(data):
             messages_list = value.get('messages', [])
 
             if not messages_list:
-                agregar_mensajes_log(f"⚠️ No hay mensajes en el evento recibido : {data} ")
+                #agregar_mensajes_log(f"⚠️ No hay mensajes en el evento recibido : {data} ")
                 return
 
             message = messages_list[0]
             phone_number = message.get("from")
 
             # Verificar si el usuario está bloqueado
-            block_result = block("whatsapp", phone_number)
+            #block_result = block("whatsapp", phone_number)
+            block_result = block("whatsapp", message)
+
             if block_result.get("status") == "blocked":
                 agregar_mensajes_log(f"⛔ Usuario o mensaje bloqueado intentó contactar: {phone_number} > {data}")
                 return
