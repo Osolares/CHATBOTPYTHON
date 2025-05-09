@@ -501,7 +501,7 @@ def asistente(state: BotState) -> BotState:
 
         # Llama DeepSeek solo si no es duplicado
 
-        response = model.invoke([HumanMessage(content=f"Responde en maximo 50 palabras de forma muy directa, concisa y resumida: {user_msg}")])
+        response = model.invoke([HumanMessage(content=f"Eres un agente tipo chatbot llamado Boty y que responde mensajes como vendedor de repuestos y motores para vehículos de marcas japonesas y coreanas que labora para la empresa Intermotores, Responde en maximo 50 palabras de forma muy directa, concisa y resumida esta consulta de un cliente: {user_msg}")])
         body = response.content
 
         if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
@@ -536,7 +536,7 @@ def send_messages(state: BotState) -> BotState:
 
             if source == "whatsapp":
                 bot_enviar_mensaje_whatsapp(mensaje, state)
-                time.sleep(3)
+                time.sleep(2)
 
 
             elif source == "telegram":
@@ -552,7 +552,7 @@ def send_messages(state: BotState) -> BotState:
 
 
             # Espera prudente entre mensajes para no saturar el canal (WhatsApp sobre todo)
-            time.sleep(1.2)
+            time.sleep(1.0)
 
         except Exception as e:
             error_msg = f"❌ Error enviando mensaje ({source}): {str(e)}"
@@ -1088,7 +1088,7 @@ def procesar_mensaje_entrada(data):
     with flask_app.app_context():
         try:
             if not data or 'entry' not in data:
-                agregar_mensajes_log("⚠️ Entrada inválida: falta 'entry'")
+                agregar_mensajes_log(f"⚠️ Entrada inválida: falta 'entry' : {data}")
                 return
 
             entry = data['entry'][0]
@@ -1097,7 +1097,7 @@ def procesar_mensaje_entrada(data):
             messages_list = value.get('messages', [])
 
             if not messages_list:
-                agregar_mensajes_log("⚠️ No hay mensajes en el evento recibido")
+                agregar_mensajes_log(f"⚠️ No hay mensajes en el evento recibido : {data} ")
                 return
 
             message = messages_list[0]
@@ -1106,7 +1106,7 @@ def procesar_mensaje_entrada(data):
             # Verificar si el usuario está bloqueado
             block_result = block("whatsapp", phone_number)
             if block_result.get("status") == "blocked":
-                agregar_mensajes_log(f"⛔ Usuario bloqueado intentó contactar: {phone_number}")
+                agregar_mensajes_log(f"⛔ Usuario o mensaje bloqueado intentó contactar: {phone_number} > {data}")
                 return
 
             # Estado inicial del bot
@@ -1141,14 +1141,14 @@ def procesar_mensaje_entrada(data):
                 if text:
                     initial_state["user_msg"] = text
 
-            agregar_mensajes_log(f"📥 Mensaje recibido initial_state: {json.dumps(initial_state)}")
+            agregar_mensajes_log(f"Mensaje completo recibido: {data} \n\n 📥 Mensaje recibido initial_state: {json.dumps(initial_state)}")
 
             # Ejecutar el flujo del bot
             final_state = app_flow.invoke(initial_state)
 
             # Guardar todos los logs una vez finalizado el flujo
-            for msg in final_state["logs"]:
-                agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
+            #for msg in final_state["logs"]:
+            #    agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
 
         except Exception as e:
             agregar_mensajes_log(f"❌ Error en procesar_mensaje_entrada: {str(e)}")
