@@ -87,48 +87,6 @@ def pre_validaciones(state: BotState) -> BotState:
 
     send_welcome, kind = False, None
 
-    try:
-        # --- BIENVENIDA ---
-        if session:
-            last_interaction = session.last_interaction
-            if last_interaction and last_interaction.tzinfo is None:
-                last_interaction = GUATEMALA_TZ.localize(last_interaction)
-
-            if not session.mostro_bienvenida:
-                send_welcome, kind = True, "nueva"
-            elif (ahora - last_interaction) > timedelta(hours=24):
-                send_welcome, kind = True, "retorno"
-
-        if send_welcome:
-            msg = (
-                "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗 \n\n🗒️ Consulta nuestro menú."
-                if kind == "nueva" else
-                "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
-            )
-
-            state["additional_messages"].append({
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                "recipient_type": "individual",
-                "to": phone_or_id,
-                "type": "image",
-                "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png",
-                    "caption": msg
-                }
-            })
-
-            if source == "whatsapp":
-                menu_msg = generar_list_menu(phone_or_id)
-                state["additional_messages"].append(menu_msg)
-
-            session.mostro_bienvenida = True
-            db.session.commit()
-            log_state(state, "✅ Bienvenida enviada y marcada como mostrada.")
-
-    except Exception as e:
-        db.session.rollback()
-        log_state(state, f"❌ Error al guardar mostro_bienvenida: {str(e)}")
-
     # --- HORARIO ---
     HORARIO = {
         0: ("08:00", "17:30"), 1: ("08:00", "17:30"), 2: ("08:00", "17:30"),
@@ -174,6 +132,49 @@ def pre_validaciones(state: BotState) -> BotState:
     except Exception as e:
         db.session.rollback()
         log_state(state, f"❌ Error al guardar alerta de horario: {str(e)}")
+
+
+    try:
+        # --- BIENVENIDA ---
+        if session:
+            last_interaction = session.last_interaction
+            if last_interaction and last_interaction.tzinfo is None:
+                last_interaction = GUATEMALA_TZ.localize(last_interaction)
+
+            if not session.mostro_bienvenida:
+                send_welcome, kind = True, "nueva"
+            elif (ahora - last_interaction) > timedelta(hours=24):
+                send_welcome, kind = True, "retorno"
+
+        if send_welcome:
+            msg = (
+                "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗 \n\n🗒️ Consulta nuestro menú."
+                if kind == "nueva" else
+                "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
+            )
+
+            state["additional_messages"].append({
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "recipient_type": "individual",
+                "to": phone_or_id,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/LOGO_INTERMOTORES.png",
+                    "caption": msg
+                }
+            })
+
+            if source == "whatsapp":
+                menu_msg = generar_list_menu(phone_or_id)
+                state["additional_messages"].append(menu_msg)
+
+            session.mostro_bienvenida = True
+            db.session.commit()
+            log_state(state, "✅ Bienvenida enviada y marcada como mostrada.")
+
+    except Exception as e:
+        db.session.rollback()
+        log_state(state, f"❌ Error al guardar mostro_bienvenida: {str(e)}")
 
     log_state(state, f"⏺️ Saliendo de pre_validaciones a las {ahora.isoformat()}")
 
