@@ -573,7 +573,11 @@ def send_messages(state: BotState) -> BotState:
     session_id = state["session"].idUser if state.get("session") else None
     source = state.get("source")
     messages = state.get("response_data", [])
-    message_id = state.get(["response_data"].id , [])
+
+    #message_id = state.get("message_data", {}).get("id", "")  # Versión segura (evita KeyError)
+    #si estás seguro de que message_data siempre existe y es un diccionario:
+    message_id = state["message_data"]["id"]  # Directo (puede lanzar KeyError si falta algún campo)
+
     #agregar_mensajes_log(f"🔁 Iniciando envío de mensajes para {source}...", session_id)
 
     if not messages:
