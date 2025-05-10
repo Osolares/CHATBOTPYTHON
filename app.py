@@ -589,7 +589,6 @@ def send_messages(state: BotState) -> BotState:
             #log_state(state, f"📤 Enviando mensaje {index + 1} de {len(messages)}: {mensaje}")
 
             if source == "whatsapp":
-                bot_enviar_mensaje_whatsapp(mensaje, state)
 
                 if message_id :
 
@@ -603,7 +602,10 @@ def send_messages(state: BotState) -> BotState:
                     })
                     bot_enviar_mensaje_whatsapp(typing_indicator, state)
 
-                time.sleep(2)
+                time.sleep(3)
+
+                bot_enviar_mensaje_whatsapp(mensaje, state)
+
 
 
             elif source == "telegram":
