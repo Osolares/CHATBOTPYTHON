@@ -573,7 +573,7 @@ def send_messages(state: BotState) -> BotState:
     session_id = state["session"].idUser if state.get("session") else None
     source = state.get("source")
     messages = state.get("response_data", [])
-
+    message_id = state.get(["response_data"].id , [])
     #agregar_mensajes_log(f"🔁 Iniciando envío de mensajes para {source}...", session_id)
 
     if not messages:
@@ -586,6 +586,19 @@ def send_messages(state: BotState) -> BotState:
 
             if source == "whatsapp":
                 bot_enviar_mensaje_whatsapp(mensaje, state)
+
+                if message_id :
+
+                    typing_indicator = ({
+                      "messaging_product": "whatsapp",
+                      "status": "read",
+                      "message_id": message_id,
+                      "typing_indicator": {
+                        "type": "text"
+                      }
+                    })
+                    bot_enviar_mensaje_whatsapp(typing_indicator, state)
+
                 time.sleep(2)
 
 
@@ -1134,7 +1147,7 @@ def webhook():
                 )
 
                 if not whatsapp_message_id:
-                    raise ValueError(f"No se encontró el WhatsApp Message ID en el webhook : " , {data})
+                    raise ValueError(f"No se encontró el WhatsApp Message ID en el webhook :  {data}")
 
             except (IndexError, AttributeError, KeyError) as e:
                 print(f"Error extrayendo el message_id: {e}")
