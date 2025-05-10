@@ -1123,7 +1123,47 @@ def webhook():
             # Procesar en segundo plano para no bloquear la respuesta del webhook
             threading.Thread(target=procesar_mensaje_entrada, args=(data,)).start()
 
-            # Respuesta inmediata a WhatsApp para evitar reintentos
+
+            try:
+                whatsapp_message_id = (
+                    data.get('entry', [{}])[0]
+                    .get('changes', [{}])[0]
+                    .get('value', {})
+                    .get('messages', [{}])[0]
+                    .get('id')
+                )
+
+                if not whatsapp_message_id:
+                    raise ValueError("No se encontró el WhatsApp Message ID en el webhook")
+
+            except (IndexError, AttributeError, KeyError) as e:
+                print(f"Error extrayendo el message_id: {e}")
+                whatsapp_message_id = None
+
+            if whatsapp_message_id :
+                # Respuesta inmediata a WhatsApp para evitar reintentos
+                fake_state: BotState = {
+                    "phone_number": "unknown",  # o extraerlo del webhook si está disponible
+                    "user_msg": "",
+                    "response_data": [],
+                    "logs": [],
+                    "source": "whatsapp",
+                    "additional_messages": [],
+                    "session": None,
+                    "flujo_producto": None,
+                    "message_data": None,
+                }
+
+                typing_indicator = ({
+                  "messaging_product": "whatsapp",
+                  "status": "read",
+                  "message_id": whatsapp_message_id,
+                  "typing_indicator": {
+                    "type": "text"
+                  }
+                })
+                bot_enviar_mensaje_whatsapp(typing_indicator, fake_state)
+
             return jsonify({'status': 'received'}), 200
 
         except Exception as e:
@@ -1157,7 +1197,7 @@ def procesar_mensaje_entrada(data):
             if ya_esta_procesado(message_id):
                 agregar_mensajes_log(f"⚠️ Mensaje duplicado detectado y omitido: {message_id}")
                 return  # No procesar de nuevo
-
+            
             # Verificar si el usuario está bloqueado
             #block_result = block("whatsapp", phone_number)
             block_result = block("whatsapp", message)
@@ -1200,7 +1240,7 @@ def procesar_mensaje_entrada(data):
 
             agregar_mensajes_log(f"Mensaje completo recibido: {data} \n\n 📥 Mensaje recibido initial_state: {json.dumps(initial_state)}")
 
-            # Ejecutar el flujo del bot
+            # Ejecutar el flujo del boT
             final_state = app_flow.invoke(initial_state)
 
             # Guardar todos los logs una vez finalizado el flujo
