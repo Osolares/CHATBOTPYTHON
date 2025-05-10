@@ -1152,8 +1152,8 @@ def webhook():
                     .get('id')
                 )
 
-                if not whatsapp_message_id:
-                    raise ValueError(f"No se encontró el WhatsApp Message ID en el webhook :  {data}")
+                #if not whatsapp_message_id:
+                #    raise ValueError(f"No se encontró el WhatsApp Message ID en el webhook :  {data}")
 
             except (IndexError, AttributeError, KeyError) as e:
                 print(f"Error extrayendo el message_id: {e}")
