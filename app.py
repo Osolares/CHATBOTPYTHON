@@ -11,7 +11,7 @@ import json
 import time
 import http.client
 import os
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect
 from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
@@ -22,7 +22,6 @@ import re
 import threading
 from collections import deque
 from langchain_groq import ChatGroq
-
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -570,7 +569,7 @@ Contexto de conversación previa:
 """
 
         safety_prompt = f"""
-Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores.
+Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, responde muy puntual y en las minimas palabras máximo 50 usa emojis ocasionalmente según sea necesario. 
 
 Solo responde sobre:
 - Motores y repuestos para vehículos
@@ -1414,6 +1413,30 @@ def webhook_web():
         error_msg = f"Web webhook error: {str(e)}"
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
+
+@flask_app.route('/configuracion', methods=['GET', 'POST'])
+def configuracion():
+    if request.method == 'POST':
+        key = request.form.get('key')
+        value = request.form.get('value')
+
+        if key and value:
+            try:
+                config_item = Configuration.query.filter_by(key=key).first()
+                if not config_item:
+                    config_item = Configuration(key=key)
+                    db.session.add(config_item)
+                config_item.value = value
+                db.session.commit()
+                agregar_mensajes_log(f"✅ Configuración actualizada desde /configuracion: {key} = {value}")
+            except Exception as e:
+                db.session.rollback()
+                agregar_mensajes_log(f"❌ Error en /configuracion: {str(e)}")
+
+        return redirect('/configuracion')
+
+    configuraciones = Configuration.query.order_by(Configuration.key.asc()).all()
+    return render_template('configuracion.html', config=configuraciones)
 
 
 @flask_app.route('/update-config', methods=['POST'])
