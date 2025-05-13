@@ -44,3 +44,17 @@ class Log(db.Model):
     texto = db.Column(db.Text)
     
     session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'), index=True)
+
+class Configuration(db.Model):
+    __tablename__ = 'configurations'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.Text, nullable=True)
+
+class Memory(db.Model):
+    __tablename__ = 'memories'
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'), nullable=False)
+    key = db.Column(db.String(100))
+    value = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=now)

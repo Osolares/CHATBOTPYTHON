@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from config import db, Config
-from models import UserSession, Log, ProductModel
+from models import UserSession, Log, ProductModel, Configuration, Memory
 #from woocommerce_service import WooCommerceService, obtener_producto_por_url, buscar_producto_por_nombre, formatear_producto_whatsapp
 from woocommerce_service import WooCommerceService
 from datetime import datetime
@@ -21,6 +21,7 @@ from config import now,GUATEMALA_TZ
 import re
 import threading
 from collections import deque
+from langchain_groq import ChatGroq
 
 
 # Instancia global del servicio
@@ -36,6 +37,9 @@ model = ChatOpenAI(
     max_tokens=200,
 )
 
+#llm = ChatGroq(
+#    model="llama3-70b-8192"
+#)
 # ------------------------------------------
 # Definición del Estado y Modelos
 # ------------------------------------------
@@ -49,8 +53,8 @@ class BotState(TypedDict):
     message_data: Optional[Dict[str, Any]]
     logs: List[str]
     source: str  # NUEVO: whatsapp, telegram, messenger, web, etc
-    additional_messages: List[Dict[str, Any]]  # Añade este campo
-
+    additional_messages: List[Dict[str, Any]] 
+    conversation_memory: Optional[Dict[str, Any]] 
 
 # Guardará los últimos 1000 message_id procesados
 mensajes_procesados = deque(maxlen=1000)
@@ -94,6 +98,28 @@ def ya_esta_procesado(message_id: str) -> bool:
         mensajes_procesados.append(message_id)
         return False
 
+def guardar_memoria(session_id, clave, valor):
+    mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
+    if not mem:
+        mem = Memory(session_id=session_id, key=clave)
+        db.session.add(mem)
+    mem.value = valor
+    db.session.commit()
+
+def obtener_ultimas_memorias(session_id, limite=6):
+    memorias = Memory.query.filter_by(session_id=session_id)\
+                .order_by(Memory.created_at.desc())\
+                .limit(limite).all()
+    return list(reversed(memorias))  # Para orden cronológico
+
+def guardar_memoria(session_id, key, value):
+    try:
+        memoria = Memory(session_id=session_id, key=key, value=value)
+        db.session.add(memoria)
+        db.session.commit()
+    except Exception as e:
+        error_text = f"❌ Error al guardar memoria ({key}): {str(e)}"
+        agregar_mensajes_log(error_text, session_id)
 
 # feriados configurables
 DIAS_FESTIVOS = {"2025-01-01","2025-04-17","2025-04-18","2025-05-01"}
@@ -149,7 +175,7 @@ def pre_validaciones(state: BotState) -> BotState:
                     "to": phone_or_id,
                     "type": "text",
                     "text": {
-                        "body": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente. Nuestro equipo te atenderá lo más pronto posible."
+                        "body": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente y nuestro equipo te atenderá lo más pronto posible."
                     }
                 })
 
@@ -512,48 +538,62 @@ def handle_special_commands(state: BotState) -> BotState:
 
 def asistente(state: BotState) -> BotState:
     """Maneja mensajes no reconocidos usando DeepSeek"""
-    #agregar_mensajes_log(f"En asistente: {state}")
 
     if not state.get("response_data"):
         user_msg = state["user_msg"]
-        last_log = db.session.query(Log).filter(
-            Log.session_id == (state["session"].idUser if state["session"] else None)
-        ).order_by(Log.fecha_y_hora.desc()).first()
+        session = state.get("session")
+        session_id = session.idUser if session else None
 
+        # Verificar duplicado
+        last_log = db.session.query(Log).filter(
+            Log.session_id == session_id
+        ).order_by(Log.fecha_y_hora.desc()).first()
         if last_log and user_msg in (last_log.texto or ""):
-            agregar_mensajes_log("🔁 Mensaje duplicado detectado, ignorando respuesta asistente", state["session"].idUser if state["session"] else None)
+            agregar_mensajes_log("🔁 Mensaje duplicado detectado, ignorando respuesta asistente", session_id)
             return state
 
-        # Llama DeepSeek solo si no es duplicado
+        # 🧠 Obtener contexto previo
+        contexto_memoria = ""
+        if session_id:
+            memorias = obtener_ultimas_memorias(session_id, limite=6)
+            if memorias:
+                contexto_memoria = "\n".join([f"{m.key}: {m.value}" for m in memorias])
 
-        prompt = f"""
-        Mensaje del usuario: {user_msg}
+        # 🧾 Construir prompt con contexto
+        prompt_usuario = f"Mensaje del usuario: {user_msg}"
+        if contexto_memoria:
+            prompt_usuario = f"""
+Contexto de conversación previa:
+{contexto_memoria}
 
-        Responde de manera concisa (máx. 50 palabras) de forma muy directa y profesional.
-        Si necesitas más información, pregunta especificando qué dato necesitas.
-        """
-    
+{prompt_usuario}
+"""
+
         safety_prompt = f"""
-        Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, enfocado principalmente en motores y piezas o repuestos para los mismos.
-        Solo responde sobre temas relacionados con:
-        - Motores y repuestos para vehiculos en general
-        - Piezas, partes o repuestos de automóviles 
-        - Motores y repuestos para vehículos de las marcas japonesas y coreanas y sus equivalencias en otras marcas 
+Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores.
 
-        No incluyas en el mensaje:
-        - Información irrelevante que afecte la respuesta profesional hacia el cliente como el número de palabras que contiene el mensaje
+Solo responde sobre:
+- Motores y repuestos para vehículos
+- Piezas, partes o repuestos de automóviles
+- Equivalencias de motores entre marcas japonesas y coreanas
 
-        Si el mensaje no está relacionado, responde cortésmente indicando
-        que solo puedes ayudar con temas de motores y repuestos para vehículos de las marcas japonesas y coreanas.
+No incluyas información innecesaria (como el número de palabras).
 
-        Mensaje del usuario: {prompt}
-        """
+Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
 
-        #response = model.invoke([HumanMessage(content=f"Eres un agente tipo chatbot llamado Boty y que responde mensajes como vendedor de repuestos y motores para vehículos de marcas japonesas y coreanas que labora para la empresa Intermotores y si necesitas más información, pregunta especificando qué dato necesitas., Responde en maximo 50 palabras de forma muy directa, concisa y resumida esta consulta de un cliente: {user_msg}")])
+{prompt_usuario}
+"""
+
+        # 🤖 Llamar al modelo
         response = model.invoke([HumanMessage(content=safety_prompt)])
-
         body = response.content
 
+        # 📝 Guardar memorias
+        if session_id:
+            guardar_memoria(session_id, "user", user_msg)
+            guardar_memoria(session_id, "assistant", body)
+
+        # 📤 Preparar respuesta
         if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
             state["response_data"] = [{
                 "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
@@ -562,11 +602,9 @@ def asistente(state: BotState) -> BotState:
                 "text": {"body": body}
             }]
 
-    log_state(state, f"⏺️ Saliendo de asistente: {state['response_data']} at {now().isoformat()}")
+        log_state(state, f"✅ Asistente respondió con memoria: {body[:100]}...")
 
     return state
-
-import time  # Ya deberías tenerlo importado
 
 def send_messages(state: BotState) -> BotState:
     """Envía mensajes al canal correcto según la fuente."""
@@ -1005,8 +1043,26 @@ def index():
         products = []
         agregar_mensajes_log(f"Error cargando productos: {str(e)}")
 
-    return render_template('index.html', registros=registros, users=users, products=products)
+    try:
+        memories = Memory.query.order_by(Memory.created_at.desc()).limit(100).all()
+    except Exception as e:
+        memories = []
+        agregar_mensajes_log(f"Error cargando memorias: {str(e)}")
 
+    try:
+        config = Configuration.query.order_by(Configuration.key.asc()).all()
+    except Exception as e:
+        config = []
+        agregar_mensajes_log(f"Error cargando configuración: {str(e)}")
+
+    return render_template(
+        'index.html',
+        registros=registros,
+        users=users,
+        products=products,
+        memories=memories,
+        config=config
+    )
 
 #from message_validator import MessageValidator
 
@@ -1358,6 +1414,31 @@ def webhook_web():
         error_msg = f"Web webhook error: {str(e)}"
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
+
+
+@flask_app.route('/update-config', methods=['POST'])
+def update_config():
+    key = request.form.get('key')
+    value = request.form.get('value')
+
+    if not key or not value:
+        agregar_mensajes_log("❌ Error: clave o valor faltante al actualizar configuración.")
+        return "Faltan campos", 400
+
+    try:
+        config_item = Configuration.query.filter_by(key=key).first()
+        if not config_item:
+            config_item = Configuration(key=key)
+            db.session.add(config_item)
+        config_item.value = value
+        db.session.commit()
+        agregar_mensajes_log(f"✅ Configuración actualizada: {key} = {value}")
+    except Exception as e:
+        db.session.rollback()
+        agregar_mensajes_log(f"❌ Error al guardar configuración: {str(e)}")
+        return f"Error interno: {str(e)}", 500
+
+    return redirect('/')  # Regresa al index con datos actualizados
 
 # ------------------------------------------
 # Inicialización
