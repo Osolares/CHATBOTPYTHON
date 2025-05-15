@@ -71,12 +71,12 @@ def block(source, message):
         "web": ["correo@ejemplo.com"]
     }
 
-    TIPOS_BLOQUEADOS = {
-        "type": ["emoji", "reaction"]
-    }
+    #TIPOS_BLOQUEADOS = {
+    #    "type": ["emoji", "reaction"]
+    #}
 
     phone_number = message.get("from")
-    types = "type"
+    #types = "type"
     type_msg = message.get("type")
 
 
@@ -639,10 +639,9 @@ def send_messages(state: BotState) -> BotState:
                     })
                     bot_enviar_mensaje_whatsapp(typing_indicator, state)
 
-                time.sleep(3)
+                time.sleep(4)
 
                 bot_enviar_mensaje_whatsapp(mensaje, state)
-
 
 
             elif source == "telegram":
@@ -889,7 +888,7 @@ def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
                     "body": {"text": "¿Qué deseas hacer ahora?"},
                     "action": {
                         "buttons": [
-                            {"type": "reply", "reply": {"id": "1", "title": "🔧 Cotizar repuesto"}},
+                            {"type": "reply", "reply": {"id": "1", "title": "🔧 Cotizar"}},
                             {"type": "reply", "reply": {"id": "0", "title": "🏠 Menú principal"}}
                         ]
                     }
@@ -1198,45 +1197,45 @@ def webhook():
             threading.Thread(target=procesar_mensaje_entrada, args=(data,)).start()
 
 
-            try:
-                whatsapp_message_id = (
-                    data.get('entry', [{}])[0]
-                    .get('changes', [{}])[0]
-                    .get('value', {})
-                    .get('messages', [{}])[0]
-                    .get('id')
-                )
-
-                #if not whatsapp_message_id:
-                #    raise ValueError(f"No se encontró el WhatsApp Message ID en el webhook :  {data}")
-
-            except (IndexError, AttributeError, KeyError) as e:
-                print(f"Error extrayendo el message_id: {e}")
-                whatsapp_message_id = None
-
-            if whatsapp_message_id :
-                # Respuesta inmediata a WhatsApp para evitar reintentos
-                fake_state: BotState = {
-                    "phone_number": "unknown",  # o extraerlo del webhook si está disponible
-                    "user_msg": "",
-                    "response_data": [],
-                    "logs": [],
-                    "source": "whatsapp",
-                    "additional_messages": [],
-                    "session": None,
-                    "flujo_producto": None,
-                    "message_data": None,
-                }
-
-                typing_indicator = ({
-                  "messaging_product": "whatsapp",
-                  "status": "read",
-                  "message_id": whatsapp_message_id,
-                  "typing_indicator": {
-                    "type": "text"
-                  }
-                })
-                bot_enviar_mensaje_whatsapp(typing_indicator, fake_state)
+            #try:
+            #    whatsapp_message_id = (
+            #        data.get('entry', [{}])[0]
+            #        .get('changes', [{}])[0]
+            #        .get('value', {})
+            #        .get('messages', [{}])[0]
+            #        .get('id')
+            #    )
+#
+            #    #if not whatsapp_message_id:
+            #    #    raise ValueError(f"No se encontró el WhatsApp Message ID en el webhook :  {data}")
+#
+            #except (IndexError, AttributeError, KeyError) as e:
+            #    print(f"Error extrayendo el message_id: {e}")
+            #    whatsapp_message_id = None
+#
+            #if whatsapp_message_id :
+            #    # Respuesta inmediata a WhatsApp para evitar reintentos
+            #    fake_state: BotState = {
+            #        "phone_number": "unknown",  # o extraerlo del webhook si está disponible
+            #        "user_msg": "",
+            #        "response_data": [],
+            #        "logs": [],
+            #        "source": "whatsapp",
+            #        "additional_messages": [],
+            #        "session": None,
+            #        "flujo_producto": None,
+            #        "message_data": None,
+            #    }
+#
+            #    typing_indicator = ({
+            #      "messaging_product": "whatsapp",
+            #      "status": "read",
+            #      "message_id": whatsapp_message_id,
+            #      "typing_indicator": {
+            #        "type": "text"
+            #      }
+            #    })
+            #    bot_enviar_mensaje_whatsapp(typing_indicator, fake_state)
 
             return jsonify({'status': 'received'}), 200
 
@@ -1463,12 +1462,111 @@ def update_config():
 
     return redirect('/')  # Regresa al index con datos actualizados
 
+@flask_app.route('/delete-config', methods=['POST'])
+def delete_config():
+    config_id = request.form.get('id')
+    try:
+        config_item = Configuration.query.get(config_id)
+        if config_item:
+            db.session.delete(config_item)
+            db.session.commit()
+            agregar_mensajes_log(f"✅ Configuración eliminada: {config_item.key}")
+    except Exception as e:
+        db.session.rollback()
+        agregar_mensajes_log(f"❌ Error eliminando configuración: {str(e)}")
+
+    return redirect('/configuracion')
+
+@flask_app.route('/update-config-inline', methods=['POST'])
+def update_config_inline():
+    data = request.get_json()
+    config_id = data.get('id')
+    value = data.get('value')
+
+    try:
+        config_item = Configuration.query.get(config_id)
+        if config_item:
+            config_item.value = value
+            db.session.commit()
+            return jsonify({"message": "✅ Configuración actualizada correctamente"})
+        else:
+            return jsonify({"message": "❌ Configuración no encontrada"}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": f"❌ Error interno: {str(e)}"}), 500
+
+@flask_app.route('/usuarios')
+def vista_usuarios():
+    tipo = request.args.get('tipo')  # ?tipo=admin
+    if tipo:
+        usuarios = UserSession.query.filter_by(tipo_usuario=tipo).order_by(UserSession.last_interaction.desc()).all()
+    else:
+        usuarios = UserSession.query.order_by(UserSession.last_interaction.desc()).all()
+    return render_template('usuarios.html', usuarios=usuarios, tipo_filtro=tipo)
+
+@flask_app.route('/update-usuario-inline', methods=['POST'])
+def update_usuario_inline():
+    data = request.get_json()
+    user_id = data.get('id')
+    nombre = data.get('nombre')
+    apellido = data.get('apellido')
+    tipo_usuario = data.get('tipo_usuario')
+
+    try:
+        user = UserSession.query.get(user_id)
+        if user:
+            user.nombre = nombre
+            user.apellido = apellido
+            user.tipo_usuario = tipo_usuario
+            db.session.commit()
+            return jsonify({"message": "✅ Usuario actualizado correctamente"})
+        else:
+            return jsonify({"message": "❌ Usuario no encontrado"}), 404
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": f"❌ Error interno: {str(e)}"}), 500
+
+@flask_app.route('/crear-usuario', methods=['POST'])
+def crear_usuario():
+    phone_number = request.form.get('phone_number')
+    nombre = request.form.get('nombre')
+    apellido = request.form.get('apellido')
+    tipo_usuario = request.form.get('tipo_usuario', 'cliente')
+
+    if not phone_number or not nombre or not apellido:
+        return "❌ Faltan campos requeridos", 400
+
+    try:
+        existente = UserSession.query.filter_by(phone_number=phone_number).first()
+        if existente:
+            return "❌ El usuario con ese número ya existe", 400
+
+        nuevo = UserSession(
+            phone_number=phone_number,
+            nombre=nombre,
+            apellido=apellido,
+            tipo_usuario=tipo_usuario,
+            last_interaction=now()
+        )
+        db.session.add(nuevo)
+        db.session.commit()
+        return redirect('/usuarios')
+    except Exception as e:
+        db.session.rollback()
+        return f"❌ Error creando usuario: {str(e)}", 500
+
 # ------------------------------------------
 # Inicialización
 # ------------------------------------------
 
+#with flask_app.app_context():
+#    db.create_all()
 with flask_app.app_context():
     db.create_all()
+
+    from init_data import inicializar_todo
+    inicializar_todo()
+
 
 if __name__ == '__main__':
     flask_app.run(host='0.0.0.0', port=80, debug=True)

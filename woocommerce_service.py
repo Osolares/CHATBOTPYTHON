@@ -16,7 +16,7 @@ class WooCommerceService:
             params = {
                 'on_sale': 'true',
                 'status': 'publish',
-                'per_page': 25,  # Traer más para poder mezclar
+                'per_page': 20,  # Traer más para poder mezclar
                 '_fields': 'id,name,price,regular_price,sale_price,description,short_description,date_on_sale_to,permalink,images'
             }
             
@@ -40,7 +40,7 @@ class WooCommerceService:
             return ["📢 No hay ofertas disponibles en este momento."]
 
         mensajes = []
-        for producto in productos[:5]:  # Limitar a 5 productos
+        for producto in productos[:3]:  # Limitar a 5 productos
             try:
                 nombre = producto.get('name', 'Producto sin nombre')
                 precio = producto.get('price', 'Precio no disponible')
@@ -197,7 +197,7 @@ class WooCommerceService:
             mensaje += f"🔗 Ver más detalles aquí:\n{enlace}\n\n"
             # Manejo de stock
             if stock_status == 'outofstock' or stock_quantity <= 0:
-                mensaje += "⚠️ *ESTADO:* AGOTADO\n\n"
+                mensaje += "⚠️ *ESTADO:* AGOTADO\n\n Lo sentimos ya no contamos con este repuesto"
                 #mensaje += "💲 *Precio normal:* Q{precio_normal}\n\n"
                 mensaje += "📦 *Disponibilidad:* Puede consultarnos cuándo estará disponible\n"
             else:

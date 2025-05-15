@@ -12,6 +12,8 @@ class UserSession(db.Model):
     messenger_id = db.Column(db.String(50), unique=True)
     nombre = db.Column(db.String(25))
     apellido = db.Column(db.String(25))
+    tipo_usuario = db.Column(db.String(50), default='cliente')  # opciones: admin, colaborador, cliente
+
     #last_interaction = db.Column(db.DateTime, default=now)
     last_interaction = db.Column(db.DateTime, default=now)  # Usa la función centralizada
 

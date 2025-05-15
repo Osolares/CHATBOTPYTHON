@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Usuarios del Sistema</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        table {
+            width: 90%;
+            margin: auto;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .acciones {
+            text-align: center;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 5px;
+        }
+
+        button {
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2 style="text-align:center;">Gestión de Usuarios</h2>
+
+    <div style="width:90%; margin:auto; margin-bottom:20px;">
+        <label for="filtro">Filtrar por tipo:</label>
+        <select id="filtro" onchange="filtrarTipo()">
+            <option value="">Todos</option>
+            <option value="admin" {% if tipo_filtro=='admin' %}selected{% endif %}>Admin</option>
+            <option value="colaborador" {% if tipo_filtro=='colaborador' %}selected{% endif %}>Colaborador</option>
+            <option value="cliente" {% if tipo_filtro=='cliente' %}selected{% endif %}>Cliente</option>
+        </select>
+    </div>
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Teléfono</th>
+            <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Tipo</th>
+            <th>Última interacción</th>
+            <th class="acciones">Acciones</th>
+        </tr>
+        {% for user in usuarios %}
+        <tr data-id="{{ user.idUser }}">
+            <td>{{ user.idUser }}</td>
+            <td>{{ user.phone_number }}</td>
+            <td contenteditable="true" class="editable" data-field="nombre">{{ user.nombre }}</td>
+            <td contenteditable="true" class="editable" data-field="apellido">{{ user.apellido }}</td>
+            <td>
+                <select onchange="guardarUsuario({{ user.idUser }})" class="tipo_select">
+                    <option value="admin" {% if user.tipo_usuario=='admin' %}selected{% endif %}>Admin</option>
+                    <option value="colaborador" {% if user.tipo_usuario=='colaborador' %}selected{% endif %}>Colaborador
+                    </option>
+                    <option value="cliente" {% if user.tipo_usuario=='cliente' %}selected{% endif %}>Cliente</option>
+                </select>
+            </td>
+            <td>{{ user.last_interaction }}</td>
+            <td class="acciones">
+                <button onclick="guardarUsuario({{ user.idUser }})">Guardar</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div style="text-align:center; margin-top: 30px;">
+        <a href="/">← Volver al Panel Principal</a>
+    </div>
+
+    <h3 style="text-align:center;">Crear Nuevo Usuario</h3>
+    <form method="POST" action="/crear-usuario" style="width:90%; margin:auto; margin-bottom:30px;">
+        <label for="phone">Teléfono:</label>
+        <input type="text" name="phone_number" id="phone" required>
+
+        <label for="nombre">Nombre:</label>
+        <input type="text" name="nombre" id="nombre" required>
+
+        <label for="apellido">Apellido:</label>
+        <input type="text" name="apellido" id="apellido" required>
+
+        <label for="tipo_usuario">Tipo:</label>
+        <select name="tipo_usuario" id="tipo_usuario" required>
+            <option value="cliente">Cliente</option>
+            <option value="colaborador">Colaborador</option>
+            <option value="admin">Admin</option>
+        </select>
+
+        <button type="submit">Crear Usuario</button>
+    </form>
+
+    <script>
+        function filtrarTipo() {
+            const tipo = document.getElementById('filtro').value;
+            window.location.href = tipo ? `/usuarios?tipo=${tipo}` : '/usuarios';
+        }
+
+        function guardarUsuario(id) {
+            const row = document.querySelector(`tr[data-id='${id}']`);
+            const nombre = row.querySelector("[data-field='nombre']").innerText.trim();
+            const apellido = row.querySelector("[data-field='apellido']").innerText.trim();
+            const tipo = row.querySelector(".tipo_select").value;
+
+            fetch("/update-usuario-inline", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: id, nombre: nombre, apellido: apellido, tipo_usuario: tipo })
+            })
+                .then(res => res.json())
+                .then(data => alert(data.message || "✅ Usuario actualizado"))
+                .catch(err => alert("❌ Error actualizando usuario"));
+        }
+    </script>
+</body>
+
+</html>
