@@ -1502,7 +1502,7 @@ def vista_usuarios():
         usuarios = UserSession.query.filter_by(tipo_usuario=tipo).order_by(UserSession.last_interaction.desc()).all()
     else:
         usuarios = UserSession.query.order_by(UserSession.last_interaction.desc()).all()
-    return render_template('usuarios.html', usuarios=usuarios, tipo_filtro=tipo)
+    return render_template('users.html', usuarios=usuarios, tipo_filtro=tipo)
 
 @flask_app.route('/update-usuario-inline', methods=['POST'])
 def update_usuario_inline():
