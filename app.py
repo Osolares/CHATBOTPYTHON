@@ -22,6 +22,7 @@ import re
 import threading
 from collections import deque
 from langchain_groq import ChatGroq
+from config_utils import cargar_config 
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -239,29 +240,6 @@ def guardar_en_configuration(clave, lista, descripcion=None):
     if descripcion:
         config.descripcion = descripcion
     db.session.commit()
-
-def sincronizar_configuracion_desde_woocommerce():
-    # Categorías
-    categorias = obtener_categorias_woocommerce()
-    nombres_categorias = []
-    for cat in categorias:
-        # Construye la jerarquía completa si quieres, aquí solo nombres planos
-        if cat['parent'] == 0:
-            subcats = [c['name'] for c in categorias if c['parent'] == cat['id']]
-            if subcats:
-                nombres_categorias.append(f"{cat['name']} ({', '.join(subcats)})")
-            else:
-                nombres_categorias.append(cat['name'])
-    guardar_en_configuration("categorias_disponibles", nombres_categorias, "Categorias y subcategorias de productos WooCommerce")
-    
-    # Marcas
-    marcas = obtener_marcas_woocommerce()
-    guardar_en_configuration("marcas_permitidas", marcas, "Marcas extraidas de atributo Marca WooCommerce")
-
-    # Series
-    series = obtener_series_woocommerce()
-    guardar_en_configuration("series_disponibles", series, "Series de motores de atributo Motor y etiquetas WooCommerce")
-
 
 def procesar_mensaje_usuario(state: BotState):
     user_msg = state["user_msg"]
@@ -1578,10 +1556,6 @@ def webhook_web():
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
 
-from flask import render_template, request, redirect, jsonify
-from models import Configuration, db
-from config_sync import sincronizar_configuracion_desde_woocommerce
-
 @flask_app.route('/configuracion', methods=['GET'])
 def configuracion():
     # Filtros básicos (por status o clave)
@@ -1642,7 +1616,7 @@ def crear_config():
 @flask_app.route('/sincronizar-config', methods=['POST'])
 def sincronizar_config():
     try:
-        sincronizar_configuracion_desde_woocommerce()
+        cargar_config()
         return redirect('/configuracion')
     except Exception as e:
         return f"Error: {str(e)}", 500
