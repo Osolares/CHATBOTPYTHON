@@ -47,11 +47,17 @@ class Log(db.Model):
     
     session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'), index=True)
 
+# models.py
 class Configuration(db.Model):
     __tablename__ = 'configurations'
+
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(100), unique=True, nullable=False)
-    value = db.Column(db.Text, nullable=True)
+    value = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default='activo') # 'activo', 'bloqueado', 'inactivo'
+    descripcion = db.Column(db.String(255))  # Opcional: para mostrar en el admin
+    created_at = db.Column(db.DateTime, default=now)
+    updated_at = db.Column(db.DateTime, default=now, onupdate=now)
 
 class Memory(db.Model):
     __tablename__ = 'memories'
@@ -60,3 +66,4 @@ class Memory(db.Model):
     key = db.Column(db.String(100))
     value = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=now)
+    updated_at = db.Column(db.DateTime, default=now, onupdate=now)

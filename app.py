@@ -97,13 +97,13 @@ def ya_esta_procesado(message_id: str) -> bool:
         mensajes_procesados.append(message_id)
         return False
 
-def guardar_memoria(session_id, clave, valor):
-    mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
-    if not mem:
-        mem = Memory(session_id=session_id, key=clave)
-        db.session.add(mem)
-    mem.value = valor
-    db.session.commit()
+#def guardar_memoria(session_id, clave, valor):
+#    mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
+#    if not mem:
+#        mem = Memory(session_id=session_id, key=clave)
+#        db.session.add(mem)
+#    mem.value = valor
+#    db.session.commit()
 
 def obtener_ultimas_memorias(session_id, limite=6):
     memorias = Memory.query.filter_by(session_id=session_id)\
@@ -119,6 +119,171 @@ def guardar_memoria(session_id, key, value):
     except Exception as e:
         error_text = f"❌ Error al guardar memoria ({key}): {str(e)}"
         agregar_mensajes_log(error_text, session_id)
+
+def cargar_config(key, default=None, as_list=False):
+    config = Configuration.query.filter_by(key=key, status='activo').first()
+    if not config:
+        return default
+    if as_list:
+        # Puedes guardar el valor como JSON o texto separado por coma
+        import json
+        try:
+            return json.loads(config.value)
+        except Exception:
+            return [x.strip() for x in config.value.split(',') if x.strip()]
+    return config.value
+
+def validar_consulta_usuario(mensaje_usuario):
+    categorias = set(cargar_config('categorias_disponibles') or [])
+    marcas = set(cargar_config('marcas_permitidas') or [])
+    series = set(cargar_config('series_disponibles') or [])
+    no_vendemos = set(cargar_config('no_vendemos') or [])
+
+    texto = mensaje_usuario.lower()
+
+    for nv in no_vendemos:
+        if nv.lower() in texto:
+            return False, cargar_config('plantilla_no_manejamos', default="No manejamos ese producto.")
+
+    hay_categoria = any(cat.lower() in texto for cat in categorias)
+    hay_marca = any(marca.lower() in texto for marca in marcas)
+    hay_serie = any(serie.lower() in texto for serie in series)
+
+    if not (hay_categoria or hay_marca or hay_serie):
+        return False, "Por el momento solo manejamos: " + ", ".join(categorias)
+
+    return True, ""
+
+
+def obtener_categorias_woocommerce():
+    try:
+        url = f"{Config.WOOCOMMERCE_URL}/wp-json/wc/v3/products/categories"
+        auth = (Config.WOOCOMMERCE_KEY, Config.WOOCOMMERCE_SECRET)
+        params = {'per_page': 100}
+        response = requests.get(url, auth=auth, params=params)
+        response.raise_for_status()
+        data = response.json()
+        # Devuelve lista jerárquica: [{'id':..., 'name':..., 'parent':..., ...}, ...]
+        return data
+    except Exception as e:
+        print(f"Error al obtener categorías WooCommerce: {e}")
+        return []
+
+def obtener_marcas_woocommerce():
+    try:
+        url = f"{Config.WOOCOMMERCE_URL}/wp-json/wc/v3/products/attributes"
+        auth = (Config.WOOCOMMERCE_KEY, Config.WOOCOMMERCE_SECRET)
+        response = requests.get(url, auth=auth)
+        response.raise_for_status()
+        attrs = response.json()
+        marca_attr = next((a for a in attrs if a['name'].lower() == "marca"), None)
+        if not marca_attr:
+            return []
+        attr_id = marca_attr['id']
+        # Obtener los términos de ese atributo
+        url_terms = f"{Config.WOOCOMMERCE_URL}/wp-json/wc/v3/products/attributes/{attr_id}/terms"
+        response = requests.get(url_terms, auth=auth, params={'per_page': 100})
+        response.raise_for_status()
+        terms = response.json()
+        marcas = [t['name'] for t in terms]
+        return marcas
+    except Exception as e:
+        print(f"Error al obtener marcas WooCommerce: {e}")
+        return []
+
+def obtener_series_woocommerce():
+    try:
+        # Atributo "Motor"
+        url_attr = f"{Config.WOOCOMMERCE_URL}/wp-json/wc/v3/products/attributes"
+        auth = (Config.WOOCOMMERCE_KEY, Config.WOOCOMMERCE_SECRET)
+        response = requests.get(url_attr, auth=auth)
+        response.raise_for_status()
+        attrs = response.json()
+        motor_attr = next((a for a in attrs if a['name'].lower() == "motor"), None)
+        series = set()
+        if motor_attr:
+            attr_id = motor_attr['id']
+            url_terms = f"{Config.WOOCOMMERCE_URL}/wp-json/wc/v3/products/attributes/{attr_id}/terms"
+            response = requests.get(url_terms, auth=auth, params={'per_page': 100})
+            response.raise_for_status()
+            terms = response.json()
+            for t in terms:
+                series.add(t['name'])
+
+        # Etiquetas (pueden ser series adicionales)
+        url_tags = f"{Config.WOOCOMMERCE_URL}/wp-json/wc/v3/products/tags"
+        response = requests.get(url_tags, auth=auth, params={'per_page': 100})
+        response.raise_for_status()
+        tags = response.json()
+        for tag in tags:
+            name = tag['name']
+            # Puedes filtrar solo los que sean series, si tienes un patrón
+            if len(name) <= 10:  # Ejemplo simple: solo tags cortos
+                series.add(name)
+
+        return list(series)
+    except Exception as e:
+        print(f"Error al obtener series WooCommerce: {e}")
+        return []
+
+def guardar_en_configuration(clave, lista, descripcion=None):
+    from models import Configuration
+    import json
+    value = json.dumps(lista)
+    config = Configuration.query.filter_by(key=clave).first()
+    if not config:
+        config = Configuration(key=clave)
+        db.session.add(config)
+    config.value = value
+    config.status = "activo"
+    if descripcion:
+        config.descripcion = descripcion
+    db.session.commit()
+
+def sincronizar_configuracion_desde_woocommerce():
+    # Categorías
+    categorias = obtener_categorias_woocommerce()
+    nombres_categorias = []
+    for cat in categorias:
+        # Construye la jerarquía completa si quieres, aquí solo nombres planos
+        if cat['parent'] == 0:
+            subcats = [c['name'] for c in categorias if c['parent'] == cat['id']]
+            if subcats:
+                nombres_categorias.append(f"{cat['name']} ({', '.join(subcats)})")
+            else:
+                nombres_categorias.append(cat['name'])
+    guardar_en_configuration("categorias_disponibles", nombres_categorias, "Categorias y subcategorias de productos WooCommerce")
+    
+    # Marcas
+    marcas = obtener_marcas_woocommerce()
+    guardar_en_configuration("marcas_permitidas", marcas, "Marcas extraidas de atributo Marca WooCommerce")
+
+    # Series
+    series = obtener_series_woocommerce()
+    guardar_en_configuration("series_disponibles", series, "Series de motores de atributo Motor y etiquetas WooCommerce")
+
+
+def procesar_mensaje_usuario(state: BotState):
+    user_msg = state["user_msg"]
+    valido, msg = validar_consulta_usuario(user_msg)
+    if not valido:
+        state["response_data"] = [{
+            "messaging_product": "whatsapp",
+            "to": state["phone_number"],
+            "type": "text",
+            "text": {"body": msg}
+        }]
+        return state
+
+    # Aquí continúa el flujo normal: embeddings, WooCommerce, etc.
+    # 1. Busca candidatos con embeddings
+    # 2. Consulta WooCommerce (stock, precio)
+    # 3. Si falta info, pregunta usando plantillas (también editables desde config)
+    # 4. Si OK, responde con datos reales
+    return state
+
+
+
 
 # feriados configurables
 DIAS_FESTIVOS = {"2025-01-01","2025-04-17","2025-04-18","2025-05-01"}
@@ -1413,54 +1578,75 @@ def webhook_web():
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
 
-@flask_app.route('/configuracion', methods=['GET', 'POST'])
+from flask import render_template, request, redirect, jsonify
+from models import Configuration, db
+from config_sync import sincronizar_configuracion_desde_woocommerce
+
+@flask_app.route('/configuracion', methods=['GET'])
 def configuracion():
-    if request.method == 'POST':
-        key = request.form.get('key')
-        value = request.form.get('value')
-
-        if key and value:
-            try:
-                config_item = Configuration.query.filter_by(key=key).first()
-                if not config_item:
-                    config_item = Configuration(key=key)
-                    db.session.add(config_item)
-                config_item.value = value
-                db.session.commit()
-                agregar_mensajes_log(f"✅ Configuración actualizada desde /configuracion: {key} = {value}")
-            except Exception as e:
-                db.session.rollback()
-                agregar_mensajes_log(f"❌ Error en /configuracion: {str(e)}")
-
-        return redirect('/configuracion')
-
-    configuraciones = Configuration.query.order_by(Configuration.key.asc()).all()
-    return render_template('configuracion.html', config=configuraciones)
-
+    # Filtros básicos (por status o clave)
+    status = request.args.get('status')
+    q = request.args.get('q')
+    query = Configuration.query
+    if status:
+        query = query.filter_by(status=status)
+    if q:
+        query = query.filter(Configuration.key.like(f"%{q}%"))
+    configuraciones = query.order_by(Configuration.key.asc()).all()
+    return render_template('configuracion.html', config=configuraciones, status=status, q=q)
 
 @flask_app.route('/update-config', methods=['POST'])
 def update_config():
-    key = request.form.get('key')
+    config_id = request.form.get('id')
     value = request.form.get('value')
-
-    if not key or not value:
-        agregar_mensajes_log("❌ Error: clave o valor faltante al actualizar configuración.")
-        return "Faltan campos", 400
-
+    status = request.form.get('status')
+    descripcion = request.form.get('descripcion')
     try:
-        config_item = Configuration.query.filter_by(key=key).first()
-        if not config_item:
-            config_item = Configuration(key=key)
+        config_item = Configuration.query.get(config_id)
+        if config_item:
+            config_item.value = value
+            config_item.status = status
+            config_item.descripcion = descripcion
+            db.session.commit()
+        else:
+            config_item = Configuration(
+                key=request.form.get('key'),
+                value=value,
+                status=status,
+                descripcion=descripcion
+            )
             db.session.add(config_item)
-        config_item.value = value
-        db.session.commit()
-        agregar_mensajes_log(f"✅ Configuración actualizada: {key} = {value}")
+            db.session.commit()
+        return redirect('/configuracion')
     except Exception as e:
         db.session.rollback()
-        agregar_mensajes_log(f"❌ Error al guardar configuración: {str(e)}")
         return f"Error interno: {str(e)}", 500
 
-    return redirect('/')  # Regresa al index con datos actualizados
+@flask_app.route('/crear-config', methods=['POST'])
+def crear_config():
+    key = request.form.get('key')
+    value = request.form.get('value')
+    status = request.form.get('status')
+    descripcion = request.form.get('descripcion')
+    if not key or not value:
+        return "Faltan datos", 400
+    try:
+        config = Configuration(key=key, value=value, status=status, descripcion=descripcion)
+        db.session.add(config)
+        db.session.commit()
+        return redirect('/configuracion')
+    except Exception as e:
+        db.session.rollback()
+        return f"Error interno: {str(e)}", 500
+
+@flask_app.route('/sincronizar-config', methods=['POST'])
+def sincronizar_config():
+    try:
+        sincronizar_configuracion_desde_woocommerce()
+        return redirect('/configuracion')
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+
 
 @flask_app.route('/delete-config', methods=['POST'])
 def delete_config():
