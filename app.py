@@ -13,7 +13,7 @@ import http.client
 import os
 from flask import Flask, request, jsonify, render_template, redirect
 from flask_sqlalchemy import SQLAlchemy
-from formularios import formulario_motor, manejar_paso_actual
+from formularios import manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
 from datetime import datetime, timedelta
 from pytz import timezone

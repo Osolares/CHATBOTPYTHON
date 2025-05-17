@@ -3,7 +3,7 @@ from models import UserSession, ProductModel, db
 from session_manager import load_or_create_session, get_session
 from menus import generar_list_menu, generar_menu_principal
 import time
-from catalog_service import get_marcas_permitidas, get_series_disponibles, get_categorias_disponibles
+#from catalog_service import get_marcas_permitidas, get_series_disponibles, get_categorias_disponibles
 
 lista_cancelar = ["exit", "cancel", "salir", "cancelar"]
 
@@ -451,46 +451,3 @@ def actualizar_interaccion(number):
     if session:
         session.last_interaction = datetime.utcnow()
         db.session.commit()
-
-# formularios.py (ajustado a tu lógica existente)
-from services.woocommerce_service import WooCommerceService
-from services.knowledge_service import KnowledgeService
-
-woocommerce_service = WooCommerceService()
-knowledge_service = KnowledgeService()
-
-def manejar_consulta_producto(user_msg, categoria=None, marca=None, serie=None):
-    # Validar que todos los campos estén presentes
-    faltantes = []
-    if not categoria:
-        faltantes.append("categoría del producto")
-    if not marca:
-        faltantes.append("marca")
-    if not serie:
-        faltantes.append("serie del motor")
-
-    if faltantes:
-        faltan_texto = ', '.join(faltantes)
-        return f"Para ayudarte necesito que me indiques: {faltan_texto}"
-
-    # Validar conocimiento experto
-    errores = knowledge_service.validar_info(categoria, marca, serie)
-    if errores:
-        return "\n".join(errores)
-
-    # Consultar WooCommerce
-    productos = woocommerce_service.buscar_producto(categoria, marca, serie)
-    
-    if not productos:
-        return "No encontramos productos disponibles con estas características en este momento."
-
-    # Formatear respuesta según resultados
-    if len(productos) == 1:
-        p = productos[0]
-        return f"Tengo disponible: {p['name']} por Q{p['price']}. Ver aquí: {p['permalink']}"
-    else:
-        respuesta = "Encontré varias opciones disponibles:\n"
-        for idx, p in enumerate(productos, 1):
-            respuesta += f"{idx}. {p['name']} (Q{p['price']})\n"
-        respuesta += "\nPor favor, indica cuál producto te interesa específicamente."
-        return respuesta
