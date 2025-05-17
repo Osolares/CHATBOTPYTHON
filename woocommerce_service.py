@@ -368,4 +368,28 @@ class WooCommerceService:
         except Exception as e:
             print(f"Error buscando productos con filtros: {str(e)}")
             return []
-    
+
+    def buscar_productos_con_filtros(self, filtros):
+        params = {"status": "publish", "per_page": 5}
+        if filtros.get("categoria"):
+            # Debes mapear tu 'categoria' a su id o slug real si es necesario
+            params["search"] = filtros["categoria"]
+        if filtros.get("marca"):
+            params["attribute"] = "pa_marca"
+            params["attribute_term"] = filtros["marca"]
+        if filtros.get("modelo"):
+            params["search"] += " " + filtros["modelo"]
+        if filtros.get("anio"):
+            params["search"] += " " + filtros["anio"]
+        # Puedes adaptar params según cómo almacenas datos en WooCommerce
+        try:
+            response = requests.get(
+                f"{self.base_url}/products",
+                params=params,
+                auth=self.auth
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error buscando productos con filtros: {str(e)}")
+            return []

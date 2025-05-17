@@ -605,126 +605,96 @@ def handle_special_commands(state: BotState) -> BotState:
 #
 #    return state
 
-from intenciones import buscar_coincidencia_aproximada, cargar_configuracion
+PROMPT_EXTRACCION = """
+Eres un asistente de cotizaciones de repuestos de autos. 
+Extrae SOLO la información relevante en formato JSON, dejando en null los campos que no puedas identificar. 
+Responde solo el JSON.
+
+Ejemplo:
+Entrada: "Quiero un alternador Toyota Hilux 2016 diésel"
+Salida:
+{
+    "categoria": "alternador",
+    "marca": "Toyota",
+    "modelo": "Hilux",
+    "anio": "2016",
+    "serie": null,
+    "combustible": "diésel"
+}
+
+Entrada: "{user_msg}"
+Salida:
+"""
+import json
+
+CAMPOS_COTIZACION = ["categoria", "marca", "modelo", "anio"]  # Personalízalo según tus necesidades
 
 def asistente(state: BotState) -> BotState:
-    user_msg = state["user_msg"].lower()
+    user_msg = state["user_msg"]
+    session = state.get("session")
+    session_id = session.idUser if session else None
 
-    # Cargar catálogos
-    categorias = cargar_configuracion(Configuration, "categorias_disponibles")
-    marcas = cargar_configuracion(Configuration, "marca_disponibles")
-    series = cargar_configuracion(Configuration, "motor_disponibles")
+    # 1. Recuperar memoria de slots actual
+    memoria_actual = None
+    if session_id:
+        memorias = obtener_ultimas_memorias(session_id, limite=10)
+        for m in reversed(memorias):
+            if m.key == "slots_cotizacion":
+                try:
+                    memoria_actual = json.loads(m.value)
+                except:
+                    memoria_actual = None
+                break
+    if not memoria_actual:
+        memoria_actual = {campo: None for campo in CAMPOS_COTIZACION + ["serie", "combustible"]}
 
-    # Detectar entidades principales
-    categoria = buscar_coincidencia_aproximada(user_msg, categorias)
-    marca = buscar_coincidencia_aproximada(user_msg, marcas)
-    serie = buscar_coincidencia_aproximada(user_msg, series)
+    # 2. Enviar el mensaje al LLM para extraer datos
+    prompt = PROMPT_EXTRACCION.format(user_msg=user_msg)
+    response = model.invoke([HumanMessage(content=prompt)])
+    try:
+        extraidos = json.loads(response.content)
+    except Exception as e:
+        import re
+        m = re.search(r"\{.*?\}", response.content, re.DOTALL)
+        extraidos = json.loads(m.group(0)) if m else {}
 
-    agregar_mensajes_log(f"Categorias: {json.dumps(categorias)} Marcas: {json.dumps(marcas)} series: {json.dumps(series)} ")
-    agregar_mensajes_log(f"Categorias_encontradas: {json.dumps(categoria)} Marcas_encontradas: {json.dumps(marca)} series_encontradas: {json.dumps(serie)} ")
+    # 3. Actualizar los slots
+    for campo in memoria_actual:
+        nuevo = extraidos.get(campo)
+        if nuevo:
+            memoria_actual[campo] = nuevo
 
-    faltantes = []
-    if not categoria: faltantes.append("categoría (ej: alternador, bomba, etc.)")
-    if not marca: faltantes.append("marca (ej: Toyota, Nissan, Hyundai)")
-    # Puedes pedir serie solo si lo necesitas para cotizar, si no, no lo pongas aquí.
+    # 4. Guardar slots actualizados
+    if session_id:
+        guardar_memoria(session_id, "slots_cotizacion", json.dumps(memoria_actual, ensure_ascii=False))
 
-    if not faltantes:
-        # Ya tienes al menos marca y categoría. ¡Buscar!
-        filtros = {}
-        cat = next((c for c in categorias if c['nombre'].lower() == categoria.lower()), None)
-        if cat: filtros["category"] = cat["id"]
-        filtros["marca"] = marca
-        # Si quieres, puedes agregar "serie": serie
-
-        productos = woo_service.buscar_productos_con_filtros(filtros)
-        if productos:
-            mensaje = woo_service.formatear_producto_whatsapp(productos[0])
-            state["response_data"] = [{
-                "messaging_product": "whatsapp",
-                "to": state.get("phone_number"),
-                "type": "text",
-                "text": {"body": mensaje}
-            }]
-        else:
-            state["response_data"] = [{
-                "messaging_product": "whatsapp",
-                "to": state.get("phone_number"),
-                "type": "text",
-                "text": {"body": "No encontramos ese producto para esa marca. ¿Quieres probar con otra marca o repuesto?"}
-            }]
-        return state
-    else:
-        # FALTAN DATOS: ¡pregúntale lo que falta!
-        pregunta = "Para poder cotizar, necesito que me indiques: " + ", ".join(faltantes) + "."
+    # 5. ¿Faltan datos?
+    faltantes = [campo for campo in CAMPOS_COTIZACION if not memoria_actual.get(campo)]
+    if faltantes:
+        pregunta = "Para cotizar necesito que me indiques: " + ", ".join(faltantes) + "."
         state["response_data"] = [{
-            "messaging_product": "whatsapp",
-            "to": state.get("phone_number"),
+            "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
+            "to": state.get("phone_number") or state.get("email"),
             "type": "text",
             "text": {"body": pregunta}
         }]
-        return state
+    else:
+        # 6. Consultar WooCommerce y responder
+        productos = woo_service.buscar_productos_con_filtros(memoria_actual)
+        if productos:
+            mensaje = woo_service.formatear_producto_whatsapp(productos[0])
+        else:
+            mensaje = "No encontramos ese producto exacto en inventario. ¿Quieres intentar con otra marca/modelo?"
 
-def send_messages(state: BotState) -> BotState:
-    """Envía mensajes al canal correcto según la fuente."""
-    session_id = state["session"].idUser if state.get("session") else None
-    source = state.get("source")
-    messages = state.get("response_data", [])
+        state["response_data"] = [{
+            "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
+            "to": state.get("phone_number") or state.get("email"),
+            "type": "text",
+            "text": {"body": mensaje}
+        }]
+        # Puedes limpiar la memoria de slots si el flujo terminó aquí
 
-    #message_id = state.get("message_data", {}).get("id", "")  # Versión segura (evita KeyError)
-    #si estás seguro de que message_data siempre existe y es un diccionario:
-    message_id = state["message_data"]["id"]  # Directo (puede lanzar KeyError si falta algún campo)
-
-    #agregar_mensajes_log(f"🔁 Iniciando envío de mensajes para {source}...", session_id)
-
-    if not messages:
-        log_state(state, "⚠️ No hay mensajes para enviar.")
-        return state
-
-    for index, mensaje in enumerate(messages):
-        try:
-            #log_state(state, f"📤 Enviando mensaje {index + 1} de {len(messages)}: {mensaje}")
-
-            if source == "whatsapp":
-
-                if message_id :
-
-                    typing_indicator = ({
-                      "messaging_product": "whatsapp",
-                      "status": "read",
-                      "message_id": message_id,
-                      "typing_indicator": {
-                        "type": "text"
-                      }
-                    })
-                    bot_enviar_mensaje_whatsapp(typing_indicator, state)
-
-                time.sleep(4)
-
-                bot_enviar_mensaje_whatsapp(mensaje, state)
-
-
-            elif source == "telegram":
-                bot_enviar_mensaje_telegram(mensaje, state)
-            elif source == "messenger":
-                bot_enviar_mensaje_messenger(mensaje, state)
-            elif source == "web":
-                bot_enviar_mensaje_web(mensaje, state)
-            else:
-                log_state(state, f"❌ Fuente no soportada: {source}")
-
-            #agregar_mensajes_log(json.dumps(mensaje, ensure_ascii=False), session_id)
-
-
-            # Espera prudente entre mensajes para no saturar el canal (WhatsApp sobre todo)
-            time.sleep(1.0)
-
-        except Exception as e:
-            error_msg = f"❌ Error enviando mensaje ({source}): {str(e)}"
-            agregar_mensajes_log(error_msg, session_id)
-            log_state(state, f"⏺️ ERROR en send_messages: {error_msg}")
-
-    log_state(state, f"✅ Envío de mensajes completado para {source}")
-
+    log_state(state, f"Slots actuales: {memoria_actual}")
     return state
 
 # ------------------------------------------
