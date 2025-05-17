@@ -1,6 +1,7 @@
 import re
 from models import Configuration
 from flask import current_app
+import json
 
 def cargar_lista_config(key):
     config = Configuration.query.filter_by(key=key, status='activo').first()

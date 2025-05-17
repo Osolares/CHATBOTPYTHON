@@ -63,9 +63,7 @@ def nlu_product_finder(state):
             "type": "text",
             "text": {
                 "preview_url": True,
-                "body": f"✅ Encontramos: *{nombre}*
-💲 Q{precio}
-🔗 {url}"
+                "body": f"✅ Encontramos: *{nombre}*💲 Q{precio}🔗 {url}"
             }
         })
 
