@@ -625,9 +625,44 @@ Salida:
 Entrada: "{user_msg}"
 Salida:
 """
-import json
 
-CAMPOS_COTIZACION = ["categoria", "marca", "modelo", "anio"]  # Personalízalo según tus necesidades
+def extraer_json_llm(texto):
+    """
+    Busca el primer bloque JSON en el texto.
+    Si lo encuentra, lo convierte a dict; si no, retorna {}.
+    """
+    try:
+        match = re.search(r"\{[\s\S]*\}", texto)
+        if match:
+            return json.loads(match.group())
+        else:
+            return {}
+    except Exception as e:
+        print("❌ Error extrayendo JSON del LLM:", e)
+        return {}
+
+CAMPOS_COTIZACION = ["categoria", "marca", "modelo", "anio"]  # Puedes añadir "serie", "combustible" si quieres
+
+PROMPT_EXTRACCION = """
+Eres un asistente de cotizaciones para repuestos de autos. 
+Recibe un mensaje y extrae SOLO la información relevante en formato JSON, dejando en null los campos que no puedas identificar. 
+Responde solo el JSON.
+
+Ejemplo:
+Entrada: "Quiero un alternador Toyota Hilux 2016 diésel"
+Salida:
+{
+    "categoria": "alternador",
+    "marca": "Toyota",
+    "modelo": "Hilux",
+    "anio": "2016",
+    "serie": null,
+    "combustible": "diésel"
+}
+
+Entrada: "{user_msg}"
+Salida:
+"""
 
 def asistente(state: BotState) -> BotState:
     user_msg = state["user_msg"]
@@ -651,12 +686,7 @@ def asistente(state: BotState) -> BotState:
     # 2. Enviar el mensaje al LLM para extraer datos
     prompt = PROMPT_EXTRACCION.format(user_msg=user_msg)
     response = model.invoke([HumanMessage(content=prompt)])
-    try:
-        extraidos = json.loads(response.content)
-    except Exception as e:
-        import re
-        m = re.search(r"\{.*?\}", response.content, re.DOTALL)
-        extraidos = json.loads(m.group(0)) if m else {}
+    extraidos = extraer_json_llm(response.content)
 
     # 3. Actualizar los slots
     for campo in memoria_actual:
@@ -692,7 +722,7 @@ def asistente(state: BotState) -> BotState:
             "type": "text",
             "text": {"body": mensaje}
         }]
-        # Puedes limpiar la memoria de slots si el flujo terminó aquí
+        # Si quieres limpiar la memoria de slots aquí puedes hacerlo
 
     log_state(state, f"Slots actuales: {memoria_actual}")
     return state
