@@ -576,10 +576,9 @@ Solo responde sobre:
 - Piezas, partes o repuestos de automóviles
 
 No incluyas información innecesaria (como el número de palabras).
-nunca confirmes exitencias, precio, etc.
+nunca confirmes exitencias, precio, etc
 
-hasta cuando tengas todos los datos del vehiculo y del repuesto que necesitan responde que un colaborador respondera a la solicitud de lo contrario pide datos del vehiculo y del repuesto
-Sólo si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
+Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
 
 {prompt_usuario}
 """
