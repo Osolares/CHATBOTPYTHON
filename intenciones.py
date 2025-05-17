@@ -31,8 +31,9 @@ def cargar_configuracion(db_model, clave):
 def buscar_coincidencia_aproximada(texto_usuario, lista_opciones, clave="nombre", threshold=80):
     opciones = [item[clave] for item in lista_opciones if clave in item]
     result = process.extractOne(
-        texto_usuario, opciones, scorer=fuzz.token_set_ratio, score_cutoff=threshold)
+        texto_usuario, opciones, scorer=fuzz.token_set_ratio, score_cutoff=threshold
+    )
     if result is None:
         return None
     mejor, score, idx = result
-    return opciones[idx]
+    return mejor  # O puedes retornar opciones[idx], que es lo mismo
