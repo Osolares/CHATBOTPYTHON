@@ -582,7 +582,6 @@ Si el mensaje no está relacionado, responde cortésmente indicando que solo pue
 
 {prompt_usuario}
 """
-
         # 🤖 Llamar al modelo
         response = model.invoke([HumanMessage(content=safety_prompt)])
         body = response.content
