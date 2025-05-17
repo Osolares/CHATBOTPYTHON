@@ -605,35 +605,13 @@ def handle_special_commands(state: BotState) -> BotState:
 #
 #    return state
 
-PROMPT_EXTRACCION = """
-Eres un asistente de cotizaciones de repuestos de autos. 
-Extrae SOLO la información relevante en formato JSON, dejando en null los campos que no puedas identificar. 
-Responde solo el JSON.
-
-Ejemplo:
-Entrada: "Quiero un alternador Toyota Hilux 2016 diésel"
-Salida:
-{
-    "categoria": "alternador",
-    "marca": "Toyota",
-    "modelo": "Hilux",
-    "anio": "2016",
-    "serie": null,
-    "combustible": "diésel"
-}
-
-Entrada: "{user_msg}"
-Salida:
-"""
-
-import re
-import json
 
 def extraer_json_llm(texto):
     """
-    Extrae el primer bloque JSON de un texto.
-    Si no hay, intenta armarlo a mano si solo vienen pares clave: valor.
+    Extrae un JSON de la respuesta del LLM, aunque no tenga llaves.
     """
+    agregar_mensajes_log("🔁 Mensaje en extraer json llm", texto)
+
     # 1. Busca el primer bloque {...}
     try:
         match = re.search(r"\{[\s\S]*\}", texto)
@@ -642,23 +620,24 @@ def extraer_json_llm(texto):
     except Exception as e:
         print("❌ Error extrayendo JSON estándar:", e)
 
-    # 2. Si no hay {}, intenta parsear líneas tipo: "clave": "valor", ...
+    # 2. Si NO tiene {}, intenta armar el dict con pares clave:valor
     try:
-        # Extrae pares "clave": valor usando regex
-        pairs = re.findall(r'"([^"]+)"\s*:\s*("?[^",}]+?"?)', texto)
+        # Saca todas las líneas tipo: "clave": valor
+        pairs = re.findall(r'["\']?([\w_]+)["\']?\s*:\s*("?[^",\n]+?"?|null)', texto)
         if pairs:
             d = {}
             for k, v in pairs:
-                v_clean = v.strip('"') if isinstance(v, str) else v
-                if v_clean.lower() == "null":
-                    v_clean = None
-                d[k] = v_clean
+                v = v.strip().strip('"')
+                if v.lower() == "null":
+                    v = None
+                d[k] = v
             return d
     except Exception as e:
         print("❌ Error extrayendo pares clave:valor:", e)
 
-    # 3. Si tampoco, retorna dict vacío
+    # 3. Si nada, regresa dict vacío
     return {}
+
 
 CAMPOS_COTIZACION = ["categoria", "marca", "modelo", "anio"]  # Puedes añadir "serie", "combustible" si quieres
 
