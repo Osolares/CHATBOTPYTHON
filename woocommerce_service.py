@@ -4,7 +4,7 @@ from datetime import datetime
 import random
 import re
 from html import unescape
-from catalog_service import get_woocommerce
+#from catalog_service import get_woocommerce
 
 class WooCommerceService:
     def __init__(self):
