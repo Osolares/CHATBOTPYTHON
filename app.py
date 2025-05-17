@@ -606,7 +606,6 @@ def handle_special_commands(state: BotState) -> BotState:
 #    return state
 
 
-from models import Configuration
 from intenciones import detectar_entidad, cargar_configuracion
 
 def asistente(state: BotState) -> BotState:
@@ -622,6 +621,9 @@ def asistente(state: BotState) -> BotState:
     categoria_encontrada = detectar_entidad(user_msg, categorias)
     marca_encontrada = detectar_entidad(user_msg, marcas)
     serie_encontrada = detectar_entidad(user_msg, series)
+
+    agregar_mensajes_log(f"Categorias: {json.dumps(categorias)} Marcas: {json.dumps(marcas)} series: {json.dumps(series)} etiquetas: {json.dumps(etiquetas)}")
+    agregar_mensajes_log(f"Categorias_encontradas: {json.dumps(categoria_encontrada)} Marcas_encontradas: {json.dumps(marca_encontrada)} series_encontradas: {json.dumps(serie_encontrada)} ")
 
     # --- Paso 3: Buscar producto en WooCommerce SOLO SI existe la entidad ---
     if any([categoria_encontrada, marca_encontrada, serie_encontrada]):
@@ -656,7 +658,7 @@ def asistente(state: BotState) -> BotState:
 
     # --- Paso 4: Si no detecta entidad válida, responder seguro con LLM ---
     prompt = (
-        "Responde SOLO sobre productos, marcas, series o categorías que manejamos."
+        "Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, responde muy amablemente y en solo unas palabras máximo 50 usa emojis ocasionalmente según sea necesario. "
         "\nSi no está en nuestro catálogo, indícalo amablemente. "
         "\n\nMensaje del usuario: " + user_msg
     )
