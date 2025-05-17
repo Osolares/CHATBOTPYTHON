@@ -1,5 +1,6 @@
 import re
 import json
+from rapidfuzz import process, fuzz
 
 def detectar_entidad(texto, lista_config):
     """
@@ -26,15 +27,12 @@ def cargar_configuracion(db_model, clave):
             return []
     return []
 
-from rapidfuzz import process, fuzz
 
 def buscar_coincidencia_aproximada(texto_usuario, lista_opciones, clave="nombre", threshold=80):
-    """
-    Busca el elemento más parecido en la lista de opciones usando rapidfuzz.
-    """
     opciones = [item[clave] for item in lista_opciones if clave in item]
-    mejor, score, idx = process.extractOne(
+    result = process.extractOne(
         texto_usuario, opciones, scorer=fuzz.token_set_ratio, score_cutoff=threshold)
-    if mejor:
-        return opciones[idx]
-    return None
+    if result is None:
+        return None
+    mejor, score, idx = result
+    return opciones[idx]
