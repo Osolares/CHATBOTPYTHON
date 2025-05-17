@@ -649,18 +649,19 @@ Responde solo el JSON.
 Ejemplo:
 Entrada: "Quiero un alternador Toyota Hilux 2016 diésel"
 Salida:
-{
+{{
     "categoria": "alternador",
     "marca": "Toyota",
     "modelo": "Hilux",
     "anio": "2016",
     "serie": null,
     "combustible": "diésel"
-}
+}}
 
 Entrada: "{user_msg}"
 Salida:
 """
+
 
 def asistente(state: BotState) -> BotState:
     user_msg = state["user_msg"]
