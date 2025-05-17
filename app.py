@@ -626,20 +626,39 @@ Entrada: "{user_msg}"
 Salida:
 """
 
+import re
+import json
+
 def extraer_json_llm(texto):
     """
-    Busca el primer bloque JSON en el texto.
-    Si lo encuentra, lo convierte a dict; si no, retorna {}.
+    Extrae el primer bloque JSON de un texto.
+    Si no hay, intenta armarlo a mano si solo vienen pares clave: valor.
     """
+    # 1. Busca el primer bloque {...}
     try:
         match = re.search(r"\{[\s\S]*\}", texto)
         if match:
             return json.loads(match.group())
-        else:
-            return {}
     except Exception as e:
-        print("❌ Error extrayendo JSON del LLM:", e)
-        return {}
+        print("❌ Error extrayendo JSON estándar:", e)
+
+    # 2. Si no hay {}, intenta parsear líneas tipo: "clave": "valor", ...
+    try:
+        # Extrae pares "clave": valor usando regex
+        pairs = re.findall(r'"([^"]+)"\s*:\s*("?[^",}]+?"?)', texto)
+        if pairs:
+            d = {}
+            for k, v in pairs:
+                v_clean = v.strip('"') if isinstance(v, str) else v
+                if v_clean.lower() == "null":
+                    v_clean = None
+                d[k] = v_clean
+            return d
+    except Exception as e:
+        print("❌ Error extrayendo pares clave:valor:", e)
+
+    # 3. Si tampoco, retorna dict vacío
+    return {}
 
 CAMPOS_COTIZACION = ["categoria", "marca", "modelo", "anio"]  # Puedes añadir "serie", "combustible" si quieres
 
