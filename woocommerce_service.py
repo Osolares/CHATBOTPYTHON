@@ -239,33 +239,6 @@ class WooCommerceService:
             print(f"Error al formatear producto: {str(e)}")
             return "⚠️ Hubo un problema al mostrar la información del producto."
 
-
-    def buscar_productos(marca=None, linea=None, combustible=None, anio=None, tipo=None, serie=None):
-        params = {
-            'status': 'publish',
-            'per_page': 20,
-        }
-        if marca:
-            params['attribute'] = 'marca'
-            params['attribute_term'] = marca
-        if serie:
-            params['attribute'] = 'motor'
-            params['attribute_term'] = serie
-        if linea:
-            params['search'] = linea
-        if anio:
-            params['attribute'] = 'año'
-            params['attribute_term'] = anio
-        if tipo:
-            params['search'] = tipo
-
-        productos = get_woocommerce('products', params=params)
-        return productos
-
-
-
-
-
 #def formatear_producto_whatsapp(self, producto):
 #    try:
 #        nombre = producto.get('name', 'Producto sin nombre')
