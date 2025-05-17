@@ -579,8 +579,8 @@ Solo responde sobre:
 No incluyas información innecesaria (como el número de palabras).
 nunca confirmes exitencias, precio, etc.
 
-en el momento que tengas todos los datos del vehiculo y del repuesto que necesitan, responde que un colaborador respondera a la solicitud
-Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
+sólo si tines todos los datos del vehiculo y del repuesto que necesitan, responde que un colaborador respondera a la solicitud
+Sólo si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
 
 {prompt_usuario}
 """
