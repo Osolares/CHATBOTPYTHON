@@ -1487,7 +1487,7 @@ from woocommerce.sync_config_from_woo import actualizar_configuracion_desde_wooc
 @flask_app.route("/actualizar-configuracion-woocommerce")
 def actualizar_configuracion_woocommerce():
     try:
-        actualizar_configuracion_desde_woocommerce()
+        actualizar_configuracion_desde_woocommerce(flask_app)
         return "✅ Configuración actualizada desde WooCommerce", 200
     except Exception as e:
         return f"❌ Error: {str(e)}", 500

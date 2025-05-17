@@ -1,7 +1,7 @@
 import json
 from woocommerce_service import WooCommerceService
 from models import db, Configuration
-from app import flask_app
+#from app import flask_app
 
 def guardar_configuracion(key, value_list):
     value_str = json.dumps(sorted(set(value_list)))
@@ -12,8 +12,9 @@ def guardar_configuracion(key, value_list):
     config.value = value_str
     db.session.commit()
 
-def actualizar_configuracion_desde_woocommerce():
+def actualizar_configuracion_desde_woocommerce(flask_app):
     with flask_app.app_context():
+
         woo = WooCommerceService()
         productos = woo.obtener_todos_los_productos(limit=100)
 
