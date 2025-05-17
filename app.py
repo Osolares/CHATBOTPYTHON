@@ -22,7 +22,7 @@ import re
 import threading
 from collections import deque
 from langchain_groq import ChatGroq
-from formulario import iniciar_flujo, manejar_confirmacion
+#from formulario import iniciar_flujo, manejar_confirmacion
 from nodos.nlu_product_finder import nlu_product_finder
 
 # Instancia global del servicio
