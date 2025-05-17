@@ -59,6 +59,7 @@ pydantic_core==2.33.1
 python-dotenv==1.1.0
 pytz==2025.2
 PyYAML==6.0.2
+RapidFuzz==3.13.0
 regex==2024.11.6
 requests==2.32.3
 requests-toolbelt==1.0.0

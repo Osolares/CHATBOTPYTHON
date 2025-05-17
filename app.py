@@ -605,41 +605,39 @@ def handle_special_commands(state: BotState) -> BotState:
 #
 #    return state
 
-
-from intenciones import detectar_entidad, cargar_configuracion
+from intenciones import buscar_coincidencia_aproximada, cargar_configuracion
 
 def asistente(state: BotState) -> BotState:
-    user_msg = state["user_msg"]
+    user_msg = state["user_msg"].lower()
 
-    # --- Paso 1: Cargar configuraciones ---
+    # Cargar catálogos
     categorias = cargar_configuracion(Configuration, "categorias_disponibles")
     marcas = cargar_configuracion(Configuration, "marca_disponibles")
     series = cargar_configuracion(Configuration, "motor_disponibles")
-    etiquetas = cargar_configuracion(Configuration, "etiquetas_disponibles")
 
-    # --- Paso 2: Detección de intención/entidades ---
-    categoria_encontrada = detectar_entidad(user_msg, categorias)
-    marca_encontrada = detectar_entidad(user_msg, marcas)
-    serie_encontrada = detectar_entidad(user_msg, series)
+    # Detectar entidades principales
+    categoria = buscar_coincidencia_aproximada(user_msg, categorias)
+    marca = buscar_coincidencia_aproximada(user_msg, marcas)
+    serie = buscar_coincidencia_aproximada(user_msg, series)
 
-    agregar_mensajes_log(f"Categorias: {json.dumps(categorias)} Marcas: {json.dumps(marcas)} series: {json.dumps(series)} etiquetas: {json.dumps(etiquetas)}")
-    agregar_mensajes_log(f"Categorias_encontradas: {json.dumps(categoria_encontrada)} Marcas_encontradas: {json.dumps(marca_encontrada)} series_encontradas: {json.dumps(serie_encontrada)} ")
+    agregar_mensajes_log(f"Categorias: {json.dumps(categorias)} Marcas: {json.dumps(marcas)} series: {json.dumps(series)} ")
+    agregar_mensajes_log(f"Categorias_encontradas: {json.dumps(categoria)} Marcas_encontradas: {json.dumps(marca)} series_encontradas: {json.dumps(serie)} ")
 
-    # --- Paso 3: Buscar producto en WooCommerce SOLO SI existe la entidad ---
-    if any([categoria_encontrada, marca_encontrada, serie_encontrada]):
+    faltantes = []
+    if not categoria: faltantes.append("categoría (ej: alternador, bomba, etc.)")
+    if not marca: faltantes.append("marca (ej: Toyota, Nissan, Hyundai)")
+    # Puedes pedir serie solo si lo necesitas para cotizar, si no, no lo pongas aquí.
+
+    if not faltantes:
+        # Ya tienes al menos marca y categoría. ¡Buscar!
         filtros = {}
-        if categoria_encontrada:
-            cat = next((c for c in categorias if c['nombre'].lower() == categoria_encontrada), None)
-            if cat: filtros["category"] = cat["id"]
-        if marca_encontrada:
-            filtros["marca"] = marca_encontrada  # depende cómo está el atributo en tu Woo, ajústalo si usas attribute/slug
-        if serie_encontrada:
-            filtros["serie"] = serie_encontrada
+        cat = next((c for c in categorias if c['nombre'].lower() == categoria.lower()), None)
+        if cat: filtros["category"] = cat["id"]
+        filtros["marca"] = marca
+        # Si quieres, puedes agregar "serie": serie
 
-        # -- Buscar productos en WooCommerce --
         productos = woo_service.buscar_productos_con_filtros(filtros)
         if productos:
-            # Formatear y responder el primer producto (puedes listar más)
             mensaje = woo_service.formatear_producto_whatsapp(productos[0])
             state["response_data"] = [{
                 "messaging_product": "whatsapp",
@@ -652,24 +650,19 @@ def asistente(state: BotState) -> BotState:
                 "messaging_product": "whatsapp",
                 "to": state.get("phone_number"),
                 "type": "text",
-                "text": {"body": "😕 No tenemos stock de esa opción. ¿Quieres consultar otra marca o categoría?"}
+                "text": {"body": "No encontramos ese producto para esa marca. ¿Quieres probar con otra marca o repuesto?"}
             }]
         return state
-
-    # --- Paso 4: Si no detecta entidad válida, responder seguro con LLM ---
-    prompt = (
-        "Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, responde muy amablemente y en solo unas palabras máximo 50 usa emojis ocasionalmente según sea necesario. "
-        "\nSi no está en nuestro catálogo, indícalo amablemente. "
-        "\n\nMensaje del usuario: " + user_msg
-    )
-    response = model.invoke([HumanMessage(content=prompt)])
-    state["response_data"] = [{
-        "messaging_product": "whatsapp",
-        "to": state.get("phone_number"),
-        "type": "text",
-        "text": {"body": response.content}
-    }]
-    return state
+    else:
+        # FALTAN DATOS: ¡pregúntale lo que falta!
+        pregunta = "Para poder cotizar, necesito que me indiques: " + ", ".join(faltantes) + "."
+        state["response_data"] = [{
+            "messaging_product": "whatsapp",
+            "to": state.get("phone_number"),
+            "type": "text",
+            "text": {"body": pregunta}
+        }]
+        return state
 
 def send_messages(state: BotState) -> BotState:
     """Envía mensajes al canal correcto según la fuente."""
