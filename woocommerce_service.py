@@ -280,3 +280,62 @@ class WooCommerceService:
 #    except Exception as e:
 #        print(f"Error al formatear producto: {str(e)}")
 #        return "⚠️ Hubo un problema al mostrar la información del producto."
+
+# --- NUEVAS FUNCIONES PARA CATEGORÍAS, ATRIBUTOS Y ETIQUETAS ---
+
+    def obtener_categorias(self):
+        """Obtiene todas las categorías de productos"""
+        try:
+            response = requests.get(
+                f"{self.base_url}/products/categories",
+                auth=self.auth,
+                params={'per_page': 100}  # Puedes paginar si tienes muchas
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error al obtener categorías: {str(e)}")
+            return []
+    
+    def obtener_atributos(self):
+        """Obtiene todos los atributos (como marca, motor, etc)"""
+        try:
+            response = requests.get(
+                f"{self.base_url}/products/attributes",
+                auth=self.auth,
+                params={'per_page': 100}
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error al obtener atributos: {str(e)}")
+            return []
+    
+    def obtener_terminos_atributo(self, attribute_id):
+        """Obtiene los términos de un atributo dado (ej: todas las marcas)"""
+        try:
+            response = requests.get(
+                f"{self.base_url}/products/attributes/{attribute_id}/terms",
+                auth=self.auth,
+                params={'per_page': 100}
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error al obtener términos atributo {attribute_id}: {str(e)}")
+            return []
+    
+    def obtener_etiquetas(self):
+        """Obtiene todas las etiquetas (tags) de productos"""
+        try:
+            response = requests.get(
+                f"{self.base_url}/products/tags",
+                auth=self.auth,
+                params={'per_page': 100}
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error al obtener etiquetas: {str(e)}")
+            return []
+    

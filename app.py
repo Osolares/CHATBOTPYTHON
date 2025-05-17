@@ -13,7 +13,7 @@ import http.client
 import os
 from flask import Flask, request, jsonify, render_template, redirect
 from flask_sqlalchemy import SQLAlchemy
-from formularios import manejar_paso_actual
+from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -22,12 +22,9 @@ import re
 import threading
 from collections import deque
 from langchain_groq import ChatGroq
-#from formulario import iniciar_flujo, manejar_confirmacion
-from nodos.nlu_product_finder import nlu_product_finder
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
-
 
 # Configuración de DeepSeek
 deepseek_key = os.environ["DEEPSEEK_API_KEY"]
@@ -100,13 +97,13 @@ def ya_esta_procesado(message_id: str) -> bool:
         mensajes_procesados.append(message_id)
         return False
 
-#def guardar_memoria(session_id, clave, valor):
-#    mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
-#    if not mem:
-#        mem = Memory(session_id=session_id, key=clave)
-#        db.session.add(mem)
-#    mem.value = valor
-#    db.session.commit()
+def guardar_memoria(session_id, clave, valor):
+    mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
+    if not mem:
+        mem = Memory(session_id=session_id, key=clave)
+        db.session.add(mem)
+    mem.value = valor
+    db.session.commit()
 
 def obtener_ultimas_memorias(session_id, limite=6):
     memorias = Memory.query.filter_by(session_id=session_id)\
@@ -988,7 +985,6 @@ workflow.add_node("load_session", load_or_create_session)
 workflow.add_node("pre_validaciones", pre_validaciones)
 workflow.add_node("load_product_flow", load_product_flow)
 workflow.add_node("handle_product_flow", handle_product_flow)
-workflow.add_node("nlu_product_finder", nlu_product_finder)
 workflow.add_node("handle_special_commands", handle_special_commands)
 workflow.add_node("asistente", asistente)
 workflow.add_node("send_messages", send_messages)
@@ -998,9 +994,8 @@ workflow.add_node("merge_responses", merge_responses)  # Nuevo nodo
 workflow.add_edge("load_session", "pre_validaciones")
 workflow.add_edge("pre_validaciones", "load_product_flow")
 workflow.add_edge("load_product_flow", "handle_product_flow")
-#workflow.add_edge("handle_product_flow", "handle_special_commands")
-workflow.add_edge("handle_product_flow", "nlu_product_finder")
-workflow.add_edge("nlu_product_finder", "handle_special_commands")
+workflow.add_edge("handle_product_flow", "handle_special_commands")
+
 # Condicional entre comandos y asistente
 def enrutar_despues_comandos(state: BotState) -> str:
     if state.get("skip_processing", False):
@@ -1418,54 +1413,30 @@ def webhook_web():
         agregar_mensajes_log(error_msg)
         return jsonify({'status': 'error', 'message': error_msg}), 500
 
+# --- PANEL WEB DE CONFIGURACIONES ---
+from flask import render_template, request, redirect, jsonify
+from models import Configuration
+from config import db
+
 @flask_app.route('/configuracion', methods=['GET', 'POST'])
 def configuracion():
     if request.method == 'POST':
         key = request.form.get('key')
         value = request.form.get('value')
+        descripcion = request.form.get('descripcion', '')
 
         if key and value:
-            try:
-                config_item = Configuration.query.filter_by(key=key).first()
-                if not config_item:
-                    config_item = Configuration(key=key)
-                    db.session.add(config_item)
-                config_item.value = value
-                db.session.commit()
-                agregar_mensajes_log(f"✅ Configuración actualizada desde /configuracion: {key} = {value}")
-            except Exception as e:
-                db.session.rollback()
-                agregar_mensajes_log(f"❌ Error en /configuracion: {str(e)}")
-
+            config_item = Configuration.query.filter_by(key=key).first()
+            if not config_item:
+                config_item = Configuration(key=key)
+                db.session.add(config_item)
+            config_item.value = value
+            config_item.descripcion = descripcion
+            db.session.commit()
         return redirect('/configuracion')
 
     configuraciones = Configuration.query.order_by(Configuration.key.asc()).all()
     return render_template('configuracion.html', config=configuraciones)
-
-
-@flask_app.route('/update-config', methods=['POST'])
-def update_config():
-    key = request.form.get('key')
-    value = request.form.get('value')
-
-    if not key or not value:
-        agregar_mensajes_log("❌ Error: clave o valor faltante al actualizar configuración.")
-        return "Faltan campos", 400
-
-    try:
-        config_item = Configuration.query.filter_by(key=key).first()
-        if not config_item:
-            config_item = Configuration(key=key)
-            db.session.add(config_item)
-        config_item.value = value
-        db.session.commit()
-        agregar_mensajes_log(f"✅ Configuración actualizada: {key} = {value}")
-    except Exception as e:
-        db.session.rollback()
-        agregar_mensajes_log(f"❌ Error al guardar configuración: {str(e)}")
-        return f"Error interno: {str(e)}", 500
-
-    return redirect('/')  # Regresa al index con datos actualizados
 
 @flask_app.route('/delete-config', methods=['POST'])
 def delete_config():
@@ -1475,30 +1446,15 @@ def delete_config():
         if config_item:
             db.session.delete(config_item)
             db.session.commit()
-            agregar_mensajes_log(f"✅ Configuración eliminada: {config_item.key}")
     except Exception as e:
         db.session.rollback()
-        agregar_mensajes_log(f"❌ Error eliminando configuración: {str(e)}")
-
     return redirect('/configuracion')
-
-from woocommerce.sync_config_from_woo import actualizar_configuracion_desde_woocommerce
-
-@flask_app.route("/actualizar-configuracion-woocommerce")
-def actualizar_configuracion_woocommerce():
-    try:
-        actualizar_configuracion_desde_woocommerce(flask_app)
-        return "✅ Configuración actualizada desde WooCommerce", 200
-    except Exception as e:
-        return f"❌ Error: {str(e)}", 500
-
 
 @flask_app.route('/update-config-inline', methods=['POST'])
 def update_config_inline():
     data = request.get_json()
     config_id = data.get('id')
     value = data.get('value')
-
     try:
         config_item = Configuration.query.get(config_id)
         if config_item:
@@ -1510,6 +1466,47 @@ def update_config_inline():
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": f"❌ Error interno: {str(e)}"}), 500
+
+@flask_app.route('/sincronizar-woocommerce', methods=['POST'])
+def sincronizar_woocommerce():
+    from woocommerce_service import WooCommerceService
+    from models import Configuration
+    import json
+
+    woo = WooCommerceService()
+
+    def guardar_config(key, value, descripcion=""):
+        config_item = Configuration.query.filter_by(key=key).first()
+        if not config_item:
+            config_item = Configuration(key=key, descripcion=descripcion)
+            db.session.add(config_item)
+        config_item.value = json.dumps(value, ensure_ascii=False)
+        db.session.commit()
+
+    try:
+        # Categorías
+        categorias = woo.obtener_categorias()
+        categorias_lista = [{"id": c["id"], "nombre": c["name"], "slug": c["slug"]} for c in categorias]
+        guardar_config("categorias_disponibles", categorias_lista, "Categorías WooCommerce")
+
+        # Atributos y términos (marca, motor, etc.)
+        atributos = woo.obtener_atributos()
+        for atributo in atributos:
+            nombre_atributo = atributo["name"].lower()
+            terminos = woo.obtener_terminos_atributo(atributo["id"])
+            if terminos:
+                terminos_lista = [{"id": t["id"], "nombre": t["name"], "slug": t["slug"]} for t in terminos]
+                guardar_config(f"{nombre_atributo}_disponibles", terminos_lista, f"Términos atributo {nombre_atributo}")
+
+        # Etiquetas
+        etiquetas = woo.obtener_etiquetas()
+        etiquetas_lista = [{"id": t["id"], "nombre": t["name"], "slug": t["slug"]} for t in etiquetas]
+        guardar_config("etiquetas_disponibles", etiquetas_lista, "Etiquetas de productos WooCommerce")
+
+        return jsonify({"ok": True, "message": "Sincronización completada"}), 200
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"Error al sincronizar: {str(e)}"}), 500
+
 
 @flask_app.route('/usuarios')
 def vista_usuarios():

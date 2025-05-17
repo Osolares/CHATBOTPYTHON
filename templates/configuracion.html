@@ -100,6 +100,11 @@
         🔄 Actualizar datos desde WooCommerce
     </a>
 
+    <form id="sync-form" method="POST" action="/sincronizar-woocommerce" style="margin-bottom:20px;">
+        <button type="button" onclick="sincronizarWoo()">🔄 Sincronizar con WooCommerce</button>
+        <span id="sync-status"></span>
+    </form>
+
     <script>
         function guardarEdicion(id) {
             const row = document.querySelector(`tr[data-id='${id}']`);
@@ -114,6 +119,20 @@
                 .then(res => res.json())
                 .then(data => alert(data.message || "✅ Configuración actualizada"))
                 .catch(err => alert("❌ Error al guardar"));
+        }
+
+        function sincronizarWoo() {
+            if (!confirm('¿Estás seguro que quieres actualizar el catálogo desde WooCommerce?')) return;
+            document.getElementById('sync-status').innerText = "Sincronizando...";
+            fetch('/sincronizar-woocommerce', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('sync-status').innerText = data.message;
+                    if (data.ok) setTimeout(() => window.location.reload(), 2000);
+                })
+                .catch(err => {
+                    document.getElementById('sync-status').innerText = "Error de conexión";
+                });
         }
     </script>
 
