@@ -5,101 +5,117 @@
     <meta charset="UTF-8">
     <title>Configuración del Sistema</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
         table {
+            width: 80%;
             border-collapse: collapse;
-            width: 100%;
+            margin: 20px auto 40px;
         }
 
         th,
         td {
-            border: 1px solid #bbb;
-            padding: 0.5em;
+            border: 1px solid #ccc;
+            padding: 10px;
         }
 
-        tr.inactivo {
-            background: #eee;
+        th {
+            background-color: #f2f2f2;
         }
 
-        tr.bloqueado {
-            background: #fcc;
+        form {
+            width: 80%;
+            margin: auto;
         }
 
-        .actions {
-            white-space: nowrap;
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 30px;
         }
     </style>
 </head>
 
 <body>
-    <h1>Configuración General</h1>
+    <h2>Configuración del Sistema</h2>
 
-    <form method="get" action="/configuracion">
-        <input type="text" name="q" placeholder="Buscar clave..." value="{{ q or '' }}">
-        <select name="status">
-            <option value="">(Todos)</option>
-            <option value="activo" {% if status=='activo' %}selected{% endif %}>Activo</option>
-            <option value="inactivo" {% if status=='inactivo' %}selected{% endif %}>Inactivo</option>
-            <option value="bloqueado" {% if status=='bloqueado' %}selected{% endif %}>Bloqueado</option>
-        </select>
-        <button type="submit">Buscar/Filtrar</button>
-    </form>
-
-    <form method="post" action="/sincronizar-config" style="margin-top:1em;">
-        <button type="submit">🔄 Sincronizar categorías, marcas y series desde WooCommerce</button>
-    </form>
-
-    <h2>Crear nueva configuración</h2>
-    <form method="post" action="/crear-config" style="margin-bottom:2em;">
-        <input type="text" name="key" placeholder="Clave (ej: plantilla_no_manejamos)" required>
-        <input type="text" name="value" placeholder="Valor" required>
-        <select name="status">
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-            <option value="bloqueado">Bloqueado</option>
-        </select>
-        <input type="text" name="descripcion" placeholder="Descripción">
-        <button type="submit">Crear</button>
-    </form>
-
-    <table>
+    <table id="configTable">
         <tr>
             <th>ID</th>
             <th>Clave</th>
             <th>Valor</th>
-            <th>Status</th>
-            <th>Descripción</th>
-            <th>Creado</th>
-            <th>Modificado</th>
-            <th>Editar</th>
+            <th>Acción</th>
         </tr>
-        {% for c in config %}
-        <tr class="{{ c.status }}">
-            <form method="post" action="/update-config">
-                <td>{{ c.id }}</td>
-                <td>{{ c.key }}</td>
-                <td>
-                    <textarea name="value" rows="2" cols="24">{{ c.value }}</textarea>
-                </td>
-                <td>
-                    <select name="status">
-                        <option value="activo" {% if c.status=='activo' %}selected{% endif %}>Activo</option>
-                        <option value="inactivo" {% if c.status=='inactivo' %}selected{% endif %}>Inactivo</option>
-                        <option value="bloqueado" {% if c.status=='bloqueado' %}selected{% endif %}>Bloqueado</option>
-                    </select>
-                </td>
-                <td>
-                    <input type="text" name="descripcion" value="{{ c.descripcion or '' }}" size="18">
-                </td>
-                <td>{{ c.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-                <td>{{ c.updated_at.strftime("%Y-%m-%d %H:%M") }}</td>
-                <td class="actions">
-                    <input type="hidden" name="id" value="{{ c.id }}">
-                    <button type="submit">💾</button>
-                </td>
-            </form>
+        {% for item in config %}
+        <tr data-id="{{ item.id }}">
+            <td>{{ item.id }}</td>
+            <td>{{ item.key }}</td>
+            <td contenteditable="true" class="editable">{{ item.value }}</td>
+            <td>
+                <button onclick="guardarEdicion({{ item.id }})">Guardar</button>
+                <form method="POST" action="/delete-config" style="display:inline;">
+                    <input type="hidden" name="id" value="{{ item.id }}">
+                    <button type="submit" onclick="return confirm('¿Eliminar esta configuración?')">Eliminar</button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
     </table>
+
+    <h2>Agregar / Editar Configuración</h2>
+
+    <form method="POST">
+        <label for="key">Clave:</label>
+        <input type="text" name="key" id="key" required>
+
+        <label for="value">Valor:</label>
+        <textarea name="value" id="value" rows="4" required></textarea>
+
+        <button type="submit">Guardar</button>
+    </form>
+
+    <div class="back-link">
+        <a href="/">← Volver al Panel Principal</a>
+    </div>
+
+    <a href="/actualizar-configuracion-woocommerce" class="btn btn-success">
+        🔄 Actualizar datos desde WooCommerce
+    </a>
+
+    <script>
+        function guardarEdicion(id) {
+            const row = document.querySelector(`tr[data-id='${id}']`);
+            const value = row.querySelector(".editable").innerText;
+            fetch("/update-config-inline", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ id: id, value: value })
+            })
+                .then(res => res.json())
+                .then(data => alert(data.message || "✅ Configuración actualizada"))
+                .catch(err => alert("❌ Error al guardar"));
+        }
+    </script>
 
 </body>
 

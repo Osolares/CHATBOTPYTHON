@@ -34,7 +34,8 @@ class ProductModel(db.Model):
     modelo_anio = db.Column(db.String(10))
     tipo_repuesto = db.Column(db.String(50))
     estado = db.Column(db.String(100))
-    
+    serie_motor = db.Column(db.String(50))
+
     session_id = db.Column(db.Integer, db.ForeignKey('user_sessions.idUser'), nullable=False)  # FIX: Integer
 
 class Log(db.Model):
