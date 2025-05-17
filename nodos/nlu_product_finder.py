@@ -1,7 +1,7 @@
 import json
 from extractor.extractor_de_atributos import extraer_atributos_desde_texto
 from woocommerce.buscar_por_atributos import buscar_productos_por_atributos
-from models import guardar_memoria
+from models import Memory
 
 def nlu_product_finder(state):
     user_msg = state.get("user_msg", "")
@@ -49,8 +49,8 @@ def nlu_product_finder(state):
         return state
 
     if session_id:
-        guardar_memoria(session_id, "consulta_woo", json.dumps(atributos))
-        guardar_memoria(session_id, "resultados_woo", json.dumps(productos[:3]))
+        Memory(session_id, "consulta_woo", json.dumps(atributos))
+        Memory(session_id, "resultados_woo", json.dumps(productos[:3]))
 
     respuestas = []
     for p in productos[:3]:
