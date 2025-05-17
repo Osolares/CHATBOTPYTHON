@@ -535,196 +535,197 @@ def handle_special_commands(state: BotState) -> BotState:
     return state
 
 
-#def asistente(state: BotState) -> BotState:
-#    """Maneja mensajes no reconocidos usando DeepSeek"""
-#
-#    if not state.get("response_data"):
-#        user_msg = state["user_msg"]
-#        session = state.get("session")
-#        session_id = session.idUser if session else None
-#
-#        # Verificar duplicado
-#        last_log = db.session.query(Log).filter(
-#            Log.session_id == session_id
-#        ).order_by(Log.fecha_y_hora.desc()).first()
-#        if last_log and user_msg in (last_log.texto or ""):
-#            agregar_mensajes_log("🔁 Mensaje duplicado detectado, ignorando respuesta asistente", session_id)
-#            return state
-#
-#        # 🧠 Obtener contexto previo
-#        contexto_memoria = ""
-#        if session_id:
-#            memorias = obtener_ultimas_memorias(session_id, limite=6)
-#            if memorias:
-#                contexto_memoria = "\n".join([f"{m.key}: {m.value}" for m in memorias])
-#
-#        # 🧾 Construir prompt con contexto
-#        prompt_usuario = f"Mensaje del usuario: {user_msg}"
-#        if contexto_memoria:
-#            prompt_usuario = f"""
-#Contexto de conversación previa:
-#{contexto_memoria}
-#
-#{prompt_usuario}
-#"""
-#
-#        safety_prompt = f"""
-#Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, responde muy puntual y en las minimas palabras máximo 50 usa emojis ocasionalmente según sea necesario. 
-#
-#Solo responde sobre:
-#- Motores y repuestos para vehículos
-#- Piezas, partes o repuestos de automóviles
-#- Equivalencias de motores entre marcas japonesas y coreanas
-#
-#No incluyas información innecesaria (como el número de palabras).
-#
-#Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
-#
-#{prompt_usuario}
-#"""
-#
-#        # 🤖 Llamar al modelo
-#        response = model.invoke([HumanMessage(content=safety_prompt)])
-#        body = response.content
-#
-#        # 📝 Guardar memorias
-#        if session_id:
-#            guardar_memoria(session_id, "user", user_msg)
-#            guardar_memoria(session_id, "assistant", body)
-#
-#        # 📤 Preparar respuesta
-#        if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
-#            state["response_data"] = [{
-#                "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
-#                "to": state.get("phone_number") or state.get("email"),
-#                "type": "text",
-#                "text": {"body": body}
-#            }]
-#
-#        log_state(state, f"✅ Asistente respondió con memoria: {body[:100]}...")
-#
-#    return state
+def asistente(state: BotState) -> BotState:
+    """Maneja mensajes no reconocidos usando DeepSeek"""
 
+    if not state.get("response_data"):
+        user_msg = state["user_msg"]
+        session = state.get("session")
+        session_id = session.idUser if session else None
 
-def extraer_json_llm(texto):
-    """
-    Extrae un JSON de la respuesta del LLM, aunque no tenga llaves.
-    """
-    agregar_mensajes_log("🔁 Mensaje en extraer json llm", texto)
+        # Verificar duplicado
+        last_log = db.session.query(Log).filter(
+            Log.session_id == session_id
+        ).order_by(Log.fecha_y_hora.desc()).first()
+        if last_log and user_msg in (last_log.texto or ""):
+            agregar_mensajes_log("🔁 Mensaje duplicado detectado, ignorando respuesta asistente", session_id)
+            return state
 
-    # 1. Busca el primer bloque {...}
-    try:
-        match = re.search(r"\{[\s\S]*\}", texto)
-        if match:
-            return json.loads(match.group())
-    except Exception as e:
-        print("❌ Error extrayendo JSON estándar:", e)
+        # 🧠 Obtener contexto previo
+        contexto_memoria = ""
+        if session_id:
+            memorias = obtener_ultimas_memorias(session_id, limite=6)
+            if memorias:
+                contexto_memoria = "\n".join([f"{m.key}: {m.value}" for m in memorias])
 
-    # 2. Si NO tiene {}, intenta armar el dict con pares clave:valor
-    try:
-        # Saca todas las líneas tipo: "clave": valor
-        pairs = re.findall(r'["\']?([\w_]+)["\']?\s*:\s*("?[^",\n]+?"?|null)', texto)
-        if pairs:
-            d = {}
-            for k, v in pairs:
-                v = v.strip().strip('"')
-                if v.lower() == "null":
-                    v = None
-                d[k] = v
-            return d
-    except Exception as e:
-        print("❌ Error extrayendo pares clave:valor:", e)
+        # 🧾 Construir prompt con contexto
+        prompt_usuario = f"Mensaje del usuario: {user_msg}"
+        if contexto_memoria:
+            prompt_usuario = f"""
+Contexto de conversación previa:
+{contexto_memoria}
 
-    # 3. Si nada, regresa dict vacío
-    return {}
-
-
-CAMPOS_COTIZACION = ["categoria", "marca", "modelo", "anio"]  # Puedes añadir "serie", "combustible" si quieres
-
-PROMPT_EXTRACCION = """
-Eres un asistente de cotizaciones para repuestos de autos. 
-Recibe un mensaje y extrae SOLO la información relevante en formato JSON, dejando en null los campos que no puedas identificar. 
-Responde solo el JSON.
-
-Ejemplo:
-Entrada: "Quiero un alternador Toyota Hilux 2016 diésel"
-Salida:
-{{
-    "categoria": "alternador",
-    "marca": "Toyota",
-    "modelo": "Hilux",
-    "anio": "2016",
-    "serie": null,
-    "combustible": "diésel"
-}}
-
-Entrada: "{user_msg}"
-Salida:
+{prompt_usuario}
 """
 
+        safety_prompt = f"""
+Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, responde muy puntual y en las minimas palabras máximo 50 usa emojis ocasionalmente según sea necesario. 
 
-def asistente(state: BotState) -> BotState:
-    user_msg = state["user_msg"]
-    session = state.get("session")
-    session_id = session.idUser if session else None
+Solo responde sobre:
+- Motores y repuestos para vehículos
+- Piezas, partes o repuestos de automóviles
+- Equivalencias de motores entre marcas japonesas y coreanas
 
-    # 1. Recuperar memoria de slots actual
-    memoria_actual = None
-    if session_id:
-        memorias = obtener_ultimas_memorias(session_id, limite=10)
-        for m in reversed(memorias):
-            if m.key == "slots_cotizacion":
-                try:
-                    memoria_actual = json.loads(m.value)
-                except:
-                    memoria_actual = None
-                break
-    if not memoria_actual:
-        memoria_actual = {campo: None for campo in CAMPOS_COTIZACION + ["serie", "combustible"]}
+No incluyas información innecesaria (como el número de palabras).
 
-    # 2. Enviar el mensaje al LLM para extraer datos
-    prompt = PROMPT_EXTRACCION.format(user_msg=user_msg)
-    response = model.invoke([HumanMessage(content=prompt)])
-    extraidos = extraer_json_llm(response.content)
+si quieren saber de algun producto en especifico nunca confirmes exitencias, precio, etc, responde que un colaborador respondera a la solicitud
+Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
 
-    # 3. Actualizar los slots
-    for campo in memoria_actual:
-        nuevo = extraidos.get(campo)
-        if nuevo:
-            memoria_actual[campo] = nuevo
+{prompt_usuario}
+"""
 
-    # 4. Guardar slots actualizados
-    if session_id:
-        guardar_memoria(session_id, "slots_cotizacion", json.dumps(memoria_actual, ensure_ascii=False))
+        # 🤖 Llamar al modelo
+        response = model.invoke([HumanMessage(content=safety_prompt)])
+        body = response.content
 
-    # 5. ¿Faltan datos?
-    faltantes = [campo for campo in CAMPOS_COTIZACION if not memoria_actual.get(campo)]
-    if faltantes:
-        pregunta = "Para cotizar necesito que me indiques: " + ", ".join(faltantes) + "."
-        state["response_data"] = [{
-            "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
-            "to": state.get("phone_number") or state.get("email"),
-            "type": "text",
-            "text": {"body": pregunta}
-        }]
-    else:
-        # 6. Consultar WooCommerce y responder
-        productos = woo_service.buscar_productos_con_filtros(memoria_actual)
-        if productos:
-            mensaje = woo_service.formatear_producto_whatsapp(productos[0])
-        else:
-            mensaje = "No encontramos ese producto exacto en inventario. ¿Quieres intentar con otra marca/modelo?"
+        # 📝 Guardar memorias
+        if session_id:
+            guardar_memoria(session_id, "user", user_msg)
+            guardar_memoria(session_id, "assistant", body)
 
-        state["response_data"] = [{
-            "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
-            "to": state.get("phone_number") or state.get("email"),
-            "type": "text",
-            "text": {"body": mensaje}
-        }]
-        # Si quieres limpiar la memoria de slots aquí puedes hacerlo
+        # 📤 Preparar respuesta
+        if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
+            state["response_data"] = [{
+                "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
+                "to": state.get("phone_number") or state.get("email"),
+                "type": "text",
+                "text": {"body": body}
+            }]
 
-    log_state(state, f"Slots actuales: {memoria_actual}")
+        log_state(state, f"✅ Asistente respondió con memoria: {body[:100]}...")
+
     return state
+
+
+#def extraer_json_llm(texto):
+#    """
+#    Extrae un JSON de la respuesta del LLM, aunque no tenga llaves.
+#    """
+#    agregar_mensajes_log("🔁 Mensaje en extraer json llm", texto)
+#
+#    # 1. Busca el primer bloque {...}
+#    try:
+#        match = re.search(r"\{[\s\S]*\}", texto)
+#        if match:
+#            return json.loads(match.group())
+#    except Exception as e:
+#        print("❌ Error extrayendo JSON estándar:", e)
+#
+#    # 2. Si NO tiene {}, intenta armar el dict con pares clave:valor
+#    try:
+#        # Saca todas las líneas tipo: "clave": valor
+#        pairs = re.findall(r'["\']?([\w_]+)["\']?\s*:\s*("?[^",\n]+?"?|null)', texto)
+#        if pairs:
+#            d = {}
+#            for k, v in pairs:
+#                v = v.strip().strip('"')
+#                if v.lower() == "null":
+#                    v = None
+#                d[k] = v
+#            return d
+#    except Exception as e:
+#        print("❌ Error extrayendo pares clave:valor:", e)
+#
+#    # 3. Si nada, regresa dict vacío
+#    return {}
+#
+#
+#CAMPOS_COTIZACION = ["categoria", "marca", "modelo", "anio"]  # Puedes añadir "serie", "combustible" si quieres
+#
+#PROMPT_EXTRACCION = """
+#Eres un asistente de cotizaciones para repuestos de autos. 
+#Recibe un mensaje y extrae SOLO la información relevante en formato JSON, dejando en null los campos que no puedas identificar. 
+#Responde solo el JSON.
+#
+#Ejemplo:
+#Entrada: "Quiero un alternador Toyota Hilux 2016 diésel"
+#Salida:
+#{{
+#    "categoria": "alternador",
+#    "marca": "Toyota",
+#    "modelo": "Hilux",
+#    "anio": "2016",
+#    "serie": null,
+#    "combustible": "diésel"
+#}}
+#
+#Entrada: "{user_msg}"
+#Salida:
+#"""
+#
+#
+#def asistente(state: BotState) -> BotState:
+#    user_msg = state["user_msg"]
+#    session = state.get("session")
+#    session_id = session.idUser if session else None
+#
+#    # 1. Recuperar memoria de slots actual
+#    memoria_actual = None
+#    if session_id:
+#        memorias = obtener_ultimas_memorias(session_id, limite=10)
+#        for m in reversed(memorias):
+#            if m.key == "slots_cotizacion":
+#                try:
+#                    memoria_actual = json.loads(m.value)
+#                except:
+#                    memoria_actual = None
+#                break
+#    if not memoria_actual:
+#        memoria_actual = {campo: None for campo in CAMPOS_COTIZACION + ["serie", "combustible"]}
+#
+#    # 2. Enviar el mensaje al LLM para extraer datos
+#    prompt = PROMPT_EXTRACCION.format(user_msg=user_msg)
+#    response = model.invoke([HumanMessage(content=prompt)])
+#    extraidos = extraer_json_llm(response.content)
+#
+#    # 3. Actualizar los slots
+#    for campo in memoria_actual:
+#        nuevo = extraidos.get(campo)
+#        if nuevo:
+#            memoria_actual[campo] = nuevo
+#
+#    # 4. Guardar slots actualizados
+#    if session_id:
+#        guardar_memoria(session_id, "slots_cotizacion", json.dumps(memoria_actual, ensure_ascii=False))
+#
+#    # 5. ¿Faltan datos?
+#    faltantes = [campo for campo in CAMPOS_COTIZACION if not memoria_actual.get(campo)]
+#    if faltantes:
+#        pregunta = "Para cotizar necesito que me indiques: " + ", ".join(faltantes) + "."
+#        state["response_data"] = [{
+#            "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
+#            "to": state.get("phone_number") or state.get("email"),
+#            "type": "text",
+#            "text": {"body": pregunta}
+#        }]
+#    else:
+#        # 6. Consultar WooCommerce y responder
+#        productos = woo_service.buscar_productos_con_filtros(memoria_actual)
+#        if productos:
+#            mensaje = woo_service.formatear_producto_whatsapp(productos[0])
+#        else:
+#            mensaje = "No encontramos ese producto exacto en inventario. ¿Quieres intentar con otra marca/modelo?"
+#
+#        state["response_data"] = [{
+#            "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
+#            "to": state.get("phone_number") or state.get("email"),
+#            "type": "text",
+#            "text": {"body": mensaje}
+#        }]
+#        # Si quieres limpiar la memoria de slots aquí puedes hacerlo
+#
+#    log_state(state, f"Slots actuales: {memoria_actual}")
+#    return state
 
 
 def send_messages(state: BotState) -> BotState:
