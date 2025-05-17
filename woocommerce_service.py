@@ -296,7 +296,7 @@ class WooCommerceService:
         except Exception as e:
             print(f"Error al obtener categorías: {str(e)}")
             return []
-    
+
     def obtener_atributos(self):
         """Obtiene todos los atributos (como marca, motor, etc)"""
         try:
@@ -310,7 +310,7 @@ class WooCommerceService:
         except Exception as e:
             print(f"Error al obtener atributos: {str(e)}")
             return []
-    
+
     def obtener_terminos_atributo(self, attribute_id):
         """Obtiene los términos de un atributo dado (ej: todas las marcas)"""
         try:
@@ -324,7 +324,7 @@ class WooCommerceService:
         except Exception as e:
             print(f"Error al obtener términos atributo {attribute_id}: {str(e)}")
             return []
-    
+
     def obtener_etiquetas(self):
         """Obtiene todas las etiquetas (tags) de productos"""
         try:
@@ -337,5 +337,35 @@ class WooCommerceService:
             return response.json()
         except Exception as e:
             print(f"Error al obtener etiquetas: {str(e)}")
+            return []
+
+    def buscar_productos_con_filtros(self, filtros):
+        """
+        filtros puede ser: {"category": id, "marca": nombre, "serie": nombre}
+        """
+        params = {
+            "status": "publish",
+            "per_page": 5
+        }
+        if "category" in filtros:
+            params["category"] = filtros["category"]
+        if "marca" in filtros:
+            # Asume que tu atributo se llama "pa_marca"
+            params["attribute"] = "pa_marca"
+            params["attribute_term"] = filtros["marca"]
+        if "serie" in filtros:
+            # Asume que tu atributo se llama "pa_motor"
+            params["attribute"] = "pa_motor"
+            params["attribute_term"] = filtros["serie"]
+        try:
+            response = requests.get(
+                f"{self.base_url}/products",
+                params=params,
+                auth=self.auth
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Error buscando productos con filtros: {str(e)}")
             return []
     

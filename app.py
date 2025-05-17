@@ -535,74 +535,138 @@ def handle_special_commands(state: BotState) -> BotState:
     return state
 
 
+#def asistente(state: BotState) -> BotState:
+#    """Maneja mensajes no reconocidos usando DeepSeek"""
+#
+#    if not state.get("response_data"):
+#        user_msg = state["user_msg"]
+#        session = state.get("session")
+#        session_id = session.idUser if session else None
+#
+#        # Verificar duplicado
+#        last_log = db.session.query(Log).filter(
+#            Log.session_id == session_id
+#        ).order_by(Log.fecha_y_hora.desc()).first()
+#        if last_log and user_msg in (last_log.texto or ""):
+#            agregar_mensajes_log("🔁 Mensaje duplicado detectado, ignorando respuesta asistente", session_id)
+#            return state
+#
+#        # 🧠 Obtener contexto previo
+#        contexto_memoria = ""
+#        if session_id:
+#            memorias = obtener_ultimas_memorias(session_id, limite=6)
+#            if memorias:
+#                contexto_memoria = "\n".join([f"{m.key}: {m.value}" for m in memorias])
+#
+#        # 🧾 Construir prompt con contexto
+#        prompt_usuario = f"Mensaje del usuario: {user_msg}"
+#        if contexto_memoria:
+#            prompt_usuario = f"""
+#Contexto de conversación previa:
+#{contexto_memoria}
+#
+#{prompt_usuario}
+#"""
+#
+#        safety_prompt = f"""
+#Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, responde muy puntual y en las minimas palabras máximo 50 usa emojis ocasionalmente según sea necesario. 
+#
+#Solo responde sobre:
+#- Motores y repuestos para vehículos
+#- Piezas, partes o repuestos de automóviles
+#- Equivalencias de motores entre marcas japonesas y coreanas
+#
+#No incluyas información innecesaria (como el número de palabras).
+#
+#Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
+#
+#{prompt_usuario}
+#"""
+#
+#        # 🤖 Llamar al modelo
+#        response = model.invoke([HumanMessage(content=safety_prompt)])
+#        body = response.content
+#
+#        # 📝 Guardar memorias
+#        if session_id:
+#            guardar_memoria(session_id, "user", user_msg)
+#            guardar_memoria(session_id, "assistant", body)
+#
+#        # 📤 Preparar respuesta
+#        if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
+#            state["response_data"] = [{
+#                "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
+#                "to": state.get("phone_number") or state.get("email"),
+#                "type": "text",
+#                "text": {"body": body}
+#            }]
+#
+#        log_state(state, f"✅ Asistente respondió con memoria: {body[:100]}...")
+#
+#    return state
+
+
+from models import Configuration
+from intenciones import detectar_entidad, cargar_configuracion
+
 def asistente(state: BotState) -> BotState:
-    """Maneja mensajes no reconocidos usando DeepSeek"""
+    user_msg = state["user_msg"]
 
-    if not state.get("response_data"):
-        user_msg = state["user_msg"]
-        session = state.get("session")
-        session_id = session.idUser if session else None
+    # --- Paso 1: Cargar configuraciones ---
+    categorias = cargar_configuracion(Configuration, "categorias_disponibles")
+    marcas = cargar_configuracion(Configuration, "marca_disponibles")
+    series = cargar_configuracion(Configuration, "motor_disponibles")
+    etiquetas = cargar_configuracion(Configuration, "etiquetas_disponibles")
 
-        # Verificar duplicado
-        last_log = db.session.query(Log).filter(
-            Log.session_id == session_id
-        ).order_by(Log.fecha_y_hora.desc()).first()
-        if last_log and user_msg in (last_log.texto or ""):
-            agregar_mensajes_log("🔁 Mensaje duplicado detectado, ignorando respuesta asistente", session_id)
-            return state
+    # --- Paso 2: Detección de intención/entidades ---
+    categoria_encontrada = detectar_entidad(user_msg, categorias)
+    marca_encontrada = detectar_entidad(user_msg, marcas)
+    serie_encontrada = detectar_entidad(user_msg, series)
 
-        # 🧠 Obtener contexto previo
-        contexto_memoria = ""
-        if session_id:
-            memorias = obtener_ultimas_memorias(session_id, limite=6)
-            if memorias:
-                contexto_memoria = "\n".join([f"{m.key}: {m.value}" for m in memorias])
+    # --- Paso 3: Buscar producto en WooCommerce SOLO SI existe la entidad ---
+    if any([categoria_encontrada, marca_encontrada, serie_encontrada]):
+        filtros = {}
+        if categoria_encontrada:
+            cat = next((c for c in categorias if c['nombre'].lower() == categoria_encontrada), None)
+            if cat: filtros["category"] = cat["id"]
+        if marca_encontrada:
+            filtros["marca"] = marca_encontrada  # depende cómo está el atributo en tu Woo, ajústalo si usas attribute/slug
+        if serie_encontrada:
+            filtros["serie"] = serie_encontrada
 
-        # 🧾 Construir prompt con contexto
-        prompt_usuario = f"Mensaje del usuario: {user_msg}"
-        if contexto_memoria:
-            prompt_usuario = f"""
-Contexto de conversación previa:
-{contexto_memoria}
-
-{prompt_usuario}
-"""
-
-        safety_prompt = f"""
-Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, responde muy puntual y en las minimas palabras máximo 50 usa emojis ocasionalmente según sea necesario. 
-
-Solo responde sobre:
-- Motores y repuestos para vehículos
-- Piezas, partes o repuestos de automóviles
-- Equivalencias de motores entre marcas japonesas y coreanas
-
-No incluyas información innecesaria (como el número de palabras).
-
-Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
-
-{prompt_usuario}
-"""
-
-        # 🤖 Llamar al modelo
-        response = model.invoke([HumanMessage(content=safety_prompt)])
-        body = response.content
-
-        # 📝 Guardar memorias
-        if session_id:
-            guardar_memoria(session_id, "user", user_msg)
-            guardar_memoria(session_id, "assistant", body)
-
-        # 📤 Preparar respuesta
-        if state["source"] in ["whatsapp", "telegram", "messenger", "web"]:
+        # -- Buscar productos en WooCommerce --
+        productos = woo_service.buscar_productos_con_filtros(filtros)
+        if productos:
+            # Formatear y responder el primer producto (puedes listar más)
+            mensaje = woo_service.formatear_producto_whatsapp(productos[0])
             state["response_data"] = [{
-                "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
-                "to": state.get("phone_number") or state.get("email"),
+                "messaging_product": "whatsapp",
+                "to": state.get("phone_number"),
                 "type": "text",
-                "text": {"body": body}
+                "text": {"body": mensaje}
             }]
+        else:
+            state["response_data"] = [{
+                "messaging_product": "whatsapp",
+                "to": state.get("phone_number"),
+                "type": "text",
+                "text": {"body": "😕 No tenemos stock de esa opción. ¿Quieres consultar otra marca o categoría?"}
+            }]
+        return state
 
-        log_state(state, f"✅ Asistente respondió con memoria: {body[:100]}...")
-
+    # --- Paso 4: Si no detecta entidad válida, responder seguro con LLM ---
+    prompt = (
+        "Responde SOLO sobre productos, marcas, series o categorías que manejamos."
+        "\nSi no está en nuestro catálogo, indícalo amablemente. "
+        "\n\nMensaje del usuario: " + user_msg
+    )
+    response = model.invoke([HumanMessage(content=prompt)])
+    state["response_data"] = [{
+        "messaging_product": "whatsapp",
+        "to": state.get("phone_number"),
+        "type": "text",
+        "text": {"body": response.content}
+    }]
     return state
 
 def send_messages(state: BotState) -> BotState:
