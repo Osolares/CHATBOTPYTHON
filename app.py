@@ -653,6 +653,7 @@ Salida:
 """
 
 def slot_filling_llm(mensaje):
+    agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
     prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
     response = model.invoke([HumanMessage(content=prompt)], max_tokens=200)
     try:
