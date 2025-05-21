@@ -654,9 +654,11 @@ Salida:
 
 def slot_filling_llm(mensaje):
     prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
-    response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
+    response = model.invoke([HumanMessage(content=prompt)], max_tokens=200)
     try:
         result = json.loads(response.content.strip())
+        agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(response)}")
+
     except Exception:
         result = {}
     return result
@@ -716,7 +718,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         if v:
             memoria_slots[k] = v
     # --- 3. Deducción técnica ---
-    agregar_mensajes_log("🔁nuevos slots", json.dumps(nuevos_slots))
+    agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
 
     memoria_slots = deducir_conocimiento(memoria_slots)
     guardar_memoria_slots(session, memoria_slots)
