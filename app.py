@@ -120,12 +120,13 @@ def guardar_memoria(session_id, key, value):
         error_text = f"❌ Error al guardar memoria ({key}): {str(e)}"
         agregar_mensajes_log(error_text, session_id)
 
-
 def cargar_memoria_slots(session):
     mem = Memory.query.filter_by(session_id=session.idUser, key='slots_cotizacion').first()
+    agregar_mensajes_log(f"[DEBUG] cargar_memoria_slots para session {getattr(session, 'idUser', None)} devuelve: {mem.value if mem else None}")
     if mem and mem.value:
         return json.loads(mem.value)
     return {}
+
 
 def guardar_memoria_slots(session, slots):
     mem = Memory.query.filter_by(session_id=session.idUser, key='slots_cotizacion').first()
@@ -658,7 +659,7 @@ def slot_filling_llm(mensaje):
     response = model.invoke([HumanMessage(content=prompt)], max_tokens=200)
     try:
         result = json.loads(response.content.strip())
-        agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(response)}")
+        agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(result)}")
 
     except Exception:
         result = {}
@@ -706,6 +707,10 @@ def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots):
 def handle_cotizacion_slots(state: dict) -> dict:
     session = state.get("session")
     user_msg = state.get("user_msg")
+
+    agregar_mensajes_log(f"[DEBUG] session en nodo: {str(session)}")
+    agregar_mensajes_log(f"[DEBUG] session.idUser en nodo: {getattr(session, 'idUser', None)}")
+
     # Keywords básicas para cotización, ajusta según tu negocio:
     cotizacion_keywords = ["motor", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
     if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
@@ -722,6 +727,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
     agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
 
     memoria_slots = deducir_conocimiento(memoria_slots)
+    agregar_mensajes_log(f"[DEBUG] Antes de guardar - memoria_slots: {json.dumps(memoria_slots)} session.idUser: {getattr(session, 'idUser', None)}")
     guardar_memoria_slots(session, memoria_slots)
     # --- 4. Pregunta por lo faltante, si aplica ---
     faltan = campos_faltantes(memoria_slots)
