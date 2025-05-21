@@ -646,7 +646,7 @@ Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
 Ejemplo:
 Entrada: "Turbo para sportero 2.5"
 Salida:
-{{"tipo_repuesto":"turbo","marca":null,"modelo":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}}
+{"tipo_repuesto":"turbo","marca":null,"modelo":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
 
 Entrada: "{MENSAJE}"
 Salida:
@@ -654,7 +654,7 @@ Salida:
 
 def slot_filling_llm(mensaje):
     prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
-    response = model.invoke([HumanMessage(content=prompt)], max_tokens=50)
+    response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
     try:
         result = json.loads(response.content.strip())
     except Exception:
@@ -716,6 +716,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
         if v:
             memoria_slots[k] = v
     # --- 3. Deducción técnica ---
+    agregar_mensajes_log("🔁nuevos slots", nuevos_slots)
+
     memoria_slots = deducir_conocimiento(memoria_slots)
     guardar_memoria_slots(session, memoria_slots)
     # --- 4. Pregunta por lo faltante, si aplica ---
