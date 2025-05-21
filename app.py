@@ -653,19 +653,40 @@ Entrada: "{MENSAJE}"
 Salida:
 """
 
+#def slot_filling_llm(mensaje):
+#    agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
+#    prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
+#    response = model.invoke([HumanMessage(content=prompt)], max_tokens=200)
+#    try:
+#        result = json.loads(response.content.strip())
+#        agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(result)}")
+#
+#    except Exception:
+#        agregar_mensajes_log(f"🔁Respuesta LLM EXCEPTTION")
+#
+#        result = {}
+#    return result
+
+import re
+
+def extract_json(texto):
+    try:
+        match = re.search(r'\{[\s\S]*\}', texto)
+        if match:
+            return json.loads(match.group())
+    except Exception as e:
+        agregar_mensajes_log(f"[extract_json] Error: {str(e)}")
+    return {}
+
+
 def slot_filling_llm(mensaje):
     agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
     prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
     response = model.invoke([HumanMessage(content=prompt)], max_tokens=200)
-    try:
-        result = json.loads(response.content.strip())
-        agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(result)}")
-
-    except Exception:
-        agregar_mensajes_log(f"🔁Respuesta LLM EXCEPTTION")
-
-        result = {}
+    result = extract_json(response.content.strip())
+    agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(result)}")
     return result
+
 
 # Reglas técnicas (comienza con tus casos más comunes)
 REGLAS_SERIE_MOTOR = {
