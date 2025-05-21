@@ -33,7 +33,7 @@ model = ChatOpenAI(
     api_key=deepseek_key,
     base_url="https://api.deepseek.com/v1",
     temperature=0.5,
-    max_tokens=200,
+    max_tokens=100,
 )
 
 #llm = ChatGroq(
@@ -699,7 +699,6 @@ def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots):
         "text": {"body": mensaje}
     }, state=None)
 
-from datetime import datetime, timedelta
 
 def handle_cotizacion_slots(state: dict) -> dict:
     session = state.get("session")
@@ -1267,10 +1266,10 @@ def enrutar_despues_comandos(state: BotState) -> str:
         return "merge_responses"
     if state.get("response_data"):
         return "merge_responses"
-    return "asistente"
+    return "handle_cotizacion_slots"
 
 workflow.add_conditional_edges("handle_special_commands", enrutar_despues_comandos)
-workflow.add_edge("handle_special_commands", "handle_cotizacion_slots")
+#workflow.add_edge("handle_special_commands", "handle_cotizacion_slots")
 
 def ruta_despues_cotizacion(state: dict) -> str:
     if state.get("cotizacion_completa", False):
