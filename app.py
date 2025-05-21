@@ -120,6 +120,33 @@ def guardar_memoria(session_id, key, value):
         error_text = f"❌ Error al guardar memoria ({key}): {str(e)}"
         agregar_mensajes_log(error_text, session_id)
 
+
+def cargar_memoria_slots(session):
+    mem = Memory.query.filter_by(session_id=session.idUser, key='slots_cotizacion').first()
+    if mem and mem.value:
+        return json.loads(mem.value)
+    return {}
+
+def guardar_memoria_slots(session, slots):
+    mem = Memory.query.filter_by(session_id=session.idUser, key='slots_cotizacion').first()
+    if not mem:
+        mem = Memory(session_id=session.idUser, key='slots_cotizacion')
+        db.session.add(mem)
+    mem.value = json.dumps(slots, ensure_ascii=False)
+    db.session.commit()
+
+
+def should_process_message(session):
+    now = datetime.now()
+    if session.bloqueado:
+        return False, "Usuario bloqueado"
+    if session.modo_control == 'paused' and session.pausa_hasta and session.pausa_hasta > now:
+        return False, "En pausa, esperando asesor"
+    if session.modo_control == 'human':
+        return False, "Modo humano"
+    return True, None
+
+
 # feriados configurables
 DIAS_FESTIVOS = {"2025-01-01","2025-04-17","2025-04-18","2025-05-01"}
 
@@ -135,6 +162,12 @@ def pre_validaciones(state: BotState) -> BotState:
     state.setdefault("additional_messages", [])
 
     send_welcome, kind = False, None
+
+    if session.modo_control == 'paused' and session.pausa_hasta and session.pausa_hasta <= datetime.now():
+        session.modo_control = 'bot'
+        session.pausa_hasta = None
+        db.session.commit()
+
 
     # --- HORARIO ---
     HORARIO = {
@@ -576,7 +609,7 @@ Solo responde sobre:
 - Piezas, partes o repuestos de automóviles
 
 No incluyas información innecesaria (como el número de palabras).
-nunca confirmes exitencias, precio, etc
+nunca confirmes disponibilidad, exitencias, precio, etc
 
 Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
 
@@ -603,6 +636,116 @@ Si el mensaje no está relacionado, responde cortésmente indicando que solo pue
         log_state(state, f"✅ Asistente respondió con memoria: {body[:100]}...")
 
     return state
+
+
+# Prompt de slot filling
+PROMPT_SLOT_FILL = """
+Extrae la siguiente información en JSON. Pon null si no se encuentra.
+Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
+
+Ejemplo:
+Entrada: "Turbo para sportero 2.5"
+Salida:
+{"tipo_repuesto":"turbo","marca":null,"modelo":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
+
+Entrada: "{MENSAJE}"
+Salida:
+"""
+
+def slot_filling_llm(mensaje):
+    prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
+    response = model.invoke([HumanMessage(content=prompt)], max_tokens=300)
+    try:
+        result = json.loads(response.content.strip())
+    except Exception:
+        result = {}
+    return result
+
+# Reglas técnicas (comienza con tus casos más comunes)
+REGLAS_SERIE_MOTOR = {
+    "1KZ": {"marca": "Toyota", "cc": "3.0", "combustible": "diésel", "modelos": ["Prado", "Hilux", "4Runner"]},
+    "J3": {"marca": "Hyundai", "cc": "2.9", "combustible": "diésel", "modelos": ["Terracan"]}
+}
+REGLAS_MODELOS = {
+    "Sportero": {"marca": "Mitsubishi", "serie_motor": "4D56U", "cc": "2.5", "combustible": "diésel"}
+}
+
+def deducir_conocimiento(slots):
+    if slots.get("serie_motor") in REGLAS_SERIE_MOTOR:
+        for campo, valor in REGLAS_SERIE_MOTOR[slots["serie_motor"]].items():
+            if not slots.get(campo):
+                slots[campo] = valor
+    if slots.get("modelo") and slots.get("modelo").capitalize() in REGLAS_MODELOS:
+        for campo, valor in REGLAS_MODELOS[slots["modelo"].capitalize()].items():
+            if not slots.get(campo):
+                slots[campo] = valor
+    return slots
+
+def campos_faltantes(slots):
+    necesarios = ["tipo_repuesto", "marca", "modelo", "año", "serie_motor"]
+    return [c for c in necesarios if not slots.get(c)]
+def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots):
+    resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items()])
+    mensaje = (
+        f"🚗 *Nuevo Lead para Cotización*\n\n"
+        f"📞 Cliente: {session.phone_number}\n"
+        f"Datos:\n{resumen}\n\n"
+        f"ID Sesión: {session.idUser}\n"
+    )
+    bot_enviar_mensaje_whatsapp({
+        "messaging_product": "whatsapp",
+        "to": numero_admin,
+        "type": "text",
+        "text": {"body": mensaje}
+    }, state=None)
+
+from datetime import datetime, timedelta
+
+def handle_cotizacion_slots(state: dict) -> dict:
+    session = state.get("session")
+    user_msg = state.get("user_msg")
+    # Keywords básicas para cotización, ajusta según tu negocio:
+    cotizacion_keywords = ["motor", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
+    if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
+        return state  # No es cotización, sigue el flujo normal
+
+    # --- 1. Cargar slots existentes ---
+    memoria_slots = cargar_memoria_slots(session)
+    # --- 2. Extraer nuevos del mensaje ---
+    nuevos_slots = slot_filling_llm(user_msg)
+    for k, v in nuevos_slots.items():
+        if v:
+            memoria_slots[k] = v
+    # --- 3. Deducción técnica ---
+    memoria_slots = deducir_conocimiento(memoria_slots)
+    guardar_memoria_slots(session, memoria_slots)
+    # --- 4. Pregunta por lo faltante, si aplica ---
+    faltan = campos_faltantes(memoria_slots)
+    if faltan:
+        pregunta = f"Para cotizar necesito: {', '.join(faltan)}."
+        state["response_data"] = [{
+            "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
+            "to": state.get("phone_number") or state.get("email"),
+            "type": "text",
+            "text": {"body": pregunta}
+        }]
+        state["cotizacion_completa"] = False
+        return state
+
+    # --- 5. Si tienes todo, notifica y pausa ---
+    notificar_lead_via_whatsapp('50255105350', session, memoria_slots)
+    session.modo_control = 'paused'
+    session.pausa_hasta = datetime.now() + timedelta(hours=2)
+    db.session.commit()
+    state["response_data"] = [{
+        "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
+        "to": state.get("phone_number") or state.get("email"),
+        "type": "text",
+        "text": {"body": "¡Gracias! Un asesor te contactará pronto para finalizar tu cotización."}
+    }]
+    state["cotizacion_completa"] = True
+    return state
+
 
 
 #def extraer_json_llm(texto):
@@ -1110,7 +1253,8 @@ workflow.add_node("handle_special_commands", handle_special_commands)
 workflow.add_node("asistente", asistente)
 workflow.add_node("send_messages", send_messages)
 workflow.add_node("merge_responses", merge_responses)  # Nuevo nodo
-
+# En la definición de tu grafo (workflow)
+workflow.add_node("handle_cotizacion_slots", handle_cotizacion_slots)
 # --- 2. Enlaces (Edges) ---
 workflow.add_edge("load_session", "pre_validaciones")
 workflow.add_edge("pre_validaciones", "load_product_flow")
@@ -1126,6 +1270,15 @@ def enrutar_despues_comandos(state: BotState) -> str:
     return "asistente"
 
 workflow.add_conditional_edges("handle_special_commands", enrutar_despues_comandos)
+workflow.add_edge("handle_special_commands", "handle_cotizacion_slots")
+
+def ruta_despues_cotizacion(state: dict) -> str:
+    if state.get("cotizacion_completa", False):
+        return "merge_responses"
+    return "asistente"
+
+workflow.add_conditional_edges("handle_cotizacion_slots", ruta_despues_cotizacion)
+
 workflow.add_edge("asistente", "merge_responses")
 workflow.add_edge("merge_responses", "send_messages")
 workflow.add_edge("send_messages", END)

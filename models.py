@@ -14,6 +14,9 @@ class UserSession(db.Model):
     apellido = db.Column(db.String(25))
     tipo_usuario = db.Column(db.String(50), default='cliente')  # opciones: admin, colaborador, cliente
 
+    modo_control = db.Column(db.String(20), default='bot')  # 'bot', 'human', 'paused'
+    pausa_hasta = db.Column(db.DateTime, nullable=True)
+    bloqueado = db.Column(db.Boolean, default=False)
     #last_interaction = db.Column(db.DateTime, default=now)
     last_interaction = db.Column(db.DateTime, default=now)  # Usa la función centralizada
 
