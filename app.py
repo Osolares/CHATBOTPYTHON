@@ -662,7 +662,7 @@ def slot_filling_llm(mensaje):
         agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(result)}")
 
     except Exception:
-        agregar_mensajes_log(f"🔁Respuesta LLM EXCEPT {json.dumps(result)}")
+        agregar_mensajes_log(f"🔁Respuesta LLM EXCEPTTION")
 
         result = {}
     return result
