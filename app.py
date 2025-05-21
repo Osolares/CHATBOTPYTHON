@@ -646,7 +646,7 @@ Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
 Ejemplo:
 Entrada: "Turbo para sportero 2.5"
 Salida:
-{"tipo_repuesto":"turbo","marca":null,"modelo":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
+{{"tipo_repuesto":"turbo","marca":null,"modelo":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}}
 
 Entrada: "{MENSAJE}"
 Salida:
