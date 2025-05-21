@@ -662,6 +662,8 @@ def slot_filling_llm(mensaje):
         agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(result)}")
 
     except Exception:
+        agregar_mensajes_log(f"🔁Respuesta LLM EXCEPT {json.dumps(result)}")
+
         result = {}
     return result
 
@@ -719,15 +721,16 @@ def handle_cotizacion_slots(state: dict) -> dict:
     # --- 1. Cargar slots existentes ---
     memoria_slots = cargar_memoria_slots(session)
     # --- 2. Extraer nuevos del mensaje ---
-    nuevos_slots = slot_filling_llm(user_msg)
+    nuevos_slots = slot_filling_llm(user_msg)     
     for k, v in nuevos_slots.items():
-        if v:
-            memoria_slots[k] = v
+        memoria_slots[k] = v
+
+
     # --- 3. Deducción técnica ---
     agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
 
     memoria_slots = deducir_conocimiento(memoria_slots)
-    agregar_mensajes_log(f"[DEBUG] Antes de guardar - memoria_slots: {json.dumps(memoria_slots)} session.idUser: {getattr(session, 'idUser', None)}")
+    #agregar_mensajes_log(f"[DEBUG] Antes de guardar - memoria_slots: {json.dumps(memoria_slots)} session.idUser: {getattr(session, 'idUser', None)}")
     guardar_memoria_slots(session, memoria_slots)
     # --- 4. Pregunta por lo faltante, si aplica ---
     faltan = campos_faltantes(memoria_slots)
