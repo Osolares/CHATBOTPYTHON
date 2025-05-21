@@ -654,7 +654,7 @@ Salida:
 
 def slot_filling_llm(mensaje):
     prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
-    response = model.invoke([HumanMessage(content=prompt)], max_tokens=300)
+    response = model.invoke([HumanMessage(content=prompt)], max_tokens=50)
     try:
         result = json.loads(response.content.strip())
     except Exception:
@@ -1275,7 +1275,7 @@ workflow.add_edge("handle_special_commands", "handle_cotizacion_slots")
 def ruta_despues_cotizacion(state: dict) -> str:
     if state.get("cotizacion_completa", False):
         return "merge_responses"
-    return "asistente"
+    return "merge_responses"
 
 workflow.add_conditional_edges("handle_cotizacion_slots", ruta_despues_cotizacion)
 
