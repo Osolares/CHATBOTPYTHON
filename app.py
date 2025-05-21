@@ -716,7 +716,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         if v:
             memoria_slots[k] = v
     # --- 3. Deducción técnica ---
-    agregar_mensajes_log("🔁nuevos slots", nuevos_slots)
+    agregar_mensajes_log("🔁nuevos slots", json.dumps(nuevos_slots))
 
     memoria_slots = deducir_conocimiento(memoria_slots)
     guardar_memoria_slots(session, memoria_slots)
