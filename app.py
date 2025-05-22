@@ -770,20 +770,20 @@ def campos_faltantes(slots):
     necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible"]
     return [c for c in necesarios if not slots.get(c)]
 
-def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
-    resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items()])
-    mensaje = (
-        f"🚗 *Nuevo Lead para Cotización*\n\n"
-        f"📞 Cliente: {session.phone_number}\n"
-        f"Datos:\n{resumen}\n\n"
-        f"ID Sesión: {session.idUser}\n"
-    )
-    bot_enviar_mensaje_whatsapp({
-        "messaging_product": "whatsapp",
-        "to": numero_admin,
-        "type": "text",
-        "text": {"body": mensaje}
-    }, state)
+#def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
+#    resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items()])
+#    mensaje = (
+#        f"🚗 *Nuevo Lead para Cotización*\n\n"
+#        f"📞 Cliente: {session.phone_number}\n"
+#        f"Datos:\n{resumen}\n\n"
+#        f"ID Sesión: {session.idUser}\n"
+#    )
+#    bot_enviar_mensaje_whatsapp({
+#        "messaging_product": "whatsapp",
+#        "to": numero_admin,
+#        "type": "text",
+#        "text": {"body": mensaje}
+#    }, state)
 
 # Frases random para cada slot (puedes ampliar)
 PREGUNTAS_SLOTS = {
@@ -905,20 +905,21 @@ def handle_cotizacion_slots(state: dict) -> dict:
         return state
 
     # 5. Si ya tienes lo necesario para alguna ruta, ¡notifica, pausa, resetea y cierra!
-#    notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
-#    session.modo_control = 'paused'
-#    session.pausa_hasta = datetime.now() + timedelta(hours=2)
-#    from config import db
-#    db.session.commit()
-#    resetear_memoria_slots(session)
-#    state["response_data"] = [{
-#        "messaging_product": "whatsapp",
-#        "to": state.get("phone_number"),
-#        "type": "text",
-#        "text": {"body": "🎉 ¡Listo! Ya tengo toda la información para cotizar. Un asesor te contactará muy pronto. Gracias por tu confianza. 🚗✨"}
-#    }]
-#    state["cotizacion_completa"] = True
-#    return state
+    notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
+    session.modo_control = 'paused'
+    session.pausa_hasta = datetime.now() + timedelta(hours=2)
+    from config import db
+    db.session.commit()
+    resetear_memoria_slots(session)
+    state["response_data"] = [{
+        "messaging_product": "whatsapp",
+        "to": state.get("phone_number"),
+        "type": "text",
+        "text": {"body": "🎉 ¡Listo! Ya tengo toda la información para cotizar. Un asesor te contactará muy pronto. Gracias por tu confianza. 🚗✨"}
+    }]
+    state["cotizacion_completa"] = True
+    return state
+
 def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
     resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items() if v and v != "no_sabe"])
     mensaje = (
@@ -932,7 +933,7 @@ def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
         "to": numero_admin,
         "type": "text",
         "text": {"body": mensaje}
-    }, state=None)
+    }, state)
 
 
 #def extraer_json_llm(texto):
