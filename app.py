@@ -848,7 +848,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         return state
 
     # 6. ¡Ya tienes todo! Notifica, pausa y responde con emoción para WhatsApp
-    notificar_lead_via_whatsapp('50255105350', session, memoria_slots)
+    #notificar_lead_via_whatsapp('50255105350', session, memoria_slots)
     session.modo_control = 'paused'
     session.pausa_hasta = datetime.now() + timedelta(hours=2)
     from config import db
