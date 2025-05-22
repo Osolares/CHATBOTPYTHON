@@ -646,16 +646,28 @@ Si el mensaje no está relacionado, responde cortésmente indicando que solo pue
 
     return state
 
-
 # Prompt de slot filling
+#PROMPT_SLOT_FILL = """
+#Extrae la siguiente información en JSON. Pon null si no se encuentra.
+#Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
+#
+#Ejemplo:
+#Entrada: "Turbo para sportero 2.5"
+#Salida:
+#{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
+#
+#Entrada: "{MENSAJE}"
+#Salida:
+#"""
 PROMPT_SLOT_FILL = """
 Extrae la siguiente información en JSON. Pon null si no se encuentra.
-Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
+Campos obligatorios: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
+Campo opcional: descripcion (agrega cualquier dato extra, comentarios del cliente, detalles técnicos que ayuden a la cotización, como VGT, intercooler, importado, turbo, etc)
 
 Ejemplo:
-Entrada: "Turbo para sportero 2.5"
+Entrada: "Quiero un motor 4D56 para L200, año 2017, es versión VGT con intercooler"
 Salida:
-{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
+{"tipo_repuesto":"motor","marca":null,"modelo":"L200","año":"2017","serie_motor":"4D56","cc":null,"combustible":null,"descripcion":"versión VGT con intercooler"}
 
 Entrada: "{MENSAJE}"
 Salida:
@@ -703,6 +715,31 @@ REGLAS_SERIE_MOTOR = {
 REGLAS_MODELOS = {
     "Sportero": {"marca": "Mitsubishi", "serie_motor": "4D56U", "cc": "2.5", "combustible": "diésel"}
 }
+
+ALIAS_MODELOS = {
+    "l200": "L200",
+    "l-200": "L200",
+    "l 200": "L200",
+    # Agrega más si necesitas
+}
+
+FRASES_NO_SE = ["no sé", "nose", "no tengo", "no recuerdo", "desconozco", "no aplica", "no", "x", "n/a"]
+
+def es_no_se(texto):
+    texto = texto.strip().lower()
+    return any(f in texto for f in FRASES_NO_SE)
+
+def es_cotizacion_completa(slots):
+    # Ruta 1: tipo_repuesto, marca, modelo, año, serie_motor
+    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "marca", "modelo", "año", "serie_motor"]):
+        return True
+    # Ruta 2: tipo_repuesto, serie_motor, año
+    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "serie_motor", "año"]):
+        return True
+    # Ruta 3: modelo, tipo_repuesto, combustible, cc, año
+    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["modelo", "tipo_repuesto", "combustible", "cc", "año"]):
+        return True
+    return False
 
 def deducir_conocimiento(slots):
     # Deducción por serie_motor (case-insensitive)
@@ -785,85 +822,75 @@ PREGUNTAS_SLOTS = {
 }
 
 def handle_cotizacion_slots(state: dict) -> dict:
+    from datetime import datetime, timedelta
+
     session = state.get("session")
     user_msg = state.get("user_msg")
 
-    comandos_reset = ["nueva_cotizacion", "reiniciar_slot"]
-
-    if user_msg.strip().lower() in comandos_reset:
-        resetear_memoria_slots(session)
-        state["response_data"] = [{
-            "messaging_product": "whatsapp",
-            "to": state.get("phone_number"),
-            "type": "text",
-            "text": {"body": "👌 ¡Listo! Puedes empezar una nueva cotización cuando quieras. ¿Qué repuesto necesitas ahora?"}
-        }]
-        return state
-    # 🟢 Limpieza para WhatsApp (sólo acepta mensajes tipo texto y botón)
-    #if isinstance(user_msg, dict):
-    #    if user_msg.get("type") == "text":
-    #        user_msg = user_msg.get("text", {}).get("body", "")
-    #    elif user_msg.get("type") == "interactive":
-    #        interactive = user_msg.get("interactive", {})
-    #        tipo_interactivo = interactive.get("type")
-    #        if tipo_interactivo == "button_reply":
-    #            user_msg = interactive.get("button_reply", {}).get("id", "")
-    #        elif tipo_interactivo == "list_reply":
-    #            user_msg = interactive.get("list_reply", {}).get("id", "")
-    #    else:
-    #        user_msg = ""
-
-    #agregar_mensajes_log(f"🔁user msg {user_msg}")
+    # Limpia mensaje si viene en formato dict (WhatsApp)
+    if isinstance(user_msg, dict):
+        if user_msg.get("type") == "text":
+            user_msg = user_msg.get("text", {}).get("body", "")
+        elif user_msg.get("type") == "interactive":
+            interactive = user_msg.get("interactive", {})
+            tipo_interactivo = interactive.get("type")
+            if tipo_interactivo == "button_reply":
+                user_msg = interactive.get("button_reply", {}).get("id", "")
+            elif tipo_interactivo == "list_reply":
+                user_msg = interactive.get("list_reply", {}).get("id", "")
+        else:
+            user_msg = ""
 
     # 1. Cargar memoria de slots
     memoria_slots = cargar_memoria_slots(session)
-    #agregar_mensajes_log(f"🔁memoria slots {json.dumps(memoria_slots)}")
 
-    # 🟢 Nuevo: si la memoria ya tiene algún dato relevante, no filtra por keywords
-    # Solo filtra si es el primer mensaje de la conversación
-    if not memoria_slots or all(v in [None, ""] for v in memoria_slots.values()):
-        cotizacion_keywords = ["motor", "necesito un", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
+    # Si la memoria está vacía, filtra por keywords (primer mensaje)
+    if not memoria_slots or all(v in [None, "", "no_sabe"] for v in memoria_slots.values()):
+        cotizacion_keywords = ["motor", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
         if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
-            return state  # No es cotización, sigue el flujo normal
+            return state
 
-    # 1. Cargar memoria de slots
-    #memoria_slots = cargar_memoria_slots(session)
-
-    # 2. LLM slot filling (string limpio)
-    nuevos_slots = slot_filling_llm(user_msg)
-    agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
-
-    # 3. Actualiza memoria acumulativa SOLO si viene nuevo dato (no borra con None)
-    for k, v in nuevos_slots.items():
-        if v is not None and v != "":
-            memoria_slots[k] = v
-
-    # 4. Deducción técnica de conocimiento propio
-    memoria_slots = deducir_conocimiento(memoria_slots)
-    guardar_memoria_slots(session, memoria_slots)
-
-    # 5. Checa lo que falta
+    # 2. Detecta "no sé" cuando el usuario responde
     faltan = campos_faltantes(memoria_slots)
-    if faltan:
-        frases = []
-        frases.append("🚗 ¡Gracias por la información!")
+    if len(faltan) == 1 and es_no_se(user_msg):
+        campo_faltante = faltan[0]
+        memoria_slots[campo_faltante] = "no_sabe"
+        guardar_memoria_slots(session, memoria_slots)
+        agregar_mensajes_log(f"[DEBUG] Usuario marcó {campo_faltante} como no_sabe")
+        faltan = campos_faltantes(memoria_slots)
+
+    # 3. Slot filling LLM (si el mensaje no es "no sé")
+    if not es_no_se(user_msg):
+        nuevos_slots = slot_filling_llm(user_msg)
+        agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
+
+        # Normaliza modelos si es posible
+        modelo = nuevos_slots.get("modelo")
+        if modelo:
+            modelo_key = modelo.lower().replace("-", "").replace(" ", "")
+            if modelo_key in ALIAS_MODELOS:
+                nuevos_slots["modelo"] = ALIAS_MODELOS[modelo_key]
+
+        # Slot filling acumulativo solo si hay valor no vacío/"no_sabe"
+        for k, v in nuevos_slots.items():
+            if v is not None and v != "" and v != "no_sabe":
+                memoria_slots[k] = v
+
+        # Aplica deducción técnica
+        memoria_slots = deducir_conocimiento(memoria_slots)
+        guardar_memoria_slots(session, memoria_slots)
+        faltan = campos_faltantes(memoria_slots)
+
+    # 4. Si aún no se cumple ninguna ruta, pregunta SOLO lo necesario
+    if not es_cotizacion_completa(memoria_slots):
+        frases = ["🚗 ¡Gracias por la info!"]
         resumen = []
-        if memoria_slots.get("tipo_repuesto"):
-            resumen.append(f"Tipo de Repuesto: {memoria_slots['tipo_repuesto']}")
-        if memoria_slots.get("serie_motor"):
-            resumen.append(f"Serie de motor: {memoria_slots['serie_motor']}")
-        if memoria_slots.get("marca"):
-            resumen.append(f"Marca: {memoria_slots['marca']}")
-        if memoria_slots.get("linea"):
-            resumen.append(f"Línea: {memoria_slots['linea']}")
-        if memoria_slots.get("año"):
-            resumen.append(f"Año/Modelo: {memoria_slots['año']}")
-        if memoria_slots.get("combustible"):
-            resumen.append(f"Combustible: {memoria_slots['combustible']}")
+        for campo in ["marca", "modelo", "año", "serie_motor", "tipo_repuesto", "cc", "combustible"]:
+            val = memoria_slots.get(campo)
+            if val and val != "no_sabe":
+                resumen.append(f"{campo.capitalize()}: {val}")
         if resumen:
             frases.append("📝 Datos que tengo hasta ahora:\n" + "\n".join(resumen))
-
-        # Frases random con emojis por cada dato faltante
         for campo in faltan:
             pregunta = random.choice(PREGUNTAS_SLOTS.get(campo, [f"¿Me das el dato de {campo}?"]))
             frases.append(f"👉 {pregunta}")
@@ -877,24 +904,21 @@ def handle_cotizacion_slots(state: dict) -> dict:
         state["cotizacion_completa"] = False
         return state
 
-    # 6. ¡Ya tienes todo! Notifica, pausa y responde con emoción para WhatsApp
+    # 5. Si ya tienes lo necesario para alguna ruta, ¡notifica, pausa, resetea y cierra!
     notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
     session.modo_control = 'paused'
     session.pausa_hasta = datetime.now() + timedelta(hours=2)
     from config import db
     db.session.commit()
+    resetear_memoria_slots(session)
     state["response_data"] = [{
         "messaging_product": "whatsapp",
         "to": state.get("phone_number"),
         "type": "text",
         "text": {"body": "🎉 ¡Listo! Ya tengo toda la información para cotizar. Un asesor te contactará muy pronto. Gracias por tu confianza. 🚗✨"}
     }]
-
     state["cotizacion_completa"] = True
-    resetear_memoria_slots(session)
-
     return state
-
 
 
 #def extraer_json_llm(texto):
