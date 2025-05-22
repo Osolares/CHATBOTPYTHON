@@ -690,7 +690,7 @@ def slot_filling_llm(mensaje):
     prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
     response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
     result = extract_json(response.content.strip())
-    agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(response)}")
+    agregar_mensajes_log(f"🔁Respuesta LLM {response}")
     return result
 
 # Reglas técnicas (comienza con tus casos más comunes)
@@ -785,13 +785,16 @@ def handle_cotizacion_slots(state: dict) -> dict:
         else:
             user_msg = ""
 
+    agregar_mensajes_log(f"🔁user msg {user_msg}")
+
     # 1. Cargar memoria de slots
     memoria_slots = cargar_memoria_slots(session)
+    agregar_mensajes_log(f"🔁memoria slots {json.dumps(memoria_slots)}")
 
     # 🟢 Nuevo: si la memoria ya tiene algún dato relevante, no filtra por keywords
     # Solo filtra si es el primer mensaje de la conversación
     if not memoria_slots or all(v in [None, ""] for v in memoria_slots.values()):
-        cotizacion_keywords = ["motor", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
+        cotizacion_keywords = ["motor", "necesito un", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
         if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
             return state  # No es cotización, sigue el flujo normal
 
