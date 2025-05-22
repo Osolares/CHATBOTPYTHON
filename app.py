@@ -621,6 +621,7 @@ No incluyas información innecesaria (como el número de palabras).
 nunca confirmes disponibilidad, exitencias, precio, etc
 
 Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
+si es un mensaje de agradecimiento o despedida responde que es un placer atenderle
 
 {prompt_usuario}
 """
@@ -647,31 +648,31 @@ Si el mensaje no está relacionado, responde cortésmente indicando que solo pue
     return state
 
 # Prompt de slot filling
-#PROMPT_SLOT_FILL = """
-#Extrae la siguiente información en JSON. Pon null si no se encuentra.
-#Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
-#
-#Ejemplo:
-#Entrada: "Turbo para sportero 2.5"
-#Salida:
-#{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
-#
-#Entrada: "{MENSAJE}"
-#Salida:
-#"""
 PROMPT_SLOT_FILL = """
 Extrae la siguiente información en JSON. Pon null si no se encuentra.
-Campos obligatorios: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
-Campo opcional: descripcion (agrega cualquier dato extra, comentarios del cliente, detalles técnicos que ayuden a la cotización, como VGT, intercooler, importado, turbo, etc)
+Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
 
 Ejemplo:
-Entrada: "Quiero un motor 4D56 para L200, año 2017, es versión VGT con intercooler"
+Entrada: "Turbo para sportero 2.5"
 Salida:
-{"tipo_repuesto":"motor","marca":null,"modelo":"L200","año":"2017","serie_motor":"4D56","cc":null,"combustible":null,"descripcion":"versión VGT con intercooler"}
+{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
 
 Entrada: "{MENSAJE}"
 Salida:
 """
+#PROMPT_SLOT_FILL = """
+#Extrae la siguiente información en JSON. Pon null si no se encuentra.
+#Campos obligatorios: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
+#Campo opcional: descripcion (agrega cualquier dato extra, comentarios del cliente, detalles técnicos que ayuden a la cotización, como VGT, intercooler, importado, turbo, etc)
+#
+#Ejemplo:
+#Entrada: "Quiero un motor 4D56 para L200, año 2017, es versión VGT con intercooler"
+#Salida:
+#{"tipo_repuesto":"motor","marca":null,"modelo":"L200","año":"2017","serie_motor":"4D56","cc":null,"combustible":null,"descripcion":"versión VGT con intercooler"}
+#
+#Entrada: "{MENSAJE}"
+#Salida:
+#"""
 
 #def slot_filling_llm(mensaje):
 #    agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
@@ -713,7 +714,9 @@ REGLAS_SERIE_MOTOR = {
     "j3": {"marca": "Hyundai", "cc": "2.9", "combustible": "diésel", "lineas": ["Terracan"]}
 }
 REGLAS_MODELOS = {
-    "Sportero": {"marca": "Mitsubishi", "serie_motor": "4D56U", "cc": "2.5", "combustible": "diésel"}
+    "Sportero": {"marca": "Mitsubishi", "serie_motor": "4D56U", "cc": "2.5", "combustible": "diésel"},
+    "l200": {"marca": "Mitsubishi", "serie_motor": "4D56", "cc": "2.5", "combustible": "diésel"},
+
 }
 
 ALIAS_MODELOS = {
@@ -723,7 +726,7 @@ ALIAS_MODELOS = {
     # Agrega más si necesitas
 }
 
-FRASES_NO_SE = ["no sé", "nose", "no tengo", "no recuerdo", "desconozco", "no aplica", "no", "x", "n/a"]
+FRASES_NO_SE = ["no sé", "no se", "nose", "no tengo", "no la tengo", "no recuerdo", "desconozco", "no aplica", "no", "x", "n/a"]
 
 def es_no_se(texto):
     texto = texto.strip().lower()
@@ -846,7 +849,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     # Si la memoria está vacía, filtra por keywords (primer mensaje)
     if not memoria_slots or all(v in [None, "", "no_sabe"] for v in memoria_slots.values()):
-        cotizacion_keywords = ["motor", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
+        cotizacion_keywords = ["motor","necesito","que precio","qué precio", "cuanto cuesta","cuánto cuesta","hay","tiene", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
         if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
             return state
 
