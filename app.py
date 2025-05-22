@@ -621,7 +621,7 @@ No incluyas información innecesaria (como el número de palabras).
 nunca confirmes disponibilidad, exitencias, precio, etc
 
 Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
-si es un mensaje de agradecimiento o despedida responde que es un placer atenderle
+si es un mensaje de agradecimiento o despedida responde algo como es un placer atenderle
 
 {prompt_usuario}
 """
@@ -734,13 +734,13 @@ def es_no_se(texto):
 
 def es_cotizacion_completa(slots):
     # Ruta 1: tipo_repuesto, marca, modelo, año, serie_motor
-    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "marca", "modelo", "año", "serie_motor"]):
+    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "marca", "linea", "año", "serie_motor"]):
         return True
     # Ruta 2: tipo_repuesto, serie_motor, año
     if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "serie_motor", "año"]):
         return True
     # Ruta 3: modelo, tipo_repuesto, combustible, cc, año
-    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["modelo", "tipo_repuesto", "combustible", "cc", "año"]):
+    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["linea", "tipo_repuesto", "combustible", "cc", "año"]):
         return True
     return False
 
@@ -868,11 +868,11 @@ def handle_cotizacion_slots(state: dict) -> dict:
         agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
 
         # Normaliza modelos si es posible
-        modelo = nuevos_slots.get("modelo")
+        modelo = nuevos_slots.get("linea")
         if modelo:
             modelo_key = modelo.lower().replace("-", "").replace(" ", "")
             if modelo_key in ALIAS_MODELOS:
-                nuevos_slots["modelo"] = ALIAS_MODELOS[modelo_key]
+                nuevos_slots["linea"] = ALIAS_MODELOS[modelo_key]
 
         # Slot filling acumulativo solo si hay valor no vacío/"no_sabe"
         for k, v in nuevos_slots.items():
@@ -886,24 +886,54 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     # 4. Si aún no se cumple ninguna ruta, pregunta SOLO lo necesario
     if not es_cotizacion_completa(memoria_slots):
-        frases = ["🚗 ¡Gracias por la info!"]
+        frases = ["🚗 ¡Gracias por la información!"]
         resumen = []
-        for campo in ["marca", "modelo", "año", "serie_motor", "tipo_repuesto", "cc", "combustible"]:
+        for campo in ["marca", "linea", "año", "serie_motor", "tipo_repuesto", "cc", "combustible"]:
             val = memoria_slots.get(campo)
             if val and val != "no_sabe":
                 resumen.append(f"{campo.capitalize()}: {val}")
         if resumen:
             frases.append("📝 Datos que tengo hasta ahora:\n" + "\n".join(resumen))
+            frases.append("\n\n🔁 Si necesitas cambiarlo sólo dimelo:\n")
         for campo in faltan:
             pregunta = random.choice(PREGUNTAS_SLOTS.get(campo, [f"¿Me das el dato de {campo}?"]))
             frases.append(f"👉 {pregunta}")
         mensaje = "\n\n".join(frases)
         state["response_data"] = [{
             "messaging_product": "whatsapp",
+            "recipient_type": "individual",
             "to": state.get("phone_number"),
-            "type": "text",
-            "text": {"body": mensaje}
+            "type": "interactive",
+            "interactive":{
+                "type":"button",
+                "body": {
+                    "text": mensaje
+                },
+                "footer": {
+                    "text": ""
+                },
+                "action": {
+                    "buttons":[
+                        {
+                            "type": "reply",
+                            "reply":{
+                                "id":"reiniciar",
+                                "title":"❌ Cancelar/Salir"
+                            }
+                        }
+                    ]
+                }
+            }
         }]
+
+
+        #state["response_data"] = [{
+        #    "messaging_product": "whatsapp",
+        #    "to": state.get("phone_number"),
+        #    "type": "text",
+        #    "text": {"body": mensaje}
+        #}]
+
         state["cotizacion_completa"] = False
         return state
 
