@@ -853,12 +853,13 @@ def handle_cotizacion_slots(state: dict) -> dict:
     session.pausa_hasta = datetime.now() + timedelta(hours=2)
     from config import db
     db.session.commit()
-    state["response_data"] = [{
+    state["response_data"] = ({
         "messaging_product": "whatsapp",
         "to": state.get("phone_number"),
         "type": "text",
         "text": {"body": "🎉 ¡Listo! Ya tengo toda la información para cotizar. Un asesor te contactará muy pronto. Gracias por tu confianza. 🚗✨"}
-    }]
+    })
+
     state["cotizacion_completa"] = True
     resetear_memoria_slots(session)
 
