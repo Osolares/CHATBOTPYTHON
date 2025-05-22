@@ -705,14 +705,28 @@ REGLAS_MODELOS = {
 }
 
 def deducir_conocimiento(slots):
-    if slots.get("serie_motor").lower().strip() in REGLAS_SERIE_MOTOR:
-        for campo, valor in REGLAS_SERIE_MOTOR[slots["serie_motor"]].items():
-            if not slots.get(campo):
-                slots[campo] = valor
-    if slots.get("linea").lower().strip() and slots.get("linea").capitalize() in REGLAS_MODELOS:
-        for campo, valor in REGLAS_MODELOS[slots["linea"].capitalize()].items():
-            if not slots.get(campo):
-                slots[campo] = valor
+    # Deducción por serie_motor (case-insensitive)
+    serie_motor = slots.get("serie_motor")
+    if serie_motor:
+        clave = serie_motor.lower().strip()
+        for key in REGLAS_SERIE_MOTOR:
+            if key.lower().strip() == clave:
+                for campo, valor in REGLAS_SERIE_MOTOR[key].items():
+                    if not slots.get(campo):
+                        slots[campo] = valor
+                break
+
+    # Deducción por modelo/linea (case-insensitive)
+    linea = slots.get("linea") or slots.get("modelo")  # según como uses los nombres de slot
+    if linea:
+        clave_linea = linea.lower().strip()
+        for key in REGLAS_MODELOS:
+            if key.lower().strip() == clave_linea:
+                for campo, valor in REGLAS_MODELOS[key].items():
+                    if not slots.get(campo):
+                        slots[campo] = valor
+                break
+
     return slots
 
 def campos_faltantes(slots):
