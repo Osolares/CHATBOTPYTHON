@@ -655,7 +655,7 @@ Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
 Ejemplo:
 Entrada: "Turbo para sportero 2.5"
 Salida:
-{"tipo_repuesto":"turbo","marca":null,"modelo":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
+{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
 
 Entrada: "{MENSAJE}"
 Salida:
@@ -695,26 +695,28 @@ def slot_filling_llm(mensaje):
 
 # Reglas técnicas (comienza con tus casos más comunes)
 REGLAS_SERIE_MOTOR = {
-    "1KZ": {"marca": "Toyota", "cc": "3.0", "combustible": "diésel", "modelos": ["Prado", "Hilux", "4Runner"]},
-    "J3": {"marca": "Hyundai", "cc": "2.9", "combustible": "diésel", "modelos": ["Terracan"]}
+    "1kz": {"marca": "Toyota", "cilindros": "4",  "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "culata de aluminio"], "lineas": ["Prado", "Hilux", "4Runner"]},
+    "4d56": {"marca": "Mitsubishi", "cilindros": "4",  "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "sin turbo"], "lineas": ["L200", "L300"]},
+
+    "j3": {"marca": "Hyundai", "cc": "2.9", "combustible": "diésel", "lineas": ["Terracan"]}
 }
 REGLAS_MODELOS = {
     "Sportero": {"marca": "Mitsubishi", "serie_motor": "4D56U", "cc": "2.5", "combustible": "diésel"}
 }
 
 def deducir_conocimiento(slots):
-    if slots.get("serie_motor") in REGLAS_SERIE_MOTOR:
+    if slots.get("serie_motor").lower().strip() in REGLAS_SERIE_MOTOR:
         for campo, valor in REGLAS_SERIE_MOTOR[slots["serie_motor"]].items():
             if not slots.get(campo):
                 slots[campo] = valor
-    if slots.get("modelo") and slots.get("modelo").capitalize() in REGLAS_MODELOS:
-        for campo, valor in REGLAS_MODELOS[slots["modelo"].capitalize()].items():
+    if slots.get("linea").lower().strip() and slots.get("linea").capitalize() in REGLAS_MODELOS:
+        for campo, valor in REGLAS_MODELOS[slots["linea"].capitalize()].items():
             if not slots.get(campo):
                 slots[campo] = valor
     return slots
 
 def campos_faltantes(slots):
-    necesarios = ["tipo_repuesto", "marca", "modelo", "año", "serie_motor"]
+    necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible"]
     return [c for c in necesarios if not slots.get(c)]
 
 def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
@@ -735,24 +737,36 @@ def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
 # Frases random para cada slot (puedes ampliar)
 PREGUNTAS_SLOTS = {
     "tipo_repuesto": [
-        "¿Qué repuesto necesitas? (ejemplo: motor, culata, etc.)",
-        "¿Sobre qué repuesto te gustaría cotizar?"
+        "¿Qué repuesto necesitas? (ejemplo: motor, culata, turbo, etc.)",
+        "¿Sobre qué repuesto te gustaría cotizar?",
+        "¿Cuál es el repuesto de tu interes?"
+        "¿Qué tipo de repuesto necesitas?",
     ],
     "marca": [
         "¿Cuál es la marca de tu vehículo?",
         "¿Me indicas la marca del auto?"
     ],
-    "modelo": [
-        "¿Qué modelo es tu vehículo?",
-        "¿Podrías decirme el modelo?"
+    "linea": [
+        "¿Qué línea/modelo es tu vehículo?",
+        "¿Podrías decirme la línea del vehículo?"
     ],
     "año": [
         "¿De qué año es tu vehículo?",
-        "¿Sabes el año del auto?"
+        "¿Sabes el año del auto?",
+        "¿cuál es el modelo?",
+        "¿Para qué año necesita?"
+
     ],
     "serie_motor": [
         "¿Conoces la serie del motor?",
-        "¿Me das la serie del motor?"
+        "¿Me das la serie del motor?",
+        "¿Sabes la serie del motor?",
+        "¿Tienes el número de serie del motor?"
+    ],
+    "comnbustible": [
+        "¿El motor es diésel o gasolina?",
+        "¿Su vehículo es diésel o gasolina?",
+        "¿Diésel o gasolina?"
     ]
 }
 
@@ -760,7 +774,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
     session = state.get("session")
     user_msg = state.get("user_msg")
 
-    comandos_reset = ["nueva cotización", "empezar de nuevo"]
+    comandos_reset = ["nueva_cotizacion", "reiniciar_slot"]
 
     if user_msg.strip().lower() in comandos_reset:
         resetear_memoria_slots(session)
@@ -772,24 +786,24 @@ def handle_cotizacion_slots(state: dict) -> dict:
         }]
         return state
     # 🟢 Limpieza para WhatsApp (sólo acepta mensajes tipo texto y botón)
-    if isinstance(user_msg, dict):
-        if user_msg.get("type") == "text":
-            user_msg = user_msg.get("text", {}).get("body", "")
-        elif user_msg.get("type") == "interactive":
-            interactive = user_msg.get("interactive", {})
-            tipo_interactivo = interactive.get("type")
-            if tipo_interactivo == "button_reply":
-                user_msg = interactive.get("button_reply", {}).get("id", "")
-            elif tipo_interactivo == "list_reply":
-                user_msg = interactive.get("list_reply", {}).get("id", "")
-        else:
-            user_msg = ""
+    #if isinstance(user_msg, dict):
+    #    if user_msg.get("type") == "text":
+    #        user_msg = user_msg.get("text", {}).get("body", "")
+    #    elif user_msg.get("type") == "interactive":
+    #        interactive = user_msg.get("interactive", {})
+    #        tipo_interactivo = interactive.get("type")
+    #        if tipo_interactivo == "button_reply":
+    #            user_msg = interactive.get("button_reply", {}).get("id", "")
+    #        elif tipo_interactivo == "list_reply":
+    #            user_msg = interactive.get("list_reply", {}).get("id", "")
+    #    else:
+    #        user_msg = ""
 
-    agregar_mensajes_log(f"🔁user msg {user_msg}")
+    #agregar_mensajes_log(f"🔁user msg {user_msg}")
 
     # 1. Cargar memoria de slots
     memoria_slots = cargar_memoria_slots(session)
-    agregar_mensajes_log(f"🔁memoria slots {json.dumps(memoria_slots)}")
+    #agregar_mensajes_log(f"🔁memoria slots {json.dumps(memoria_slots)}")
 
     # 🟢 Nuevo: si la memoria ya tiene algún dato relevante, no filtra por keywords
     # Solo filtra si es el primer mensaje de la conversación
@@ -818,18 +832,20 @@ def handle_cotizacion_slots(state: dict) -> dict:
     faltan = campos_faltantes(memoria_slots)
     if faltan:
         frases = []
-        frases.append("🚗 ¡Gracias por la info!")
+        frases.append("🚗 ¡Gracias por la información!")
         resumen = []
-        if memoria_slots.get("marca"):
-            resumen.append(f"Marca: {memoria_slots['marca']}")
-        if memoria_slots.get("modelo"):
-            resumen.append(f"Modelo: {memoria_slots['modelo']}")
-        if memoria_slots.get("año"):
-            resumen.append(f"Año: {memoria_slots['año']}")
+        if memoria_slots.get("tipo_repuesto"):
+            resumen.append(f"Tipo de Repuesto: {memoria_slots['tipo_repuesto']}")
         if memoria_slots.get("serie_motor"):
             resumen.append(f"Serie de motor: {memoria_slots['serie_motor']}")
-        if memoria_slots.get("tipo_repuesto"):
-            resumen.append(f"Repuesto: {memoria_slots['tipo_repuesto']}")
+        if memoria_slots.get("marca"):
+            resumen.append(f"Marca: {memoria_slots['marca']}")
+        if memoria_slots.get("linea"):
+            resumen.append(f"Línea: {memoria_slots['linea']}")
+        if memoria_slots.get("año"):
+            resumen.append(f"Año/Modelo: {memoria_slots['año']}")
+        if memoria_slots.get("combustible"):
+            resumen.append(f"Combustible: {memoria_slots['combustible']}")
         if resumen:
             frases.append("📝 Datos que tengo hasta ahora:\n" + "\n".join(resumen))
 
@@ -1394,7 +1410,7 @@ workflow.add_conditional_edges("handle_special_commands", enrutar_despues_comand
 def ruta_despues_cotizacion(state: dict) -> str:
     if state.get("cotizacion_completa", False):
         return "merge_responses"
-    return "merge_responses"
+    return "asistente"
 
 workflow.add_conditional_edges("handle_cotizacion_slots", ruta_despues_cotizacion)
 
