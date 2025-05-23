@@ -970,7 +970,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         "messaging_product": "whatsapp",
         "to": state.get("phone_number"),
         "type": "text",
-        "text": {"body": f"✅ Datos recibidos: \n {resumen} \n 🎉 ¡Listo! Ya tengo toda la información para cotizar. Un asesor te contactará muy pronto. Gracias por tu confianza. 🚗✨"}
+        "text": {"body": f"✅ Datos recibidos: \n "+ "\n".join(resumen) + "\n\n 🎉 ¡Listo! Ya tengo toda la información para cotizar. Un asesor te contactará muy pronto. Gracias por tu confianza. 🚗✨"}
     }]
     state["cotizacion_completa"] = True
     return state
