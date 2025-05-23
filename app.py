@@ -700,6 +700,7 @@ def extract_json(texto):
 
 def slot_filling_llm(mensaje):
     #agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
+
     prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
     response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
     result = extract_json(response.content.strip())
@@ -844,6 +845,20 @@ def handle_cotizacion_slots(state: dict) -> dict:
         else:
             user_msg = ""
 
+
+    comandos_reset = ["nueva cotización", "/reset", "reiniciar_cotizacion"]
+
+    if user_msg.strip().lower() in comandos_reset:
+        resetear_memoria_slots(session)
+        state["response_data"] = [{
+            "messaging_product": "whatsapp",
+            "to": state.get("phone_number"),
+            "type": "text",
+            "text": {"body": "👌 ¡Listo! Puedes empezar una nueva cotización cuando quieras. ¿Qué repuesto necesitas ahora?"}
+        }]
+        return state
+
+
     # 1. Cargar memoria de slots
     memoria_slots = cargar_memoria_slots(session)
 
@@ -894,7 +909,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
                 resumen.append(f"{campo.capitalize()}: {val}")
         if resumen:
             frases.append("📝 Datos que tengo hasta ahora:\n" + "\n".join(resumen))
-            frases.append("\n\n🔁 Si necesitas cambiarlo sólo dimelo:\n")
+            frases.append("🔁 Si necesitas cambiar algo sólo dimelo:\n")
         for campo in faltan:
             pregunta = random.choice(PREGUNTAS_SLOTS.get(campo, [f"¿Me das el dato de {campo}?"]))
             frases.append(f"👉 {pregunta}")
@@ -917,7 +932,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
                         {
                             "type": "reply",
                             "reply":{
-                                "id":"reiniciar",
+                                "id":"reiniciar_cotizacion",
                                 "title":"❌ Cancelar/Salir"
                             }
                         }
