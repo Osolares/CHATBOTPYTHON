@@ -739,13 +739,13 @@ def es_no_se(texto):
 
 def es_cotizacion_completa(slots):
     # Ruta 1: tipo_repuesto, marca, modelo, año, serie_motor
-    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "marca", "linea", "año", "serie_motor"]):
+    if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "marca", "linea", "año", "serie_motor"]):
         return True
     # Ruta 2: tipo_repuesto, serie_motor, año
-    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "serie_motor", "año"]):
+    if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "serie_motor", "año"]):
         return True
     # Ruta 3: modelo, tipo_repuesto, combustible, cc, año
-    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["linea", "tipo_repuesto", "combustible", "cc", "año"]):
+    if all(slots.get(k) not in [None, ""] for k in ["linea", "tipo_repuesto", "combustible", "cc", "año"]):
         return True
     return False
 
@@ -895,7 +895,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         memoria_slots[campo_faltante] = "no_sabe"
         guardar_memoria_slots(session, memoria_slots)
         agregar_mensajes_log(f"[DEBUG] Usuario marcó {campo_faltante} como no_sabe")
-    
+
         # ⬇️ Verifica inmediatamente si puedes cotizar tras marcar "no_sabe"
         if es_cotizacion_completa(memoria_slots):
             resumen = []
@@ -903,7 +903,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
                 val = memoria_slots.get(campo)
                 if val and val != "no_sabe":
                     resumen.append(f"{campo.capitalize()}: {val}")
-    
+
             notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
             session.modo_control = 'paused'
             session.pausa_hasta = datetime.now() + timedelta(hours=2)
@@ -923,7 +923,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
             }]
             state["cotizacion_completa"] = True
             return state
-    
+
         # Si no puedes cotizar aún, solo muestra el mensaje empático
         state["response_data"] = [{
             "messaging_product": "whatsapp",
