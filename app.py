@@ -647,20 +647,6 @@ si es un mensaje de saludo, bienvenida, agradecimiento o despedida responde algo
 
     return state
 
-# Prompt de slot filling
-PROMPT_SLOT_FILL = """
-Extrae la siguiente información en JSON. Pon null si no se encuentra.
-Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
-
-Ejemplo:
-Entrada: "Turbo para sportero 2.5"
-el año tambien te lo pueden decir como modelo y puede venir abreviado ejmplo "modelo 90"
-Salida:
-{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
-
-Entrada: "{MENSAJE}"
-Salida:
-"""
 #PROMPT_SLOT_FILL = """
 #Extrae la siguiente información en JSON. Pon null si no se encuentra.
 #Campos obligatorios: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
@@ -689,6 +675,20 @@ Salida:
 #        result = {}
 #    return result
 
+# Prompt de slot filling
+PROMPT_SLOT_FILL = """
+Extrae la siguiente información en JSON. Pon null si no se encuentra.
+Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
+
+Ejemplo:
+Entrada: "Turbo para sportero 2.5"
+el año tambien te lo pueden decir como modelo y puede venir abreviado ejmplo "modelo 90"
+Salida:
+{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
+
+Entrada: "{MENSAJE}"
+Salida:
+"""
 
 def extract_json(texto):
     try:
@@ -730,6 +730,9 @@ ALIAS_MODELOS = {
 
 FRASES_NO_SE = ["no sé", "no se", "nose", "no tengo", "no la tengo", "no recuerdo", "desconozco", "no aplica", "no", "x", "n/a"]
 
+#def es_no_se(texto):
+#    texto = texto.strip().lower()
+#    return any(f in texto for f in FRASES_NO_SE)
 def es_no_se(texto):
     texto = texto.strip().lower()
     return any(f in texto for f in FRASES_NO_SE)
@@ -771,9 +774,14 @@ def deducir_conocimiento(slots):
 
     return slots
 
+#def campos_faltantes(slots):
+#    necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible"]
+#    return [c for c in necesarios if not slots.get(c)]
 def campos_faltantes(slots):
     necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible"]
-    return [c for c in necesarios if not slots.get(c)]
+    # Solo pide los que son None, "", o no existen. IGNORA los slots marcados como "no_sabe"
+    return [c for c in necesarios if (not slots.get(c) or slots.get(c) in ["", None])]
+
 
 #def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
 #    resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items()])
@@ -844,9 +852,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         else:
             user_msg = ""
 
-
     comandos_reset = ["nueva cotización", "/reset", "reiniciar_cotizacion"]
-
     if user_msg.strip().lower() in comandos_reset:
         resetear_memoria_slots(session)
         state["response_data"] = [{
@@ -857,7 +863,6 @@ def handle_cotizacion_slots(state: dict) -> dict:
         }]
         return state
 
-
     # 1. Cargar memoria de slots
     memoria_slots = cargar_memoria_slots(session)
 
@@ -867,14 +872,22 @@ def handle_cotizacion_slots(state: dict) -> dict:
         if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
             return state
 
-    # 2. Detecta "no sé" cuando el usuario responde
+    # 2. Detecta "no sé" y marca el campo faltante como "no_sabe"
     faltan = campos_faltantes(memoria_slots)
     if len(faltan) == 1 and es_no_se(user_msg):
         campo_faltante = faltan[0]
         memoria_slots[campo_faltante] = "no_sabe"
         guardar_memoria_slots(session, memoria_slots)
         agregar_mensajes_log(f"[DEBUG] Usuario marcó {campo_faltante} como no_sabe")
-        faltan = campos_faltantes(memoria_slots)
+        # Mensaje empático
+        state["response_data"] = [{
+            "messaging_product": "whatsapp",
+            "to": state.get("phone_number"),
+            "type": "text",
+            "text": {"body": f"No te preocupes si no tienes el dato de {campo_faltante}. ¡Sigo con la cotización con lo que ya tenemos! 🚗"}
+        }]
+        state["cotizacion_completa"] = False
+        return state
 
     # 3. Slot filling LLM (si el mensaje no es "no sé")
     if not es_no_se(user_msg):
@@ -888,17 +901,15 @@ def handle_cotizacion_slots(state: dict) -> dict:
             if modelo_key in ALIAS_MODELOS:
                 nuevos_slots["linea"] = ALIAS_MODELOS[modelo_key]
 
-        # Slot filling acumulativo solo si hay valor no vacío/"no_sabe"
         for k, v in nuevos_slots.items():
             if v is not None and v != "" and v != "no_sabe":
                 memoria_slots[k] = v
 
-        # Aplica deducción técnica
         memoria_slots = deducir_conocimiento(memoria_slots)
         guardar_memoria_slots(session, memoria_slots)
         faltan = campos_faltantes(memoria_slots)
 
-    # 4. Si aún no se cumple ninguna ruta, pregunta SOLO lo necesario
+    # 4. Si aún no se cumple ninguna ruta, pregunta SOLO lo necesario (pero nunca lo de "no_sabe")
     if not es_cotizacion_completa(memoria_slots):
         frases = ["🚗 ¡Gracias por la información!"]
         resumen = []
@@ -939,28 +950,17 @@ def handle_cotizacion_slots(state: dict) -> dict:
                 }
             }
         }]
-
-
-        #state["response_data"] = [{
-        #    "messaging_product": "whatsapp",
-        #    "to": state.get("phone_number"),
-        #    "type": "text",
-        #    "text": {"body": mensaje}
-        #}]
-
         state["cotizacion_completa"] = False
         return state
 
+    # 5. Si ya tienes lo necesario para alguna ruta, ¡notifica, pausa, resetea y cierra!
     frases = ["🚗 ¡Gracias por la información!"]
     resumen = []
     for campo in ["marca", "linea", "año", "serie_motor", "tipo_repuesto", "cc", "combustible"]:
         val = memoria_slots.get(campo)
         if val and val != "no_sabe":
             resumen.append(f"{campo.capitalize()}: {val}")
-    #if resumen:
-    #    frases.append("✅ Datos recibidos:\n" + "\n".join(resumen))
 
-    # 5. Si ya tienes lo necesario para alguna ruta, ¡notifica, pausa, resetea y cierra!
     notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
     session.modo_control = 'paused'
     session.pausa_hasta = datetime.now() + timedelta(hours=2)
