@@ -621,7 +621,7 @@ No incluyas información innecesaria (como el número de palabras).
 nunca confirmes disponibilidad, exitencias, precio, etc
 
 Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
-si es un mensaje de agradecimiento o despedida responde algo como es un placer atenderle
+si es un mensaje de saludo, bienvenida, agradecimiento o despedida responde algo acorde
 
 {prompt_usuario}
 """
@@ -799,7 +799,7 @@ PREGUNTAS_SLOTS = {
     ],
     "marca": [
         "¿Cuál es la marca de tu vehículo?",
-        "¿Me indicas la marca del auto?"
+        "¿Qué marca del auto?"
     ],
     "linea": [
         "¿Qué línea/modelo es tu vehículo?",
@@ -808,13 +808,11 @@ PREGUNTAS_SLOTS = {
     "año": [
         "¿De qué año es tu vehículo?",
         "¿Sabes el año del auto?",
-        "¿cuál es el modelo?",
-        "¿Para qué año necesita?"
+        "¿Para qué año necesitas?"
 
     ],
     "serie_motor": [
         "¿Conoces la serie del motor?",
-        "¿Me das la serie del motor?",
         "¿Sabes la serie del motor?",
         "¿Tienes el número de serie del motor?"
     ],
@@ -864,7 +862,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     # Si la memoria está vacía, filtra por keywords (primer mensaje)
     if not memoria_slots or all(v in [None, "", "no_sabe"] for v in memoria_slots.values()):
-        cotizacion_keywords = ["motor","necesito","que precio","qué precio", "cuanto cuesta","cuánto cuesta","hay","tiene", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
+        cotizacion_keywords = ["motor","necesito","que precio","qué precio", "quiero", "cuanto cuesta","cuánto cuesta","hay","tiene", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
         if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
             return state
 
@@ -952,6 +950,15 @@ def handle_cotizacion_slots(state: dict) -> dict:
         state["cotizacion_completa"] = False
         return state
 
+    frases = ["🚗 ¡Gracias por la información!"]
+    resumen = []
+    for campo in ["marca", "linea", "año", "serie_motor", "tipo_repuesto", "cc", "combustible"]:
+        val = memoria_slots.get(campo)
+        if val and val != "no_sabe":
+            resumen.append(f"{campo.capitalize()}: {val}")
+    #if resumen:
+    #    frases.append("✅ Datos recibidos:\n" + "\n".join(resumen))
+
     # 5. Si ya tienes lo necesario para alguna ruta, ¡notifica, pausa, resetea y cierra!
     notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
     session.modo_control = 'paused'
@@ -963,7 +970,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         "messaging_product": "whatsapp",
         "to": state.get("phone_number"),
         "type": "text",
-        "text": {"body": "🎉 ¡Listo! Ya tengo toda la información para cotizar. Un asesor te contactará muy pronto. Gracias por tu confianza. 🚗✨"}
+        "text": {"body": f"✅ Datos recibidos: \n {resumen} \n 🎉 ¡Listo! Ya tengo toda la información para cotizar. Un asesor te contactará muy pronto. Gracias por tu confianza. 🚗✨"}
     }]
     state["cotizacion_completa"] = True
     return state
