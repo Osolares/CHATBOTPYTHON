@@ -654,6 +654,7 @@ Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
 
 Ejemplo:
 Entrada: "Turbo para sportero 2.5"
+el año tambien te lo pueden decir como modelo y puede venir abreviado ejmplo "modelo 90"
 Salida:
 {"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
 
