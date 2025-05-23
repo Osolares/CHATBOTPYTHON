@@ -889,23 +889,21 @@ def handle_cotizacion_slots(state: dict) -> dict:
     #    state["cotizacion_completa"] = False
     #    return state
 
-    # 2. Detecta "no sé" y marca el campo faltante como "no_sabe"
     faltan = campos_faltantes(memoria_slots)
     if len(faltan) == 1 and es_no_se(user_msg):
         campo_faltante = faltan[0]
         memoria_slots[campo_faltante] = "no_sabe"
         guardar_memoria_slots(session, memoria_slots)
         agregar_mensajes_log(f"[DEBUG] Usuario marcó {campo_faltante} como no_sabe")
-
-        # ⬇️ Verifica si ya puedes cotizar
+    
+        # ⬇️ Verifica inmediatamente si puedes cotizar tras marcar "no_sabe"
         if es_cotizacion_completa(memoria_slots):
-            # --- ¡Listo para cotizar! ---
             resumen = []
             for campo in ["marca", "linea", "año", "serie_motor", "tipo_repuesto", "cc", "combustible"]:
                 val = memoria_slots.get(campo)
                 if val and val != "no_sabe":
                     resumen.append(f"{campo.capitalize()}: {val}")
-
+    
             notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
             session.modo_control = 'paused'
             session.pausa_hasta = datetime.now() + timedelta(hours=2)
@@ -925,8 +923,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
             }]
             state["cotizacion_completa"] = True
             return state
-
-        # --- Si aún no puedes cotizar, solo avanza y pregunta lo que falta ---
+    
+        # Si no puedes cotizar aún, solo muestra el mensaje empático
         state["response_data"] = [{
             "messaging_product": "whatsapp",
             "to": state.get("phone_number"),
