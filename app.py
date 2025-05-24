@@ -683,6 +683,7 @@ Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
 Ejemplo:
 Entrada: "Turbo para sportero 2.5"
 el año tambien te lo pueden decir como modelo y puede venir abreviado ejmplo "modelo 90"
+la linea puede tener algunas variaciones o estar mal escrita ejemplo "colola" en vez de "corolla"
 Salida:
 {"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
 
@@ -769,7 +770,7 @@ def es_cotizacion_completa(slots):
     ):
         return True
     # Ruta alternativa: Todos menos año
-    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "marca", "linea", "serie_motor"]):
+    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "marca", "linea", "serie_motor", "cc", "combustible"]):
         return True
     return False
 
