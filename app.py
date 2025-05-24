@@ -1078,11 +1078,14 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     # 1. Cargar memoria de slots
     memoria_slots = cargar_memoria_slots(session)
+    agregar_mensajes_log(f"🔁memoria slots cargada {json.dumps(memoria_slots)}")
 
     # Si la memoria está vacía, filtra por keywords (primer mensaje)
     if not memoria_slots or all(v in [None, "", "no_sabe"] for v in memoria_slots.values()):
         cotizacion_keywords = ["motor","necesito","que precio","qué precio", "quiero", "cuanto cuesta","cuánto cuesta","hay","tiene", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
         if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
+            agregar_mensajes_log(f"🔁no hay cotizacion keywords {json.dumps(memoria_slots)}")
+
             return state
         
         agregar_mensajes_log(f"🔁reconocio cotizacion keywords {json.dumps(memoria_slots)}")
