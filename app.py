@@ -718,7 +718,7 @@ REGLAS_SERIE_MOTOR = {
 }
 REGLAS_MODELOS = {
     "Sportero": {"marca": "Mitsubishi", "serie_motor": "4D56U", "cc": "2.5", "combustible": "diésel"},
-    "l200": {"marca": "Mitsubishi", "serie_motor": "4D56", "cc": "2.5", "combustible": "diésel"},
+    "l200": {"marca": "Mitsubishi"}
 
 }
 
