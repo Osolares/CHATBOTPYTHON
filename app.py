@@ -725,22 +725,113 @@ REGLAS_MODELOS = {
 # Estructura principal: MARCAS con sus LINEAS/VARIANTES
 MARCAS_LINEAS = {
     "Toyota": {
-        "corolla": ["corolla", "corola", "corolaa"],  # alias
-        "hilux": ["hilux", "hiluxx"],
-        "prado": ["prado", "pradoo"],
-        # ...agrega todas tus líneas y alias
+        "corolla": ["corolla", "corola", "corolaa", "corolla xli", "corolla gli", "corola xli", "corola gli"],
+        "hilux": ["hilux", "hiluxx", "hi lux", "hi-lux"],
+        "prado": ["prado", "pradoo", "land cruiser prado", "prado land cruiser", "prado tx", "prado tz", "prado gx"],
+        "rav4": ["rav4", "rav 4", "rav-4", "rav"],
+        "fortuner": ["fortuner", "fortiner", "fortuner sw4", "sw4"],
+        "yaris": ["yaris", "yaris sedan", "yariz", "yaris hatchback"],
+        "camry": ["camry", "camri"],
+        "4runner": ["4runner", "4 runner", "4-runner", "forerunner"],
+        "tacoma": ["tacoma", "tacoma pickup", "takoma"],
+        "hiace": ["hiace", "hi ace", "hi-ace", "hiaze", "hiaice", "hiaice"],
+        "avanza": ["avanza", "avanze"],
+        "land cruiser": ["land cruiser", "landcruiser", "land cruiser 70", "land cruiser 80"],
     },
-    "Suzuki": {
-        "xl7": ["xl7", "xl 7", "xl-7", "xl siete"],
-        "swift": ["swift", "switf"],
-        # ...
+    "Honda": {
+        "civic": ["civic", "civik", "sibic"],
+        "crv": ["crv", "cr-v", "cr v", "cruv"],
+        "accord": ["accord", "acord"],
+        "fit": ["fit", "fit hatchback", "honda fit"],
+        "pilot": ["pilot", "piloto"],
+        "city": ["city", "citi", "honda city"],
     },
     "Hyundai": {
-        "accent": ["accent", "acscent"],
-        "tucson": ["tucson", "tucsón"],
-        # ...
+        "accent": ["accent", "acscent", "ascen", "acscent"],
+        "tucson": ["tucson", "tucsón", "tuczon", "tuckson"],
+        "elantra": ["elantra", "elantra hd", "elantra gls"],
+        "santa fe": ["santa fe", "santafe", "santa-fe", "santafé"],
+        "creta": ["creta"],
+        "grand i10": ["grand i10", "i10", "i-10", "grand i-10"],
+        "h1": ["h1", "h-1", "hyundai h1", "h uno"],
+        "sonata": ["sonata", "sonatta"],
+        "veracruz": ["veracruz", "vera cruz"],
     },
-    # Agrega más marcas...
+    "Kia": {
+        "sportage": ["sportage", "sportaje", "sportage r", "sportage revolution"],
+        "sorento": ["sorento", "sorrento", "sorento prime"],
+        "rio": ["rio", "río", "río sedan", "rio sedan"],
+        "picanto": ["picanto", "pikanto"],
+        "cerato": ["cerato", "ceratto"],
+        "optima": ["optima", "óptima"],
+        "forte": ["forte"],
+    },
+    "Mazda": {
+        "3": ["mazda 3", "mazda3", "mazda tres", "3", "tres"],
+        "6": ["mazda 6", "mazda6", "mazda seis", "6", "seis"],
+        "cx-5": ["cx5", "cx-5", "cx 5"],
+        "cx-3": ["cx3", "cx-3", "cx 3"],
+        "bt-50": ["bt50", "bt-50", "bt 50"],
+    },
+    "suzuki": {
+        "swift": ["swift", "switf"],
+        "vitara": ["vitara", "vitara live", "vitarra", "gran vitara"],
+        "jimny": ["jimny", "jimni"],
+        "alto": ["alto"],
+        "xl7": ["xl7", "xl 7", "xl-7", "xl siete", "x l 7", "xlseven"],
+        "ertiga": ["ertiga", "ertiga suzuki"],
+    },
+    "Nissan": {
+        "frontier": ["frontier", "fronter", "nissan frontier", "nissan frontera"],
+        "sentra": ["sentra", "sentra b13", "sentra b14", "sentra b15"],
+        "tiida": ["tiida", "tida"],
+        "xtrail": ["xtrail", "x-trail", "x trail", "extrail", "xtrail t30", "xtrail t31"],
+        "versa": ["versa", "bersa"],
+        "murano": ["murano", "morano"],
+        "altima": ["altima", "áltima"],
+        "np300": ["np300", "np 300", "n p 300"],
+        "urvan": ["urvan", "urban", "urvam"],
+    },
+    "Chevrolet": {
+        "aveo": ["aveo", "aveo family"],
+        "tracker": ["tracker", "trackker"],
+        "spark": ["spark", "sparc", "sparck", "spark gt"],
+        "captiva": ["captiva"],
+        "cruze": ["cruze", "cruse"],
+        "sail": ["sail", "sail sedan"],
+    },
+    "Mitsubishi": {
+        "l200": ["l200", "l-200", "l 200", "l doscientos", "l dos cientos", "ldoscientos"],
+        "montero": ["montero", "montero sport", "montero limited"],
+        "outlander": ["outlander", "out lander"],
+        "mirage": ["mirage", "miraje"],
+        "pajero": ["pajero", "pallero"],
+        "sportero": ["sportero", "sporttero"],
+        "l300": ["l300", "l-300", "l 300", "l trescientos"],
+    },
+    "Volkswagen": {
+        "golf": ["golf", "golfo"],
+        "jetta": ["jetta", "jeta", "yeta"],
+        "vento": ["vento", "bento"],
+        "passat": ["passat", "pazat"],
+        "amarok": ["amarok", "amarock"],
+        "polo": ["polo"],
+        "saveiro": ["saveiro", "saveyro"],
+    },
+    "Ford": {
+        "ranger": ["ranger", "ranguer"],
+        "escape": ["escape", "escap"],
+        "fiesta": ["fiesta"],
+        "explorer": ["explorer", "explorador"],
+        "ecosport": ["ecosport", "eco sport"],
+        "f150": ["f150", "f-150", "f 150"],
+    },
+    "Isuzu": {
+        "dmax": ["dmax", "d-max", "d max"],
+        "trooper": ["trooper"],
+        "mu-x": ["mux", "mu-x", "mu x"],
+    },
+    # Agrega otras marcas y modelos populares aquí...
 }
 
 
