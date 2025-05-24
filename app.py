@@ -722,6 +722,28 @@ REGLAS_MODELOS = {
 
 }
 
+# Estructura principal: MARCAS con sus LINEAS/VARIANTES
+MARCAS_LINEAS = {
+    "Toyota": {
+        "corolla": ["corolla", "corola", "corolaa"],  # alias
+        "hilux": ["hilux", "hiluxx"],
+        "prado": ["prado", "pradoo"],
+        # ...agrega todas tus líneas y alias
+    },
+    "Suzuki": {
+        "xl7": ["xl7", "xl 7", "xl-7", "xl siete"],
+        "swift": ["swift", "switf"],
+        # ...
+    },
+    "Hyundai": {
+        "accent": ["accent", "acscent"],
+        "tucson": ["tucson", "tucsón"],
+        # ...
+    },
+    # Agrega más marcas...
+}
+
+
 ALIAS_MODELOS = {
     "l200": "L200",
     "l-200": "L200",
@@ -749,6 +771,28 @@ def es_no_se(texto):
 #    if all(slots.get(k) not in [None, ""] for k in ["linea", "tipo_repuesto", "combustible", "cc", "año"]):
 #        return True
 #    return False
+def obtener_marca_y_linea(linea_usuario):
+    # Normaliza para buscar (lowercase y sin espacios/guiones)
+    normalizado = linea_usuario.lower().replace("-", "").replace(" ", "")
+    for marca, lineas in MARCAS_LINEAS.items():
+        for linea, alias_list in lineas.items():
+            for alias in alias_list:
+                alias_norm = alias.lower().replace("-", "").replace(" ", "")
+                if normalizado == alias_norm:
+                    return marca, linea  # Retorna la marca real y el modelo/linea estándar
+    return None, None  # Si no encuentra
+
+def extraer_linea_y_marca_usuario(texto_usuario):
+    texto_norm = texto_usuario.lower().replace("-", "").replace("  ", " ").strip()
+    for marca, lineas in MARCAS_LINEAS.items():
+        for linea, alias_list in lineas.items():
+            for alias in alias_list:
+                alias_norm = alias.lower().replace("-", "").replace(" ", "")
+                if alias_norm in texto_norm.replace(" ", ""):
+                    return marca, linea
+    return None, None
+
+
 def es_cotizacion_completa(slots):
     # Ruta 1: Todos completos o con "no_sabe"
     if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "marca", "linea", "año", "serie_motor"]):
@@ -775,8 +819,32 @@ def es_cotizacion_completa(slots):
     return False
 
 
+#def deducir_conocimiento(slots):
+#    # Deducción por serie_motor (case-insensitive)
+#    serie_motor = slots.get("serie_motor")
+#    if serie_motor:
+#        clave = serie_motor.lower().strip()
+#        for key in REGLAS_SERIE_MOTOR:
+#            if key.lower().strip() == clave:
+#                for campo, valor in REGLAS_SERIE_MOTOR[key].items():
+#                    if not slots.get(campo):
+#                        slots[campo] = valor
+#                break
+#
+#    # Deducción por modelo/linea (case-insensitive)
+#    linea = slots.get("linea") or slots.get("modelo")  # según como uses los nombres de slot
+#    if linea:
+#        clave_linea = linea.lower().strip()
+#        for key in REGLAS_MODELOS:
+#            if key.lower().strip() == clave_linea:
+#                for campo, valor in REGLAS_MODELOS[key].items():
+#                    if not slots.get(campo):
+#                        slots[campo] = valor
+#                break
+#
+#    return slots
 def deducir_conocimiento(slots):
-    # Deducción por serie_motor (case-insensitive)
+    # Deducción por serie_motor (igual que antes)
     serie_motor = slots.get("serie_motor")
     if serie_motor:
         clave = serie_motor.lower().strip()
@@ -787,16 +855,13 @@ def deducir_conocimiento(slots):
                         slots[campo] = valor
                 break
 
-    # Deducción por modelo/linea (case-insensitive)
-    linea = slots.get("linea") or slots.get("modelo")  # según como uses los nombres de slot
-    if linea:
-        clave_linea = linea.lower().strip()
-        for key in REGLAS_MODELOS:
-            if key.lower().strip() == clave_linea:
-                for campo, valor in REGLAS_MODELOS[key].items():
-                    if not slots.get(campo):
-                        slots[campo] = valor
-                break
+    # Deducción por linea/modelo usando MARCAS_LINEAS y alias
+    linea = slots.get("linea")
+    if linea and not slots.get("marca"):
+        marca, linea_std = obtener_marca_y_linea(linea)
+        if marca:
+            slots["marca"] = marca
+            slots["linea"] = linea_std.capitalize()  # Guarda el nombre estándar
 
     return slots
 
@@ -804,7 +869,7 @@ def deducir_conocimiento(slots):
 #    necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible"]
 #    return [c for c in necesarios if not slots.get(c)]
 def campos_faltantes(slots):
-    necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible"]
+    necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible", "cc"]
     # Solo pide los que son None, "", o no existen. IGNORA los slots marcados como "no_sabe"
     return [c for c in necesarios if (not slots.get(c) or slots.get(c) in ["", None])]
 
@@ -855,6 +920,10 @@ PREGUNTAS_SLOTS = {
         "¿El motor es diésel o gasolina?",
         "¿Su vehículo es diésel o gasolina?",
         "¿Diésel o gasolina?"
+    ],
+    "cc": [
+        "¿Cuántos centímetros cúbicos es el motor?",
+        "¿Cuántos c.c es el motor?"
     ]
 }
 
@@ -925,7 +994,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         # ⬇️ Verifica inmediatamente si puedes cotizar tras marcar "no_sabe"
         if es_cotizacion_completa(memoria_slots):
             resumen = []
-            for campo in ["marca", "linea", "año", "serie_motor", "tipo_repuesto", "cc", "combustible"]:
+            for campo in ["tipo_repuesto","marca", "linea", "serie_motor","año", "cc", "combustible"]:
                 val = memoria_slots.get(campo)
                 if val and val != "no_sabe":
                     resumen.append(f"{campo.capitalize()}: {val}")
@@ -965,6 +1034,14 @@ def handle_cotizacion_slots(state: dict) -> dict:
         nuevos_slots = slot_filling_llm(user_msg)
         agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
 
+        # Asumiendo que user_msg es el mensaje original del usuario
+        if not memoria_slots.get("linea") or not memoria_slots.get("marca"):
+            marca_detectada, linea_detectada = extraer_linea_y_marca_usuario(user_msg)
+            if linea_detectada and not memoria_slots.get("linea"):
+                memoria_slots["linea"] = linea_detectada.capitalize()
+            if marca_detectada and not memoria_slots.get("marca"):
+                memoria_slots["marca"] = marca_detectada
+
         # Normaliza modelos si es posible
         modelo = nuevos_slots.get("linea")
         if modelo:
@@ -979,6 +1056,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         memoria_slots = deducir_conocimiento(memoria_slots)
         guardar_memoria_slots(session, memoria_slots)
         faltan = campos_faltantes(memoria_slots)
+
 
     # 4. Si aún no se cumple ninguna ruta, pregunta SOLO lo necesario (pero nunca lo de "no_sabe")
     if not es_cotizacion_completa(memoria_slots):
