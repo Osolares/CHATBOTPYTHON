@@ -24,6 +24,7 @@ from collections import deque
 from langchain_groq import ChatGroq
 import random
 import difflib
+from fuzzywuzzy import fuzz
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -259,11 +260,26 @@ def pre_validaciones(state: BotState) -> BotState:
                 send_welcome, kind = True, "retorno"
 
         if send_welcome:
-            msg = (
-                "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗 \n\n🗒️ Consulta nuestro menú."
-                if kind == "nueva" else
-                "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
-            )
+            #msg = (
+            #    "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗 \n\n🗒️ Consulta nuestro menú."
+            #    if kind == "nueva" else
+            #    "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️Consulta nuestro menú."
+            #)
+
+            if kind == "nueva":
+                msg = obtener_mensaje_bot(
+                    "bienvenida",
+                    "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗\n\n🗒️ Consulta nuestro menú.",
+                    canal=source
+                )
+            else:
+                msg = obtener_mensaje_bot(
+                    "re_bienvenida",
+                    "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️ Consulta nuestro menú.",
+                    canal=source
+                )
+
+
 
             state["additional_messages"].append({
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
@@ -400,6 +416,38 @@ def extraer_url(texto):
     match = re.search(r"https?://[^\s]+", texto)
     return match.group(0) if match else None
 
+INTENCIONES_BOT = {
+    "formas_pago": [
+        "formas de pago", "medios de pago", "pagar con tarjeta", "aceptan tarjeta", "aceptan visa",
+        "visa cuotas", "puedo pagar con", "puedo pagar", "metodos de pago", "pago contra entrega"
+    ],
+    "envios": [
+        "envio", "hacen envíos", "métodos de env", "metodos de env", "entregan", "delivery", "a domicilio", "puerta de mi casa", "mandan a casa",
+        "hacen envios", "enviar producto", "pueden enviar", "envian el "
+    ],
+    "ubicacion": [
+        "donde estan", "ubicacion", "ubicación", "direccion", "dirección", "donde queda", "donde están",
+        "ubicados", "mapa", "ubicacion tienda", "como llegar", "tienda fisica"
+    ],
+    "horario": [
+        "horario", "atienden ", "abierto", "cierran", "abren", "a que hora", "a qué hora", "cuando abren", "horario de atencion"
+    ],
+    # Agrega más intenciones aquí según tu negocio...
+}
+
+def detectar_intencion(mensaje, threshold=80):
+    mensaje_norm = mensaje.lower()
+    for intencion, variantes in INTENCIONES_BOT.items():
+        for variante in variantes:
+            # Coincidencia exacta
+            if variante in mensaje_norm:
+                return intencion
+            # Fuzzy matching (tolerancia a errores de ortografía o variantes)
+            score = fuzz.partial_ratio(variante, mensaje_norm)
+            if score >= threshold:
+                return intencion
+    return None
+
 
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
@@ -408,6 +456,97 @@ def handle_special_commands(state: BotState) -> BotState:
     texto = state["user_msg"].lower().strip()
     number = state.get("phone_number")
     source = state.get("source")
+
+    texto = state["user_msg"].lower().strip()
+    number = state.get("phone_number")
+    source = state.get("source")
+
+    # --- BLOQUE NUEVO: Intenciones básicas y fuzzy matching ---
+    intencion = detectar_intencion(texto)
+    if intencion == "formas_pago":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": obtener_mensaje_bot(
+                        "formas_pago",
+                        "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"
+                    )
+                }
+            }
+        ]
+        return state
+
+    elif intencion == "envios":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": obtener_mensaje_bot(
+                        "envios",
+                        "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."
+                    )
+                }
+            }
+        ]
+        return state
+
+    elif intencion == "ubicacion":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "location",
+                "location": {
+                    "latitude": "14.564777",
+                    "longitude": "-90.466011",
+                    "name": "Intermotores",
+                    "address": "Importadora Internacional de Motores Japoneses, s.a."
+                }
+            },
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": obtener_mensaje_bot(
+                        "ubicacion",
+                        "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
+                    )
+                }
+            }
+        ]
+        return state
+
+    elif intencion == "horario":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": obtener_mensaje_bot(
+                        "horario",
+                        "📅 Horario de Atención:\n\n Lunes a Viernes\n🕜 8:00 am a 5:00 pm\n\nSábado\n🕜 8:00 am a 12:00 pm\n\nDomingo Cerrado 🤓"
+                    )
+                }
+            }
+        ]
+        return state
+    # --- FIN BLOQUE NUEVO ---
 
     # Verifica si el mensaje parece interés en un producto con URL
     if mensaje_parece_interes_en_producto(texto):

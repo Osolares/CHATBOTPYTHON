@@ -47,17 +47,34 @@ from config import now
 def inicializar_mensajes_bot():
     mensajes = [
         # Bienvenidas (WhatsApp)
-        {"tipo": "bienvenida", "mensaje": "👋 ¡Bienvenido! ¿En qué podemos ayudarte hoy?", "canal": "whatsapp"},
-        {"tipo": "bienvenida", "mensaje": "🚗 ¡Hola! ¿Buscas un motor o repuesto? Pregúntanos sin compromiso.", "canal": "whatsapp"},
-        {"tipo": "bienvenida", "mensaje": "😃 ¡Qué gusto tenerte aquí! Dinos qué necesitas.", "canal": "whatsapp"},
+        {"tipo": "bienvenida", "mensaje": "😃 ¡Bienvenido(a) a Intermotores, qué gusto tenerte aquí! Dinos qué necesitas. 🚗\n\n🗒️ Consulta nuestro menú.", "canal": "whatsapp"},
+        {"tipo": "bienvenida", "mensaje": "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗\n\n🗒️ Consulta nuestro menú.", "canal": "whatsapp"},
+
         # Alerta fuera de horario (WhatsApp)
         {"tipo": "alerta_fuera_horario", "mensaje": "🕒 Gracias por comunicarte. Ahora mismo estamos fuera de horario, pero tu consulta es importante. ¡Te responderemos pronto!", "canal": "all"},
         {"tipo": "alerta_fuera_horario", "mensaje": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente y nuestro equipo te atenderá lo más pronto posible.", "canal": "all"},
         # Re-bienvenida (WhatsApp)
-        {"tipo": "re_bienvenida", "mensaje": "👋 ¡Hola de nuevo! ¿Te ayudamos con otra cotización?", "canal": "whatsapp"},
-        {"tipo": "re_bienvenida", "mensaje": "🚗 ¿Necesitas otro repuesto? Estamos para servirte.", "canal": "whatsapp"},
+        {"tipo": "re_bienvenida", "mensaje": "👋 ¡Hola de nuevo! ¿Te ayudamos con otra cotización? 🚗\n\n🗒️ Consulta nuestro menú.", "canal": "whatsapp"},
+        {"tipo": "re_bienvenida", "mensaje": "🚗 ¿Necesitas otro repuesto? Estamos para servirte 🚗\n\n🗒️ Consulta nuestro menú..", "canal": "whatsapp"},
+        {"tipo": "re_bienvenida", "mensaje": "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️ Consulta nuestro menú.", "canal": "whatsapp"},
+        {"tipo": "re_bienvenida", "mensaje": "👋 ¡Bienvenido(a) de nuevo! ¿En qué podemos ayudarte hoy?", "canal": "whatsapp"},
+        {"tipo": "re_bienvenida", "mensaje": "🚗 ¡Hola Bienvenido(a) de nuevo a Intermotores ¿Buscas un motor o repuesto? Pregúntanos sin compromiso.", "canal": "whatsapp"},
         # Mensaje global, para todos los canales (canal='all')
         {"tipo": "alerta_fuera_horario", "mensaje": "🕒 Nuestro equipo está fuera de horario. Puedes dejar tu mensaje aquí y te reponderemos lo mas pronto posible.", "canal": "all"},
+
+        # Formas de pago (varios, para rotar)
+        {"tipo": "formas_pago", "mensaje": "💳 Aceptamos efectivo, depósitos, transferencias, Visa Cuotas y pago contra entrega.", "canal": "whatsapp"},
+        {"tipo": "formas_pago", "mensaje": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa", "canal": "whatsapp"},
+        # Envíos
+        {"tipo": "envios", "mensaje": "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda.", "canal": "whatsapp"},
+        # Ubicación
+        {"tipo": "ubicacion", "mensaje": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores", "canal": "whatsapp"},
+        # Horario
+        {"tipo": "horario", "mensaje": "📅 Horario de Atención:\n\n Lunes a Viernes\n🕜 8:00 am a 5:00 pm\n\nSábado\n🕜 8:00 am a 12:00 pm\n\nDomingo Cerrado 🤓", "canal": "whatsapp"},
+        # ...agrega más por intención...
+    # ...lógica para poblar la tabla como antes...
+
+
     ]
     for datos in mensajes:
         existe = MensajeBot.query.filter_by(
@@ -76,9 +93,6 @@ def inicializar_mensajes_bot():
             db.session.add(nuevo)
     db.session.commit()
     print("✅ Mensajes dinámicos iniciales creados")
-
-
-
 
 def inicializar_todo():
     inicializar_configuracion()
