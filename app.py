@@ -23,6 +23,7 @@ import threading
 from collections import deque
 from langchain_groq import ChatGroq
 import random
+import difflib
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -875,11 +876,26 @@ def obtener_marca_y_linea(linea_usuario):
 
 def extraer_linea_y_marca_usuario(texto_usuario):
     texto_norm = texto_usuario.lower().replace("-", "").replace("  ", " ").strip()
+    # Recolecta todos los alias en una lista [(marca, linea, alias_normalizado)]
+    alias_todos = []
     for marca, lineas in MARCAS_LINEAS.items():
         for linea, alias_list in lineas.items():
             for alias in alias_list:
                 alias_norm = alias.lower().replace("-", "").replace(" ", "")
-                if alias_norm in texto_norm.replace(" ", ""):
+                alias_todos.append((marca, linea, alias_norm))
+    # Busca alias más cercano en el mensaje
+    palabras_usuario = texto_norm.replace(" ", "")
+    mejores = difflib.get_close_matches(palabras_usuario, [alias_norm for (_, _, alias_norm) in alias_todos], n=1, cutoff=0.7)
+    if mejores:
+        for marca, linea, alias_norm in alias_todos:
+            if alias_norm == mejores[0]:
+                return marca, linea
+    # Si no hay fuzzy match, intenta match parcial (por si el usuario pone varias palabras: "suzuki xl7")
+    for marca, lineas in MARCAS_LINEAS.items():
+        for linea, alias_list in lineas.items():
+            for alias in alias_list:
+                alias_norm = alias.lower().replace("-", "").replace(" ", "")
+                if alias_norm in palabras_usuario:
                     return marca, linea
     return None, None
 
@@ -1125,7 +1141,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         nuevos_slots = slot_filling_llm(user_msg)
         agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
 
-        # Asumiendo que user_msg es el mensaje original del usuario
+        # Solo si no hay linea/marca aún
         if not memoria_slots.get("linea") or not memoria_slots.get("marca"):
             marca_detectada, linea_detectada = extraer_linea_y_marca_usuario(user_msg)
             if linea_detectada and not memoria_slots.get("linea"):
