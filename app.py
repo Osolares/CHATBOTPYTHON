@@ -433,7 +433,7 @@ INTENCIONES_BOT = {
         "horario", "atienden ", "abierto", "cierran", "abren", "a que hora", "a qué hora", "cuando abren", "horario de atencion"
     ],
     "contacto": [
-        "contacto", "numero", "telefono", "celular", "comunicarme", "llamar", "whatsapp", "numero de telefono", "donde puedo llamar"
+        "contacto", "telefono", "celular", "comunicarme", "llamar", "numero de telefono", "donde puedo llamar"
     ],
     "mensaje_despedida": [
         "gracias por la informacion", "muy amable", "le agradezco", "feliz tarde", "adios", "saludos", "los visito", "feliz dia" , "feliz noche"
@@ -1573,7 +1573,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
     session.pausa_hasta = datetime.now() + timedelta(hours=2)
     from config import db
     db.session.commit()
-    
+
     guardar_memoria(session, "assistant", resumen)
     resetear_memoria_slots(session)
     state["response_data"] = [{
