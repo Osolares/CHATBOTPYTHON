@@ -737,17 +737,42 @@ def es_no_se(texto):
     texto = texto.strip().lower()
     return any(f in texto for f in FRASES_NO_SE)
 
+#def es_cotizacion_completa(slots):
+#    # Ruta 1: tipo_repuesto, marca, modelo, año, serie_motor
+#    if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "marca", "linea", "año", "serie_motor"]):
+#        return True
+#    # Ruta 2: tipo_repuesto, serie_motor, año
+#    if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "serie_motor", "año"]):
+#        return True
+#    # Ruta 3: modelo, tipo_repuesto, combustible, cc, año
+#    if all(slots.get(k) not in [None, ""] for k in ["linea", "tipo_repuesto", "combustible", "cc", "año"]):
+#        return True
+#    return False
 def es_cotizacion_completa(slots):
-    # Ruta 1: tipo_repuesto, marca, modelo, año, serie_motor
+    # Ruta 1: Todos completos o con "no_sabe"
     if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "marca", "linea", "año", "serie_motor"]):
         return True
-    # Ruta 2: tipo_repuesto, serie_motor, año
-    if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "serie_motor", "año"]):
+    # Ruta 2: tipo_repuesto, serie_motor, año (permite "no_sabe" en año)
+    if (
+        slots.get("tipo_repuesto") not in [None, "", "no_sabe"] and
+        slots.get("serie_motor") not in [None, "", "no_sabe"] and
+        slots.get("año") not in [None, ""]
+    ):
         return True
-    # Ruta 3: modelo, tipo_repuesto, combustible, cc, año
-    if all(slots.get(k) not in [None, ""] for k in ["linea", "tipo_repuesto", "combustible", "cc", "año"]):
+    # Ruta 3: modelo, tipo_repuesto, combustible, cc, año (permite "no_sabe" en año)
+    if (
+        slots.get("linea") not in [None, "", "no_sabe"] and
+        slots.get("tipo_repuesto") not in [None, "", "no_sabe"] and
+        slots.get("combustible") not in [None, "", "no_sabe"] and
+        slots.get("cc") not in [None, "", "no_sabe"] and
+        slots.get("año") not in [None, ""]
+    ):
+        return True
+    # Ruta alternativa: Todos menos año
+    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "marca", "linea", "serie_motor"]):
         return True
     return False
+
 
 def deducir_conocimiento(slots):
     # Deducción por serie_motor (case-insensitive)
