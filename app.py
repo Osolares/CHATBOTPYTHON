@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from config import db, Config
-from models import UserSession, Log, ProductModel, Configuration, Memory
+from models import UserSession, Log, ProductModel, Configuration, Memory, MensajeBot
 #from woocommerce_service import WooCommerceService, obtener_producto_por_url, buscar_producto_por_nombre, formatear_producto_whatsapp
 from woocommerce_service import WooCommerceService
 from datetime import datetime
@@ -64,6 +64,18 @@ mensajes_lock = threading.Lock()  # para evitar condiciones de carrera
 #
 #def now():
 #    return datetime.now(GUATEMALA_TZ)
+
+def obtener_mensaje_bot(tipo, mensaje_default=None, canal='whatsapp', idioma='es'):
+    # Busca primero por canal específico
+    mensajes = MensajeBot.query.filter_by(tipo=tipo, activo=True, canal=canal, idioma=idioma).all()
+    # Si no encuentra, busca globales 'all'
+    if not mensajes:
+        mensajes = MensajeBot.query.filter_by(tipo=tipo, activo=True, canal='all', idioma=idioma).all()
+    if mensajes:
+        return random.choice(mensajes).mensaje
+    return mensaje_default
+
+
 def block(source, message):
     # --- BLOQUEO DE USUARIOS ---
 
@@ -212,12 +224,20 @@ def pre_validaciones(state: BotState) -> BotState:
                 mostrar_alerta = True  # Si no hay sesión, se muestra igual
 
             if mostrar_alerta:
+                mensaje_alerta = obtener_mensaje_bot(
+                    "alerta_fuera_horario",
+                    "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente y nuestro equipo te atenderá lo más pronto posible.",
+                    canal=source  # 'whatsapp', 'web', etc.
+                )
+
                 state["additional_messages"].append({
                     "messaging_product": "whatsapp" if source == "whatsapp" else "other",
                     "to": phone_or_id,
                     "type": "text",
                     "text": {
-                        "body": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente y nuestro equipo te atenderá lo más pronto posible."
+                        #"body": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente y nuestro equipo te atenderá lo más pronto posible."
+                        "body": mensaje_alerta
+
                     }
                 })
 

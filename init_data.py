@@ -41,6 +41,46 @@ def inicializar_usuarios():
     db.session.commit()
     print("✅ Usuarios de prueba creados")
 
+from models import MensajeBot, db
+from config import now
+
+def inicializar_mensajes_bot():
+    mensajes = [
+        # Bienvenidas (WhatsApp)
+        {"tipo": "bienvenida", "mensaje": "👋 ¡Bienvenido! ¿En qué podemos ayudarte hoy?", "canal": "whatsapp"},
+        {"tipo": "bienvenida", "mensaje": "🚗 ¡Hola! ¿Buscas un motor o repuesto? Pregúntanos sin compromiso.", "canal": "whatsapp"},
+        {"tipo": "bienvenida", "mensaje": "😃 ¡Qué gusto tenerte aquí! Dinos qué necesitas.", "canal": "whatsapp"},
+        # Alerta fuera de horario (WhatsApp)
+        {"tipo": "alerta_fuera_horario", "mensaje": "🕒 Gracias por comunicarte. Ahora mismo estamos fuera de horario, pero tu consulta es importante. ¡Te responderemos pronto!", "canal": "all"},
+        {"tipo": "alerta_fuera_horario", "mensaje": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente y nuestro equipo te atenderá lo más pronto posible.", "canal": "all"},
+        # Re-bienvenida (WhatsApp)
+        {"tipo": "re_bienvenida", "mensaje": "👋 ¡Hola de nuevo! ¿Te ayudamos con otra cotización?", "canal": "whatsapp"},
+        {"tipo": "re_bienvenida", "mensaje": "🚗 ¿Necesitas otro repuesto? Estamos para servirte.", "canal": "whatsapp"},
+        # Mensaje global, para todos los canales (canal='all')
+        {"tipo": "alerta_fuera_horario", "mensaje": "🕒 Nuestro equipo está fuera de horario. Puedes dejar tu mensaje aquí y te reponderemos lo mas pronto posible.", "canal": "all"},
+    ]
+    for datos in mensajes:
+        existe = MensajeBot.query.filter_by(
+            tipo=datos["tipo"], mensaje=datos["mensaje"], canal=datos["canal"]
+        ).first()
+        if not existe:
+            nuevo = MensajeBot(
+                tipo=datos["tipo"],
+                mensaje=datos["mensaje"],
+                canal=datos.get("canal", "all"),
+                idioma=datos.get("idioma", "es"),
+                activo=True,
+                created_at=now(),
+                updated_at=now()
+            )
+            db.session.add(nuevo)
+    db.session.commit()
+    print("✅ Mensajes dinámicos iniciales creados")
+
+
+
+
 def inicializar_todo():
     inicializar_configuracion()
     inicializar_usuarios()
+    inicializar_mensajes_bot()    # <--- Agrega esta línea

@@ -71,3 +71,14 @@ class Memory(db.Model):
     value = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=now)
     updated_at = db.Column(db.DateTime, default=now, onupdate=now)
+
+class MensajeBot(db.Model):
+    __tablename__ = 'mensajes_bot'
+    id = db.Column(db.Integer, primary_key=True)
+    tipo = db.Column(db.String(50), nullable=False)     # 'bienvenida', 'alerta_fuera_horario', etc.
+    mensaje = db.Column(db.Text, nullable=False)
+    activo = db.Column(db.Boolean, default=True)
+    idioma = db.Column(db.String(10), default='es')
+    canal = db.Column(db.String(20), default='all')      # 'all', 'whatsapp', 'web', etc.
+    created_at = db.Column(db.DateTime, default=now)
+    updated_at = db.Column(db.DateTime, default=now, onupdate=now)
