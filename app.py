@@ -843,7 +843,7 @@ ALIAS_MODELOS = {
     # Agrega más si necesitas
 }
 
-FRASES_NO_SE = ["no sé", "no se", "nose", "no tengo", "no la tengo", "no recuerdo", "desconozco", "no aplica", "no", "x", "n/a"]
+FRASES_NO_SE = ["no sé", "no se", "nose", "no tengo", "no la tengo", "no recuerdo", "desconozco", "no aplica"]
 
 TIPOS_REPUESTO = [
     "motor", "culata", "turbina", "bomba", "inyector", "alternador", "radiador",
