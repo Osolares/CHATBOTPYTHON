@@ -71,9 +71,12 @@ def inicializar_mensajes_bot():
         {"tipo": "ubicacion", "mensaje": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores", "canal": "whatsapp"},
         # Horario
         {"tipo": "horario", "mensaje": "📅 Horario de Atención:\n\n Lunes a Viernes\n🕜 8:00 am a 5:00 pm\n\nSábado\n🕜 8:00 am a 12:00 pm\n\nDomingo Cerrado 🤓", "canal": "whatsapp"},
-        # ...agrega más por intención...
-    # ...lógica para poblar la tabla como antes...
 
+        {"tipo": "contacto", "mensaje": "☎*Comunícate con nosotros será un placer atenderte* \n\n 📞 6637-9834 \n\n 📞 6646-6137 \n\n 📱 5510-5350 \n\n 🌐 www.intermotores.com  \n\n 📧 intermotores.ventas@gmail.com \n\n *Facebook* \n Intermotores GT\n\n *Instagram* \n Intermotores GT ", "canal": "whatsapp"},
+
+        {"tipo": "mensaje_despedida", "mensaje": "De nada, ¡qué tengas buen día! 🚗💨", "canal": "whatsapp"},
+        {"tipo": "mensaje_despedida", "mensaje": "De nada, ¡qué tengas un gran día! 😊🚗💨", "canal": "whatsapp"},
+        {"tipo": "mensaje_despedida", "mensaje": "Fue un gusto ayudarte. ¡Hasta la próxima! 😊🔧", "canal": "whatsapp"},
 
     ]
     for datos in mensajes:

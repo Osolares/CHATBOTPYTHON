@@ -24,7 +24,7 @@ from collections import deque
 from langchain_groq import ChatGroq
 import random
 import difflib
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -432,6 +432,12 @@ INTENCIONES_BOT = {
     "horario": [
         "horario", "atienden ", "abierto", "cierran", "abren", "a que hora", "a qué hora", "cuando abren", "horario de atencion"
     ],
+    "contacto": [
+        "contacto", "numero", "telefono", "celular", "comunicarme", "llamar", "whatsapp", "numero de telefono", "donde puedo llamar"
+    ],
+    "mensaje_despedida": [
+        "gracias por la informacion", "muy amable", "le agradezco", "feliz tarde", "adios", "saludos", "los visito", "feliz dia" , "feliz noche"
+    ]
     # Agrega más intenciones aquí según tu negocio...
 }
 
@@ -439,10 +445,10 @@ def detectar_intencion(mensaje, threshold=80):
     mensaje_norm = mensaje.lower()
     for intencion, variantes in INTENCIONES_BOT.items():
         for variante in variantes:
-            # Coincidencia exacta
+            # Coincidencia exacta (recomendado dejarlo)
             if variante in mensaje_norm:
                 return intencion
-            # Fuzzy matching (tolerancia a errores de ortografía o variantes)
+            # Fuzzy matching (más rápido y preciso)
             score = fuzz.partial_ratio(variante, mensaje_norm)
             if score >= threshold:
                 return intencion
@@ -452,10 +458,6 @@ def detectar_intencion(mensaje, threshold=80):
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
     #agregar_mensajes_log(f"En handle_special_commands: {state}")
-
-    texto = state["user_msg"].lower().strip()
-    number = state.get("phone_number")
-    source = state.get("source")
 
     texto = state["user_msg"].lower().strip()
     number = state.get("phone_number")
@@ -477,11 +479,12 @@ def handle_special_commands(state: BotState) -> BotState:
                         "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"
                     )
                 }
-            }
+            },
+            generar_list_menu(number)
         ]
         return state
 
-    elif intencion == "envios":
+    elif intencion == "envios" or texto == "8":
         state["response_data"] = [
             {
                 "messaging_product": "whatsapp",
@@ -495,11 +498,12 @@ def handle_special_commands(state: BotState) -> BotState:
                         "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."
                     )
                 }
-            }
+            },
+            generar_list_menu(number)
         ]
         return state
 
-    elif intencion == "ubicacion":
+    elif intencion == "ubicacion" or texto == "3":
         state["response_data"] = [
             {
                 "messaging_product": "whatsapp",
@@ -525,11 +529,12 @@ def handle_special_commands(state: BotState) -> BotState:
                         "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
                     )
                 }
-            }
+            },
+            generar_list_menu(number)
         ]
         return state
 
-    elif intencion == "horario":
+    elif intencion == "horario" or texto == "4":
         state["response_data"] = [
             {
                 "messaging_product": "whatsapp",
@@ -543,9 +548,47 @@ def handle_special_commands(state: BotState) -> BotState:
                         "📅 Horario de Atención:\n\n Lunes a Viernes\n🕜 8:00 am a 5:00 pm\n\nSábado\n🕜 8:00 am a 12:00 pm\n\nDomingo Cerrado 🤓"
                     )
                 }
-            }
+            },
+            generar_list_menu(number)
         ]
         return state
+
+    elif intencion == "contacto" or texto == "5":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": obtener_mensaje_bot(
+                        "contacto",
+                        "☎*Comunícate con nosotros será un placer atenderte* \n\n 📞 6637-9834 \n\n 📞 6646-6137 \n\n 📱 5510-5350 \n\n 🌐 www.intermotores.com  \n\n 📧 intermotores.ventas@gmail.com \n\n *Facebook* \n Intermotores GT\n\n *Instagram* \n Intermotores GT "
+                    )
+                }
+            },
+            generar_list_menu(number)
+        ]
+        return state  
+    
+    elif intencion == "mensaje_despedida":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": obtener_mensaje_bot(
+                        "mensaje_despedida",
+                        "De nada, ¡qué tengas buen día! 🚗💨"
+                    )
+                }
+            }
+        ]
+        return state 
     # --- FIN BLOQUE NUEVO ---
 
     # Verifica si el mensaje parece interés en un producto con URL
@@ -871,10 +914,113 @@ def slot_filling_llm(mensaje):
 
 # Reglas técnicas (comienza con tus casos más comunes)
 REGLAS_SERIE_MOTOR = {
-    "1kz": {"marca": "Toyota", "cilindros": "4",  "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "culata de aluminio"], "lineas": ["Prado", "Hilux", "4Runner"]},
-    "4d56": {"marca": "Mitsubishi", "cilindros": "4",  "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "sin turbo"], "lineas": ["L200", "L300"]},
+    #Toyota
+    "1kz": {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "culata de aluminio"], "lineas": ["Hilux", "Prado", "4Runner"]},
+    "2kd": {"marca": "Toyota", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Innova"]},
+    "1kd": {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Prado"]},
+    "2tr": {"marca": "Toyota", "cilindros": "4", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Hilux", "Fortuner", "Hiace"]},
+    "1tr": {"marca": "Toyota", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Hiace", "Hilux"]},
+    "3rz": {"marca": "Toyota", "cilindros": "4", "cc": "2.7", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Hilux", "Tacoma"]},
+    "5vz": {"marca": "Toyota", "cilindros": "6", "cc": "3.4", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["4Runner", "Tacoma", "T100"]},
+    "2nz": {"marca": "Toyota", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Yaris", "Platz"]},
+    "1nz": {"marca": "Toyota", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Yaris", "Vios", "Echo"]},
+    "1zr": {"marca": "Toyota", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["Dual VVT-i"], "lineas": ["Corolla", "Auris"]},
+    "2zr": {"marca": "Toyota", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["Dual VVT-i"], "lineas": ["Corolla", "Auris"]},
+    "1gr": {"marca": "Toyota", "cilindros": "6", "cc": "4.0", "combustible": "gasolina", "caracteristicas": ["V6", "VVT-i"], "lineas": ["Hilux", "Prado", "4Runner"]},
+    "3l": {"marca": "Toyota", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": [], "lineas": ["Hilux", "Hiace", "Dyna"]},
+    "1hz": {"marca": "Toyota", "cilindros": "6", "cc": "4.2", "combustible": "diésel", "caracteristicas": [], "lineas": ["Land Cruiser", "Coaster"]},
+    "1hd": {"marca": "Toyota", "cilindros": "6", "cc": "4.2", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["Land Cruiser", "Coaster"]},
+    "5l": {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": [], "lineas": ["Hiace", "Hilux"]},
+    "1gr": {"marca": "Toyota", "cilindros": "6", "cc": "4.0", "combustible": "gasolina", "caracteristicas": ["V6", "VVT-i"], "lineas": ["4Runner", "Prado", "FJ Cruiser"]},
+    "3s": {"marca": "Toyota", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Camry", "RAV4", "Carina"]},
+    "22r": {"marca": "Toyota", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["SOHC", "legendario", "carburado/EFI (según año)"], "lineas": ["Hilux", "Pickup", "4Runner", "Corona"]},
 
-    "j3": {"marca": "Hyundai", "cc": "2.9", "combustible": "diésel", "lineas": ["Terracan"]}
+    #Mitsubishi
+    "4d56": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["L200", "Montero Sport", "Pajero", "L300"]},
+    "4d56u": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail", "intercooler"], "lineas": ["L200 Sportero", "Montero Sport"]},
+    "4m40": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["Montero", "Pajero", "L200"]},
+    "4g63": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Eclipse", "Lancer", "Galant"]},
+    "4g64": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["L200", "Montero Sport", "Outlander"]},
+    "6g72": {"marca": "Mitsubishi", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Montero", "Pajero", "3000GT"]},
+    "4g54": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.6", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["L200", "Montero"]},
+    "6g74": {"marca": "Mitsubishi", "cilindros": "6", "cc": "3.5", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Montero", "Pajero"]},
+    "4b11": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC", "MIVEC"], "lineas": ["Lancer", "Outlander"]},
+    "4b12": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["DOHC", "MIVEC"], "lineas": ["Lancer", "Outlander"]},
+    "4m42": {"marca": "Mitsubishi/Fuso", "cilindros": "4", "cc": "3.9", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["Canter"]},
+
+    #Nissan
+    "qd32": {"marca": "Nissan", "cilindros": "4", "cc": "3.2", "combustible": "diésel", "caracteristicas": [], "lineas": ["D21", "Terrano", "Urvan"]},
+    "td27": {"marca": "Nissan", "cilindros": "4", "cc": "2.7", "combustible": "diésel", "caracteristicas": [], "lineas": ["D21", "Terrano", "Urvan"]},
+    "yd25": {"marca": "Nissan", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Navara", "Frontier", "NP300"]},
+    "ka24": {"marca": "Nissan", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Frontier", "Xterra", "Altima"]},
+    "hr16": {"marca": "Nissan", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Versa", "Tiida", "March"]},
+    "sr20de": {"marca": "Nissan", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Primera", "Sentra", "200SX"]},
+    "ga16de": {"marca": "Nissan", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Sentra", "Tsuru", "Sunny"]},
+    "qr25de": {"marca": "Nissan", "cilindros": "4", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Altima", "X-Trail", "Sentra"]},
+    "vg30e": {"marca": "Nissan", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Pathfinder", "D21", "300ZX"]},
+    "rb25det": {"marca": "Nissan", "cilindros": "6", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["turbo", "DOHC"], "lineas": ["Skyline"]},
+
+    #Mazda
+    "wl": {"marca": "Mazda", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["BT-50", "B2500"]},
+    "rf": {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": [], "lineas": ["323", "626"]},
+    "fe": {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["626", "B2000", "MPV"]},
+    "f2": {"marca": "Mazda", "cilindros": "4", "cc": "2.2", "combustible": "gasolina", "caracteristicas": [], "lineas": ["B2200", "626"]},
+    "fs": {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["626", "Premacy"]},
+    "rf-t": {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["626", "Bongo"]},
+    "z5": {"marca": "Mazda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": [], "lineas": ["323", "Familia"]},
+    "wlt": {"marca": "Mazda", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["BT-50", "B2500"]},
+
+    #Honda
+    "r18": {"marca": "Honda", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["i-VTEC"], "lineas": ["Civic", "CR-V"]},
+    "l15": {"marca": "Honda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["i-VTEC", "Turbo (algunas versiones)"], "lineas": ["Fit", "City", "HR-V", "Civic"]},
+    "k24": {"marca": "Honda", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["i-VTEC"], "lineas": ["CR-V", "Accord", "Odyssey"]},
+    "d15b": {"marca": "Honda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["SOHC", "VTEC"], "lineas": ["Civic", "City"]},
+    "d17a": {"marca": "Honda", "cilindros": "4", "cc": "1.7", "combustible": "gasolina", "caracteristicas": ["SOHC", "VTEC"], "lineas": ["Civic"]},
+    "b16a": {"marca": "Honda", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC", "VTEC"], "lineas": ["Civic", "CRX", "Integra"]},
+    "b18b": {"marca": "Honda", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Integra", "Civic"]},
+    "f23a": {"marca": "Honda", "cilindros": "4", "cc": "2.3", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["Accord", "Odyssey"]},
+
+    #Suzuki
+    "m13a": {"marca": "Suzuki", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Swift", "Jimny"]},
+    "m15a": {"marca": "Suzuki", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Swift", "SX4", "Ertiga"]},
+    "j20a": {"marca": "Suzuki", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Grand Vitara", "SX4"]},
+    "h27a": {"marca": "Suzuki", "cilindros": "6", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["XL-7", "Grand Vitara"]},
+    "g13bb": {"marca": "Suzuki", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["Swift", "Baleno"]},
+    "m18a": {"marca": "Suzuki", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Grand Vitara"]},
+    "h25a": {"marca": "Suzuki", "cilindros": "6", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Grand Vitara"]},
+
+    #Hyundai/Kia
+    "j3": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.9", "combustible": "diésel", "caracteristicas": ["turbo", "CRDI"], "lineas": ["Terracan", "Bongo"]},
+    "d4cb": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["H1", "Starex", "Grand Starex", "porter"]},
+    "d4ea": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Tucson", "Sportage"]},
+    "d4fb": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.6", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Accent", "Rio", "i20"]},
+    "g4gc": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Elantra", "Tucson"]},
+    "g4kd": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Tucson", "Sportage", "Cerato"]},
+    "g4ke": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Santa Fe", "Sonata", "Optima"]},
+    "d4ea": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Tucson", "Sportage"]},
+    "g6ea": {"marca": "Hyundai/Kia", "cilindros": "6", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Santa Fe", "Terracan"]},
+    "g4fa": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.4", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["i20", "Accent"]},
+    "g4fj": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.0", "combustible": "gasolina", "caracteristicas": ["turbo", "DOHC"], "lineas": ["i10", "Picanto"]},
+
+    #Isuzu
+    "4jb1": {"marca": "Isuzu", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": ["turbo (algunas versiones)"], "lineas": ["D-Max", "Trooper"]},
+    "4ja1": {"marca": "Isuzu", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": [], "lineas": ["D-Max", "Trooper"]},
+    "4jh1": {"marca": "Isuzu", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["D-Max", "NPR"]},
+    "4hk1": {"marca": "Isuzu", "cilindros": "4", "cc": "5.2", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["NQR", "NPR"]},
+
+    #subaru
+    "ej20": {"marca": "Subaru", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC", "turbo (algunas versiones)"], "lineas": ["Impreza", "Legacy", "Forester"]},
+    "ez30": {"marca": "Subaru", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC"], "lineas": ["Legacy", "Outback"]},
+    "fb20": {"marca": "Subaru", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC"], "lineas": ["XV", "Impreza", "Forester"]},
+
+    #Daihatsu
+    "hc-e": {"marca": "Daihatsu", "cilindros": "3", "cc": "1.0", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Charade"]},
+    "ej-ve": {"marca": "Daihatsu", "cilindros": "3", "cc": "1.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Sirion", "Cuore"]},
+
+    #Hino
+    "n04c": {"marca": "Hino", "cilindros": "4", "cc": "4.0", "combustible": "diésel", "caracteristicas": ["common rail"], "lineas": ["300", "Dutro"]},
+    "j05e": {"marca": "Hino", "cilindros": "4", "cc": "5.1", "combustible": "diésel", "caracteristicas": [], "lineas": ["500"]},
+
 }
 REGLAS_MODELOS = {
     "Sportero": {"marca": "Mitsubishi", "serie_motor": "4D56U", "cc": "2.5", "combustible": "diésel"},
@@ -897,6 +1043,8 @@ MARCAS_LINEAS = {
         "hiace": ["hiace", "hi ace", "hi-ace", "hiaze", "hiaice", "hiaice"],
         "avanza": ["avanza", "avanze"],
         "land cruiser": ["land cruiser", "landcruiser", "land cruiser 70", "land cruiser 80"],
+        "22R": ["22r", "22-r", "22 r", "22erre"],
+
     },
     "Honda": {
         "civic": ["civic", "civik", "sibic"],
@@ -1005,8 +1153,11 @@ ALIAS_MODELOS = {
 FRASES_NO_SE = ["no sé", "no se", "nose", "no tengo", "no la tengo", "no recuerdo", "desconozco", "no aplica"]
 
 TIPOS_REPUESTO = [
-    "motor", "culata", "turbina", "bomba", "inyector", "alternador", "radiador",
-    "caja", "transmisión", "transmision", "computadora", "filtro", "embrague"
+    "motor", "culata", "turbina", "bomba", "inyector", "alternador", "radiador", "turbo", "caja de velocidades", "eje de levas", "termostato", 
+    "caja", "transmisión", "transmision", "computadora", "filtro", "embrague",
+    "cigueñal", "cigüeñal", "eje de cigüeñal", "balancin", "eje de balance", "cojinete",
+    "carburador", "flauta", "barilla", "boster", "booster", "piston",
+
 ]
 
 def extraer_tipo_repuesto(texto_usuario):
@@ -1338,6 +1489,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
             from config import db
             db.session.commit()
             resetear_memoria_slots(session)
+            guardar_memoria(session, "assistant", resumen)
+
             state["response_data"] = [{
                 "messaging_product": "whatsapp",
                 "to": state.get("phone_number"),
@@ -1420,6 +1573,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
     session.pausa_hasta = datetime.now() + timedelta(hours=2)
     from config import db
     db.session.commit()
+    
+    guardar_memoria(session, "assistant", resumen)
     resetear_memoria_slots(session)
     state["response_data"] = [{
         "messaging_product": "whatsapp",
