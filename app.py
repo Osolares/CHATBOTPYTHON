@@ -465,45 +465,8 @@ def handle_special_commands(state: BotState) -> BotState:
 
     # --- BLOQUE NUEVO: Intenciones básicas y fuzzy matching ---
     intencion = detectar_intencion(texto)
-    if intencion == "formas_pago":
-        state["response_data"] = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": obtener_mensaje_bot(
-                        "formas_pago",
-                        "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"
-                    )
-                }
-            },
-            generar_list_menu(number)
-        ]
-        return state
 
-    elif intencion == "envios" or texto == "8":
-        state["response_data"] = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": obtener_mensaje_bot(
-                        "envios",
-                        "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."
-                    )
-                }
-            },
-            generar_list_menu(number)
-        ]
-        return state
-
-    elif intencion == "ubicacion" or texto == "3":
+    if intencion == "ubicacion" or texto == "3":
         state["response_data"] = [
             {
                 "messaging_product": "whatsapp",
@@ -572,6 +535,44 @@ def handle_special_commands(state: BotState) -> BotState:
         ]
         return state  
     
+    if intencion == "formas_pago"  or texto == "6":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": obtener_mensaje_bot(
+                        "formas_pago",
+                        "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"
+                    )
+                }
+            },
+            generar_list_menu(number)
+        ]
+        return state
+
+    elif intencion == "envios" or texto == "8":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": obtener_mensaje_bot(
+                        "envios",
+                        "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."
+                    )
+                }
+            },
+            generar_list_menu(number)
+        ]
+        return state
+      
     elif intencion == "mensaje_despedida":
         state["response_data"] = [
             {
@@ -666,85 +667,6 @@ def handle_special_commands(state: BotState) -> BotState:
     elif texto == "2":
         state["response_data"] = manejar_comando_ofertas(number)
 
-    elif texto == "3":
-        state["response_data"] = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "location",
-                "location": {
-                    "latitude": "14.564777",
-                    "longitude": "-90.466011",
-                    "name": "Intermotores",  # Nombre sin formato (texto plano)
-                    "address": "Importadora Internacional de Motores Japoneses, s.a."
-                }
-            },
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
-                }
-            },
-            generar_list_menu(number)
-
-        ]
-
-    elif texto == "4":
-        state["response_data"] = [
-            {
-                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "📅 Horario de Atención:\n\n Lunes a Viernes\n🕜 8:00 am a 5:00 pm\n\nSábado\n🕜 8:00 am a 12:00 pm\n\nDomingo Cerrado 🤓"
-                }
-            }
-        ]
-
-    elif texto == "5":
-        state["response_data"] = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "☎*Comunícate con nosotros será un placer atenderte* \n\n 📞 6637-9834 \n\n 📞 6646-6137 \n\n 📱 5510-5350 \n\n 🌐 www.intermotores.com  \n\n 📧 intermotores.ventas@gmail.com \n\n *Facebook* \n Intermotores GT\n\n *Instagram* \n Intermotores GT "}
-            },
-            generar_list_menu(number)
-        ]
-
-    elif texto == "6":
-        state["response_data"] = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa"}
-            },
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "image",
-                "image": {
-                    "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg"
-                }
-            }, 
-            generar_list_menu(number)
-        ]
-
     elif texto == "7":
         state["response_data"] = [
             {
@@ -759,22 +681,11 @@ def handle_special_commands(state: BotState) -> BotState:
             }
         ]
 
-    elif texto == "8":
-        state["response_data"] = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "🏠*Enviamos nuestros productos hasta la puerta de su casa* \n\n 🛵 *Envíos dentro de la capital.* \n Hacemos envíos directos dentro de la ciudad capital, aldea Puerta Parada, Santa Catarina Pinula y sus alrededores \n\n 🚚 *Envío a Departamentos.* \nHacemos envíos a los diferentes departamentos del país por medio de terceros o empresas de transporte como Guatex, Cargo Express, Forza o el de su preferencia. \n\n ⏳📦 *Tiempo de envío.* \nLos pedidos deben hacerse con 24 horas de anticipación y el tiempo de entrega para los envíos directos es de 24 a 48 horas y para los envíos a departamentos depende directamente de la empresa encargarda."}
-            },
-            generar_list_menu(number)
-        ]
-
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
+
+
+
 
     log_state(state, f"⏺️ Saliendo de handle special products: {state['response_data']} at {now().isoformat()}")
     return state
