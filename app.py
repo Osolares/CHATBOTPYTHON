@@ -1084,6 +1084,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
         cotizacion_keywords = ["motor","necesito","que precio","qué precio", "quiero", "cuanto cuesta","cuánto cuesta","hay","tiene", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
         if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
             return state
+        
+        agregar_mensajes_log(f"🔁reconocio cotizacion keywords {json.dumps(memoria_slots)}")
 
     # 2. Detecta "no sé" y marca el campo faltante como "no_sabe"
     #faltan = campos_faltantes(memoria_slots)
@@ -1101,6 +1103,57 @@ def handle_cotizacion_slots(state: dict) -> dict:
     #    }]
     #    state["cotizacion_completa"] = False
     #    return state
+
+    # 3. Slot filling LLM (si el mensaje no es "no sé")
+    if not es_no_se(user_msg):
+
+        agregar_mensajes_log(f"🔁no es nose ")
+
+        # Slot filling LLM
+        nuevos_slots = slot_filling_llm(user_msg)
+        agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
+        
+        # Si no hay tipo_repuesto, intenta extraerlo por palabra clave
+        if not nuevos_slots.get("tipo_repuesto"):
+            tipo_detectado = extraer_tipo_repuesto(user_msg)
+            if tipo_detectado:
+                nuevos_slots["tipo_repuesto"] = tipo_detectado
+        
+        # Si no hay marca/linea, usa fuzzy helper
+        if not nuevos_slots.get("linea") or not nuevos_slots.get("marca"):
+            agregar_mensajes_log(f"🔁buscando linea y marca{json.dumps(nuevos_slots)}")
+
+            marca_detectada, linea_detectada = extraer_linea_y_marca_usuario(user_msg)
+            if linea_detectada and not nuevos_slots.get("linea"):
+                nuevos_slots["linea"] = linea_detectada.capitalize()
+            if marca_detectada and not nuevos_slots.get("marca"):
+                nuevos_slots["marca"] = marca_detectada
+        
+        # Ahora sí, fusiona con memoria_slots
+        for k, v in nuevos_slots.items():
+            if v is not None and v != "" and v != "no_sabe":
+                memoria_slots[k] = v
+        
+        # Aplica deducción técnica
+        memoria_slots = deducir_conocimiento(memoria_slots)
+        guardar_memoria_slots(session, memoria_slots)
+        faltan = campos_faltantes(memoria_slots)
+
+        # Normaliza modelos si es posible
+        modelo = nuevos_slots.get("linea")
+        if modelo:
+            modelo_key = modelo.lower().replace("-", "").replace(" ", "")
+            if modelo_key in ALIAS_MODELOS:
+                nuevos_slots["linea"] = ALIAS_MODELOS[modelo_key]
+
+        for k, v in nuevos_slots.items():
+            if v is not None and v != "" and v != "no_sabe":
+                memoria_slots[k] = v
+
+        memoria_slots = deducir_conocimiento(memoria_slots)
+        guardar_memoria_slots(session, memoria_slots)
+        faltan = campos_faltantes(memoria_slots)
+
 
     faltan = campos_faltantes(memoria_slots)
     if len(faltan) == 1 and es_no_se(user_msg):
@@ -1146,53 +1199,6 @@ def handle_cotizacion_slots(state: dict) -> dict:
         }]
         state["cotizacion_completa"] = False
         return state
-
-    # 3. Slot filling LLM (si el mensaje no es "no sé")
-    if not es_no_se(user_msg):
-
-
-        # Slot filling LLM
-        nuevos_slots = slot_filling_llm(user_msg)
-        agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
-        
-        # Si no hay tipo_repuesto, intenta extraerlo por palabra clave
-        if not nuevos_slots.get("tipo_repuesto"):
-            tipo_detectado = extraer_tipo_repuesto(user_msg)
-            if tipo_detectado:
-                nuevos_slots["tipo_repuesto"] = tipo_detectado
-        
-        # Si no hay marca/linea, usa fuzzy helper
-        if not nuevos_slots.get("linea") or not nuevos_slots.get("marca"):
-            marca_detectada, linea_detectada = extraer_linea_y_marca_usuario(user_msg)
-            if linea_detectada and not nuevos_slots.get("linea"):
-                nuevos_slots["linea"] = linea_detectada.capitalize()
-            if marca_detectada and not nuevos_slots.get("marca"):
-                nuevos_slots["marca"] = marca_detectada
-        
-        # Ahora sí, fusiona con memoria_slots
-        for k, v in nuevos_slots.items():
-            if v is not None and v != "" and v != "no_sabe":
-                memoria_slots[k] = v
-        
-        # Aplica deducción técnica
-        memoria_slots = deducir_conocimiento(memoria_slots)
-        guardar_memoria_slots(session, memoria_slots)
-        faltan = campos_faltantes(memoria_slots)
-
-        # Normaliza modelos si es posible
-        modelo = nuevos_slots.get("linea")
-        if modelo:
-            modelo_key = modelo.lower().replace("-", "").replace(" ", "")
-            if modelo_key in ALIAS_MODELOS:
-                nuevos_slots["linea"] = ALIAS_MODELOS[modelo_key]
-
-        for k, v in nuevos_slots.items():
-            if v is not None and v != "" and v != "no_sabe":
-                memoria_slots[k] = v
-
-        memoria_slots = deducir_conocimiento(memoria_slots)
-        guardar_memoria_slots(session, memoria_slots)
-        faltan = campos_faltantes(memoria_slots)
 
 
     # 4. Si aún no se cumple ninguna ruta, pregunta SOLO lo necesario (pero nunca lo de "no_sabe")
