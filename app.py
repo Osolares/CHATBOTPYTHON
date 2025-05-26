@@ -1400,7 +1400,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
             from config import db
             db.session.commit()
             resetear_memoria_slots(session)
-            guardar_memoria(session, "assistant", {json.dumps(resumen)})
+            #guardar_memoria(session, "assistant", {json.dumps(resumen)})
 
             state["response_data"] = [{
                 "messaging_product": "whatsapp",
@@ -1485,7 +1485,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
     from config import db
     db.session.commit()
 
-    guardar_memoria(session, "assistant", {json.dumps(resumen)})
+    #guardar_memoria(session, "assistant", {json.dumps(resumen)})
     resetear_memoria_slots(session)
     state["response_data"] = [{
         "messaging_product": "whatsapp",
