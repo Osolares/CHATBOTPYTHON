@@ -112,8 +112,6 @@ def ya_esta_procesado(message_id: str) -> bool:
         mensajes_procesados.append(message_id)
         return False
 
-import json
-
 def guardar_memoria(session_id, clave, valor):
     try:
         # Serializa si es necesario
@@ -1362,13 +1360,13 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     # Si la memoria está vacía, filtra por keywords (primer mensaje)
     if not memoria_slots or all(v in [None, "", "no_sabe"] for v in memoria_slots.values()):
-        cotizacion_keywords = ["motor","necesito","que precio","qué precio", "quiero", "cuanto cuesta","cuánto cuesta","hay","tiene", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador"]
+        cotizacion_keywords = ["motor","necesito","que precio","qué precio", "precio","cuesta", "vale","bale", "quiero", "cuanto cuesta","cuánto cuesta","hay ","tiene", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador","turbo","cigüeñal","cigueñal","ciguenal","starter","eje de levas"]
         if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
-            agregar_mensajes_log(f"🔁no hay cotizacion keywords {json.dumps(memoria_slots)}")
+            #agregar_mensajes_log(f"🔁no hay cotizacion keywords {json.dumps(memoria_slots)}")
 
             return state
         
-        agregar_mensajes_log(f"🔁reconocio cotizacion keywords {json.dumps(memoria_slots)}")
+        #agregar_mensajes_log(f"🔁reconocio cotizacion keywords {json.dumps(memoria_slots)}")
 
     # 2. Detecta "no sé" y marca el campo faltante como "no_sabe"
     #faltan = campos_faltantes(memoria_slots)
