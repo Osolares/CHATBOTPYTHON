@@ -112,44 +112,57 @@ def ya_esta_procesado(message_id: str) -> bool:
         mensajes_procesados.append(message_id)
         return False
 
+import json
+
 def guardar_memoria(session_id, clave, valor):
-    mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
-    if not mem:
-        mem = Memory(session_id=session_id, key=clave)
-        db.session.add(mem)
-    mem.value = valor
-    db.session.commit()
-
-def obtener_ultimas_memorias(session_id, limite=6):
-    memorias = Memory.query.filter_by(session_id=session_id)\
-                .order_by(Memory.created_at.desc())\
-                .limit(limite).all()
-    return list(reversed(memorias))  # Para orden cronológico
-
-def guardar_memoria(session_id, key, value):
     try:
-        memoria = Memory(session_id=session_id, key=key, value=value)
-        db.session.add(memoria)
+        # Si el valor es dict o list, serialízalo a JSON
+        if isinstance(valor, (dict, list)):
+            valor_guardar = json.dumps(valor, ensure_ascii=False)
+        else:
+            valor_guardar = str(valor)
+        mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
+        if not mem:
+            mem = Memory(session_id=session_id, key=clave)
+            db.session.add(mem)
+        mem.value = valor_guardar
         db.session.commit()
     except Exception as e:
-        error_text = f"❌ Error al guardar memoria ({key}): {str(e)}"
+        error_text = f"❌ Error al guardar memoria ({clave}): {str(e)}"
         agregar_mensajes_log(error_text, session_id)
 
+def obtener_ultimas_memorias(session_id, limite=6):
+    """
+    Devuelve una lista de los últimos 'limite' objetos Memory de esa sesión, ordenados cronológicamente.
+    Si ocurre un error, retorna lista vacía.
+    """
+    try:
+        memorias = Memory.query.filter_by(session_id=session_id) \
+                    .order_by(Memory.created_at.desc()) \
+                    .limit(limite).all()
+        return list(reversed(memorias))  # Para orden cronológico
+    except Exception as e:
+        error_text = f"[ERROR] obtener_ultimas_memorias ({session_id}): {e}"
+        print(error_text)
+        # agregar_mensajes_log(error_text, session_id)
+        return []
+
 def cargar_memoria_slots(session):
-    mem = Memory.query.filter_by(session_id=session.idUser, key='slots_cotizacion').first()
-    #agregar_mensajes_log(f"[DEBUG] cargar_memoria_slots para session {getattr(session, 'idUser', None)} devuelve: {mem.value if mem else None}")
-    if mem and mem.value:
-        return json.loads(mem.value)
+    """
+    Devuelve un diccionario con los slots de cotización guardados para la sesión dada.
+    Si no encuentra nada, devuelve {}.
+    """
+    try:
+        mem = Memory.query.filter_by(session_id=session.idUser, key='slots_cotizacion').first()
+        # Log opcional
+        # agregar_mensajes_log(f"[DEBUG] cargar_memoria_slots para session {getattr(session, 'idUser', None)} devuelve: {mem.value if mem else None}")
+        if mem and mem.value:
+            return json.loads(mem.value)
+    except Exception as e:
+        error_text = f"[ERROR] cargar_memoria_slots (session {getattr(session, 'idUser', None)}): {e}"
+        print(error_text)
+        # agregar_mensajes_log(error_text, getattr(session, 'idUser', None))
     return {}
-
-
-def guardar_memoria_slots(session, slots):
-    mem = Memory.query.filter_by(session_id=session.idUser, key='slots_cotizacion').first()
-    if not mem:
-        mem = Memory(session_id=session.idUser, key='slots_cotizacion')
-        db.session.add(mem)
-    mem.value = json.dumps(slots, ensure_ascii=False)
-    db.session.commit()
 
 def resetear_memoria_slots(session):
     from models import Memory, db
@@ -157,7 +170,6 @@ def resetear_memoria_slots(session):
     if mem:
         mem.value = "{}"
         db.session.commit()
-
 
 def should_process_message(session):
     now = datetime.now()
@@ -1360,7 +1372,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
         
         # Aplica deducción técnica
         memoria_slots = deducir_conocimiento(memoria_slots)
-        guardar_memoria_slots(session, memoria_slots)
+        #guardar_memoria_slots(session, memoria_slots)
+        guardar_memoria(session.idUser, 'slots_cotizacion', memoria_slots)
         faltan = campos_faltantes(memoria_slots)
 
         # Normaliza modelos si es posible
@@ -1375,7 +1388,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
                 memoria_slots[k] = v
 
         memoria_slots = deducir_conocimiento(memoria_slots)
-        guardar_memoria_slots(session, memoria_slots)
+        #guardar_memoria_slots(session, memoria_slots)
+        guardar_memoria(session.idUser, 'slots_cotizacion', memoria_slots)
         faltan = campos_faltantes(memoria_slots)
 
 
@@ -1383,7 +1397,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
     if len(faltan) == 1 and es_no_se(user_msg):
         campo_faltante = faltan[0]
         memoria_slots[campo_faltante] = "no_sabe"
-        guardar_memoria_slots(session, memoria_slots)
+        #guardar_memoria_slots(session, memoria_slots)
+        guardar_memoria(session.idUser, 'slots_cotizacion', memoria_slots)
         agregar_mensajes_log(f"[DEBUG] Usuario marcó {campo_faltante} como no_sabe")
 
         # ⬇️ Verifica inmediatamente si puedes cotizar tras marcar "no_sabe"
