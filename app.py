@@ -198,6 +198,22 @@ def resetear_memoria_slots(session):
         mem.value = "{}"
         db.session.commit()
 
+def actualizar_slots_memoria(memoria_slots, nuevos_slots, campos_protegidos=["marca", "linea"]):
+    """
+    Solo actualiza marca y linea si estaban vacíos, o si el usuario explícitamente los cambia (puedes ampliar luego).
+    Otros campos se actualizan como siempre.
+    """
+    for k, v in nuevos_slots.items():
+        if v is not None and v != "" and v != "no_sabe":
+            if k in campos_protegidos:
+                # Si el campo ya está en memoria, NO lo reemplaces
+                if memoria_slots.get(k) in [None, "", "no_sabe"]:
+                    memoria_slots[k] = v
+                # Si en el futuro quieres permitir corrección explícita, aquí lo agregarías
+            else:
+                memoria_slots[k] = v
+    return memoria_slots
+
 def should_process_message(session):
     now = datetime.now()
     if session.bloqueado:
@@ -877,7 +893,7 @@ def slot_filling_llm(mensaje):
     prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
     response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
     result = extract_json(response.content.strip())
-    agregar_mensajes_log(f"🔁Respuesta LLM {response}")
+    #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
     return result
 
 # Reglas técnicas (comienza con tus casos más comunes)
@@ -1356,7 +1372,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     # 1. Cargar memoria de slots
     memoria_slots = cargar_memoria_slots(session)
-    agregar_mensajes_log(f"🔁memoria slots cargada {json.dumps(memoria_slots)}")
+    #agregar_mensajes_log(f"🔁memoria slots cargada {json.dumps(memoria_slots)}")
 
     # Si la memoria está vacía, filtra por keywords (primer mensaje)
     if not memoria_slots or all(v in [None, "", "no_sabe"] for v in memoria_slots.values()):
@@ -1388,7 +1404,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
     # 3. Slot filling LLM (si el mensaje no es "no sé")
     if not es_no_se(user_msg):
 
-        agregar_mensajes_log(f"🔁no es nose ")
+        #agregar_mensajes_log(f"🔁no es nose ")
 
         # Slot filling LLM
         nuevos_slots = slot_filling_llm(user_msg)
@@ -1411,10 +1427,11 @@ def handle_cotizacion_slots(state: dict) -> dict:
                 nuevos_slots["marca"] = marca_detectada
         
         # Ahora sí, fusiona con memoria_slots
-        for k, v in nuevos_slots.items():
-            if v is not None and v != "" and v != "no_sabe":
-                memoria_slots[k] = v
-        
+        #for k, v in nuevos_slots.items():
+        #    if v is not None and v != "" and v != "no_sabe":
+        #        memoria_slots[k] = v
+        memoria_slots = actualizar_slots_memoria(memoria_slots, nuevos_slots)
+
         # Aplica deducción técnica
         memoria_slots = deducir_conocimiento(memoria_slots)
         #guardar_memoria_slots(session, memoria_slots)
@@ -1428,9 +1445,10 @@ def handle_cotizacion_slots(state: dict) -> dict:
             if modelo_key in ALIAS_MODELOS:
                 nuevos_slots["linea"] = ALIAS_MODELOS[modelo_key]
 
-        for k, v in nuevos_slots.items():
-            if v is not None and v != "" and v != "no_sabe":
-                memoria_slots[k] = v
+        #for k, v in nuevos_slots.items():
+        #    if v is not None and v != "" and v != "no_sabe":
+        #        memoria_slots[k] = v
+        memoria_slots = actualizar_slots_memoria(memoria_slots, nuevos_slots)
 
         memoria_slots = deducir_conocimiento(memoria_slots)
         #guardar_memoria_slots(session, memoria_slots)
@@ -1459,6 +1477,11 @@ def handle_cotizacion_slots(state: dict) -> dict:
             session.pausa_hasta = datetime.now() + timedelta(hours=2)
             db.session.commit()
             #guardar_memoria(session.idUser, 'assistant', memoria_slots)
+
+            # 📝 Guardar memorias
+            if session:
+                guardar_memoria(session.idUser, "user", user_msg)
+                guardar_memoria(session.idUser, "assistant", resumen)
 
             resetear_memoria_slots(session)
             #guardar_memoria(session, "assistant", {json.dumps(resumen)})
@@ -1545,6 +1568,11 @@ def handle_cotizacion_slots(state: dict) -> dict:
     session.pausa_hasta = datetime.now() + timedelta(hours=2)
     from config import db
     db.session.commit()
+
+    # 📝 Guardar memorias
+    if session:
+        guardar_memoria(session.idUser, "user", user_msg)
+        guardar_memoria(session.idUser, "assistant", resumen)
 
     #guardar_memoria(session.idUser, 'assistant', memoria_slots)
     #guardar_memoria(session, "assistant", {json.dumps(resumen)})
@@ -1688,7 +1716,7 @@ def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
 #            "to": state.get("phone_number") or state.get("email"),
 #            "type": "text",
 #            "text": {"body": mensaje}
-#        }]
+#        
 #        # Si quieres limpiar la memoria de slots aquí puedes hacerlo
 #
 #    log_state(state, f"Slots actuales: {memoria_actual}")
