@@ -1441,8 +1441,9 @@ def handle_cotizacion_slots(state: dict) -> dict:
             notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
             session.modo_control = 'paused'
             session.pausa_hasta = datetime.now() + timedelta(hours=2)
-            from config import db
             db.session.commit()
+            guardar_memoria(session.idUser, 'assistant', memoria_slots)
+
             resetear_memoria_slots(session)
             #guardar_memoria(session, "assistant", {json.dumps(resumen)})
 
@@ -1529,6 +1530,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
     from config import db
     db.session.commit()
 
+    guardar_memoria(session.idUser, 'assistant', memoria_slots)
     #guardar_memoria(session, "assistant", {json.dumps(resumen)})
     resetear_memoria_slots(session)
     state["response_data"] = [{
