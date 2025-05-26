@@ -116,36 +116,65 @@ import json
 
 def guardar_memoria(session_id, clave, valor):
     try:
-        # Si el valor es dict o list, serialízalo a JSON
+        # Serializa si es necesario
         if isinstance(valor, (dict, list)):
             valor_guardar = json.dumps(valor, ensure_ascii=False)
         else:
             valor_guardar = str(valor)
-        mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
-        if not mem:
-            mem = Memory(session_id=session_id, key=clave)
+
+        # Casos especiales: "assistant" y "user" SIEMPRE crean nueva memoria
+        if clave in ["assistant", "user"]:
+            mem = Memory(session_id=session_id, key=clave, value=valor_guardar)
             db.session.add(mem)
-        mem.value = valor_guardar
-        db.session.commit()
+            db.session.commit()
+            return
+
+        # Caso slots_cotizacion: upsert (actualiza si existe, sino crea)
+        elif clave == "slots_cotizacion":
+            mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
+            if not mem:
+                mem = Memory(session_id=session_id, key=clave)
+                db.session.add(mem)
+            mem.value = valor_guardar
+            db.session.commit()
+            return
+
+        # Otros: puedes dejar upsert (igual que slots) o solo crear nuevo (elige)
+        else:
+            mem = Memory.query.filter_by(session_id=session_id, key=clave).first()
+            if not mem:
+                mem = Memory(session_id=session_id, key=clave)
+                db.session.add(mem)
+            mem.value = valor_guardar
+            db.session.commit()
     except Exception as e:
         error_text = f"❌ Error al guardar memoria ({clave}): {str(e)}"
         agregar_mensajes_log(error_text, session_id)
 
 def obtener_ultimas_memorias(session_id, limite=6):
     """
-    Devuelve una lista de los últimos 'limite' objetos Memory de esa sesión, ordenados cronológicamente.
+    Devuelve una lista de los últimos 'limite' objetos Memory de tipo 'user' o 'assistant'
+    para esa sesión, ordenados cronológicamente.
     Si ocurre un error, retorna lista vacía.
     """
     try:
-        memorias = Memory.query.filter_by(session_id=session_id) \
-                    .order_by(Memory.created_at.desc()) \
-                    .limit(limite).all()
+        memorias = (
+            Memory.query
+            .filter(
+                Memory.session_id == session_id,
+                Memory.key.in_(["user", "assistant"])
+            )
+            .order_by(Memory.created_at.desc())
+            .limit(limite)
+            .all()
+        )
         return list(reversed(memorias))  # Para orden cronológico
     except Exception as e:
         error_text = f"[ERROR] obtener_ultimas_memorias ({session_id}): {e}"
         print(error_text)
         # agregar_mensajes_log(error_text, session_id)
         return []
+
 
 def cargar_memoria_slots(session):
     """
