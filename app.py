@@ -310,13 +310,13 @@ def pre_validaciones(state: BotState) -> BotState:
             if kind == "nueva":
                 msg = obtener_mensaje_bot(
                     "bienvenida",
-                    "👋 ¡Bienvenido(a) a Intermotores! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗\n\n🗒️ Consulta nuestro menú.",
+                    "👋 ¡Bienvenido(a) a Intermotores Guatemala! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗\n\n🗒️ Consulta nuestro menú.",
                     canal=source
                 )
             else:
                 msg = obtener_mensaje_bot(
                     "re_bienvenida",
-                    "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️ Consulta nuestro menú.",
+                    "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores Guatemala. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️ Consulta nuestro menú.",
                     canal=source
                 )
 
@@ -470,6 +470,9 @@ INTENCIONES_BOT = {
         "donde estan", "ubicacion", "ubicación", "direccion", "dirección", "donde queda", "donde están",
         "ubicados", "mapa", "ubicacion tienda", "como llegar", "tienda fisica"
     ],
+    "cuentas": [
+        "numero de cuenta", "donde deposito ", "bancarias", "banrural", "gyt", "industrial", "banco", "para depositar"
+    ],
     "horario": [
         "horario", "atienden ", "abierto", "cierran", "abren", "a que hora", "a qué hora", "cuando abren", "horario de atencion"
     ],
@@ -552,8 +555,7 @@ def handle_special_commands(state: BotState) -> BotState:
                         "📅 Horario de Atención:\n\n Lunes a Viernes\n🕜 8:00 am a 5:00 pm\n\nSábado\n🕜 8:00 am a 12:00 pm\n\nDomingo Cerrado 🤓"
                     )
                 }
-            },
-            generar_list_menu(number)
+            }
         ]
         return state
 
@@ -613,7 +615,23 @@ def handle_special_commands(state: BotState) -> BotState:
             generar_list_menu(number)
         ]
         return state
-      
+
+    elif intencion == "cuentas":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "image",
+                "image": {
+                    "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg",
+                    "caption": "💳Estos son nuestros números de cuenta \n*Todas son monetarias* \n\n"
+                }
+            },
+            generar_list_menu(number)
+        ]
+        return state
+            
     elif intencion == "mensaje_despedida":
         state["response_data"] = [
             {
@@ -1442,7 +1460,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
             session.modo_control = 'paused'
             session.pausa_hasta = datetime.now() + timedelta(hours=2)
             db.session.commit()
-            guardar_memoria(session.idUser, 'assistant', memoria_slots)
+            #guardar_memoria(session.idUser, 'assistant', memoria_slots)
 
             resetear_memoria_slots(session)
             #guardar_memoria(session, "assistant", {json.dumps(resumen)})
@@ -1530,7 +1548,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
     from config import db
     db.session.commit()
 
-    guardar_memoria(session.idUser, 'assistant', memoria_slots)
+    #guardar_memoria(session.idUser, 'assistant', memoria_slots)
     #guardar_memoria(session, "assistant", {json.dumps(resumen)})
     resetear_memoria_slots(session)
     state["response_data"] = [{
