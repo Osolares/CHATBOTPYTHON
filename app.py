@@ -240,13 +240,13 @@ HORARIOS_DEFECTO = {
     6: None            # Domingo
 }
 # 1. Días festivos (fijos y por año específico)
-DIAS_FESTIVOS_DEFECTO = [
-    "01-01",         # Año Nuevo (cada año)
-    "05-01",         # Día del Trabajo (cada año)
-    "12-25",         # Navidad (cada año)
-    "2025-04-17",    # Jueves Santo (sólo 2025)
-    "2025-12-31"     # Fin de año (sólo 2025)
-]
+#DIAS_FESTIVOS_DEFECTO = [
+#    "01-01",         # Año Nuevo (cada año)
+#    "05-01",         # Día del Trabajo (cada año)
+#    "12-25",         # Navidad (cada año)
+#    "2025-04-17",    # Jueves Santo (sólo 2025)
+#    "2025-12-31"     # Fin de año (sólo 2025)
+#]
 
 def cargar_horario_dia(dia_semana):
     dias = [
@@ -353,9 +353,6 @@ def pre_validaciones(state: BotState) -> BotState:
         log_state(state, f"❌ Error al guardar alerta de horario: {str(e)}")
 
     # ... tu código de bienvenida, etc. ...
-    return state
-    # ... (Tu código de bienvenida y resto sigue igual)
-    # ...
 
     try:
         # --- BIENVENIDA ---
