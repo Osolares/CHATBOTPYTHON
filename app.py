@@ -485,7 +485,7 @@ INTENCIONES_BOT = {
         "ubicados", "mapa", "ubicacion tienda", "como llegar", "tienda fisica"
     ],
     "cuentas": [
-        "numero de cuenta", "donde deposito ", "bancarias", "banrural", "gyt", "industrial", "banco", "para depositar"
+        "numero de cuenta", "donde deposito ", "bancarias", "banrural", "industrial", "banco", "para depositar"
     ],
     "horario": [
         "horario", "atienden ", "abierto", "cierran", "abren", "a que hora", "a qué hora", "cuando abren", "horario de atencion"
@@ -499,7 +499,7 @@ INTENCIONES_BOT = {
     # Agrega más intenciones aquí según tu negocio...
 }
 
-def detectar_intencion(mensaje, threshold=80):
+def detectar_intencion(mensaje, threshold=90):
     mensaje_norm = mensaje.lower()
     for intencion, variantes in INTENCIONES_BOT.items():
         for variante in variantes:

@@ -51,8 +51,10 @@ def inicializar_mensajes_bot():
         {"tipo": "bienvenida", "mensaje": "👋 ¡Bienvenido(a) a Intermotores Guatemala! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗\n\n🗒️ Consulta nuestro menú.", "canal": "whatsapp"},
 
         # Alerta fuera de horario (WhatsApp)
-        {"tipo": "alerta_fuera_horario", "mensaje": "🕒 Gracias por comunicarte. Ahora mismo estamos fuera de horario, pero tu consulta es importante. ¡Te responderemos pronto!", "canal": "all"},
+        {"tipo": "alerta_fuera_horario", "mensaje": "⌚ Gracias por comunicarte. Ahora mismo estamos fuera de horario, pero tu consulta es importante para nosotros. ¡Te responderemos pronto!", "canal": "all"},
         {"tipo": "alerta_fuera_horario", "mensaje": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente y nuestro equipo te atenderá lo más pronto posible.", "canal": "all"},
+        {"tipo": "alerta_fuera_horario", "mensaje": "⌛ Nuestro equipo está fuera de horario. Puedes dejar tu mensaje aquí y te reponderemos lo mas pronto posible.", "canal": "all"},
+
         # Re-bienvenida (WhatsApp)
         {"tipo": "re_bienvenida", "mensaje": "👋 ¡Hola de nuevo! ¿Te ayudamos con otra cotización? 🚗\n\n🗒️ Consulta nuestro menú.", "canal": "whatsapp"},
         {"tipo": "re_bienvenida", "mensaje": "🚗 ¿Necesitas otro repuesto? Estamos para servirte 🚗\n\n🗒️ Consulta nuestro menú..", "canal": "whatsapp"},
@@ -60,7 +62,6 @@ def inicializar_mensajes_bot():
         {"tipo": "re_bienvenida", "mensaje": "👋 ¡Bienvenido(a) de nuevo! ¿En qué podemos ayudarte hoy?", "canal": "whatsapp"},
         {"tipo": "re_bienvenida", "mensaje": "🚗 ¡Hola Bienvenido(a) de nuevo a Intermotores Guatemala ¿Buscas un motor o repuesto? Pregúntanos sin compromiso.", "canal": "whatsapp"},
         # Mensaje global, para todos los canales (canal='all')
-        {"tipo": "alerta_fuera_horario", "mensaje": "🕒 Nuestro equipo está fuera de horario. Puedes dejar tu mensaje aquí y te reponderemos lo mas pronto posible.", "canal": "all"},
 
         # Formas de pago (varios, para rotar)
         #{"tipo": "formas_pago", "mensaje": "💳 Aceptamos efectivo, depósitos, transferencias, Visa Cuotas y pago contra entrega.", "canal": "whatsapp"},
