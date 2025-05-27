@@ -99,7 +99,7 @@ def block(source, message):
     if phone_number in BLOQUEADOS.get(source, []) or type_msg in BLOQUEADOS.get(source, []) :
 
         # Para usuarios bloqueados SI interrumpimos el flujo
-        error_msg = f"❌ Error Usuario bloqueado"
+        error_msg = f"❌ Error en  Usuario o mensaje bloqueado"
         agregar_mensajes_log(error_msg)
         return {"status": "blocked", "message": error_msg}
     
@@ -248,7 +248,6 @@ def pre_validaciones(state: BotState) -> BotState:
         session.modo_control = 'bot'
         session.pausa_hasta = None
         db.session.commit()
-
 
     # --- HORARIO ---
     HORARIO = {
@@ -553,8 +552,7 @@ def handle_special_commands(state: BotState) -> BotState:
                         "📍  Estamos ubicados en km 13.5 carretera a El Salvador frente a Plaza Express a un costado de farmacia Galeno, en Intermotores"
                     )
                 }
-            },
-            generar_list_menu(number)
+            }
         ]
         return state
 
@@ -644,8 +642,7 @@ def handle_special_commands(state: BotState) -> BotState:
                     "link": "https://intermotores.com/wp-content/uploads/2025/04/numeros_de_cuenta_intermotores.jpg",
                     "caption": "💳Estos son nuestros números de cuenta \n*Todas son monetarias* \n\n"
                 }
-            },
-            generar_list_menu(number)
+            }
         ]
         return state
             
@@ -752,7 +749,7 @@ def handle_special_commands(state: BotState) -> BotState:
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🤝 Gracias por esperar, indique *¿cómo podemos apoyarle?*"
+                    "body": "🤝 Gracias por esperar, indique *¿cómo podemos apoyarle?* \n\nTu consulta es muy importante para nosotros. ¡Te responderemos pronto!"
                 }
             }
         ]
