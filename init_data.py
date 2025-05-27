@@ -2,8 +2,16 @@
 
 from models import db, Configuration, UserSession
 from config import now
-from app import DIAS_FESTIVOS_DEFECTO
 import json
+
+# 1. Días festivos (fijos y por año específico)
+DIAS_FESTIVOS_DEFECTO = [
+    "01-01",         # Año Nuevo (cada año)
+    "05-01",         # Día del Trabajo (cada año)
+    "12-25",         # Navidad (cada año)
+    "2025-04-17",    # Jueves Santo (sólo 2025)
+    "2025-12-31"     # Fin de año (sólo 2025)
+]
 
 def inicializar_configuracion():
     configuraciones_defecto = {
@@ -17,8 +25,6 @@ def inicializar_configuracion():
         "DIAS_FESTIVOS": json.dumps(DIAS_FESTIVOS_DEFECTO, ensure_ascii=False),
         # otros config...
     }
-
-
 
     for clave, valor in configuraciones_defecto.items():
         existente = Configuration.query.filter_by(key=clave).first()
@@ -78,7 +84,6 @@ def inicializar_mensajes_bot():
         {"tipo": "alerta_dia_festivo_2025-04-17", "mensaje": "⛪ Hoy es Jueves Santo y estamos de descanso. Te responderemos el próximo día hábil.", "canal": "all"},
         {"tipo": "alerta_dia_festivo", "mensaje": "🎉 Hoy es día festivo y estamos cerrados. Puedes dejar tu mensaje y te responderemos en el próximo día hábil.", "canal": "all"},
 
-        {"tipo": "alerta_dia_festivo", "mensaje": "🎉 Hoy es día festivo y estamos cerrados. Puedes dejar tu mensaje y te responderemos en el próximo día hábil.", "canal": "all"},
         # Formas de pago (varios, para rotar)
         #{"tipo": "formas_pago", "mensaje": "💳 Aceptamos efectivo, depósitos, transferencias, Visa Cuotas y pago contra entrega.", "canal": "whatsapp"},
         {"tipo": "formas_pago", "mensaje": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa", "canal": "whatsapp"},
