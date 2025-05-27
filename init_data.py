@@ -41,7 +41,7 @@ from models import db, Configuration
 # Estructura de intenciones por defecto
 INTENCIONES_BOT_DEFECTO = {
     "formas_pago": [
-        "formas de pago", "medios de pago", "pagar con tarjeta", "aceptan tarjeta", "aceptan visa",
+        "formas de pago", "transferencia","medios de pago", "pagar con tarjeta", "aceptan tarjeta", "aceptan visa",
         "visa cuotas", "puedo pagar con", "puedo pagar", "metodos de pago", "pago contra entrega"
     ],
     "envios": [
@@ -49,7 +49,7 @@ INTENCIONES_BOT_DEFECTO = {
         "hacen envios", "enviar producto", "pueden enviar", "envian el "
     ],
     "ubicacion": [
-        "donde estan", "ubicacion", "ubicación", "direccion", "dirección", "donde queda", "donde están",
+        "donde estan","ustedes estan", "ubicacion", "ubicación", "direccion", "dirección", "donde queda", "donde están",
         "ubicados", "mapa", "ubicacion tienda", "como llegar", "tienda fisica"
     ],
     "cuentas": [

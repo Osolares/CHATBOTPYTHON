@@ -565,9 +565,19 @@ def cargar_threshold_intencion():
             pass
     return 90  # Valor por defecto
 
+import unicodedata
+from rapidfuzz import fuzz
+
+def quitar_acentos(texto):
+    """Elimina acentos/tildes y normaliza el texto a ASCII básico"""
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', texto)
+        if unicodedata.category(c) != 'Mn'
+    )
+
 def detectar_intencion(mensaje, session_id=None):
     threshold = cargar_threshold_intencion()
-    mensaje_norm = mensaje.lower()
+    mensaje_norm = quitar_acentos(mensaje.lower())
     INTENCIONES_BOT = cargar_intenciones_bot()
     mejor_score = 0
     mejor_match = None
@@ -575,14 +585,17 @@ def detectar_intencion(mensaje, session_id=None):
 
     for intencion, variantes in INTENCIONES_BOT.items():
         for variante in variantes:
-            if variante in mensaje_norm:
+            variante_norm = quitar_acentos(variante.lower())
+            # Coincidencia exacta
+            if variante_norm in mensaje_norm:
                 log_text = f"[INTENCIÓN] Coincidencia EXACTA con '{variante}' para intención '{intencion}'"
                 if session_id:
                     agregar_mensajes_log(log_text, session_id)
                 else:
                     print(log_text)
                 return intencion
-            score = fuzz.partial_ratio(variante, mensaje_norm)
+            # Fuzzy matching
+            score = fuzz.partial_ratio(variante_norm, mensaje_norm)
             if score > mejor_score:
                 mejor_score = score
                 mejor_match = variante
@@ -1512,7 +1525,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         
         # Si no hay marca/linea, usa fuzzy helper
         if not nuevos_slots.get("linea") or not nuevos_slots.get("marca"):
-            agregar_mensajes_log(f"🔁buscando linea y marca{json.dumps(nuevos_slots)}")
+            #agregar_mensajes_log(f"🔁buscando linea y marca{json.dumps(nuevos_slots)}")
 
             marca_detectada, linea_detectada = extraer_linea_y_marca_usuario(user_msg)
             if linea_detectada and not nuevos_slots.get("linea"):
