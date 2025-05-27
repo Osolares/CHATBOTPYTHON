@@ -327,12 +327,27 @@ def pre_validaciones(state: BotState) -> BotState:
 
     try:
         mostrar_alerta = False
+        tipo_mensaje = None
+
+        # ⏰ Controla frecuencia de alertas, tanto para feriado como fuera de horario
+        alerta_permitida = True
+        if session:
+            ultima_alerta = session.ultima_alerta_horario or datetime.min.replace(tzinfo=GUATEMALA_TZ)
+            if ultima_alerta.tzinfo is None:
+                ultima_alerta = GUATEMALA_TZ.localize(ultima_alerta)
+            # Si han pasado más de 1 hora desde la última alerta, permite mostrar
+            if (ahora - ultima_alerta) < timedelta(hours=1):
+                alerta_permitida = False
+
         if es_dia_festivo(ahora):
-            mostrar_alerta = True
-            tipo_mensaje = "feriado"
+            if alerta_permitida:
+                mostrar_alerta = True
+                tipo_mensaje = "feriado"
         elif not dentro_horario:
-            mostrar_alerta = True
-            tipo_mensaje = "fuera_horario"
+            if alerta_permitida:
+                mostrar_alerta = True
+                tipo_mensaje = "fuera_horario"
+
         if mostrar_alerta:
             if tipo_mensaje == "feriado":
                 mensaje_alerta = obtener_mensaje_festivo(ahora, canal=source)
@@ -348,9 +363,17 @@ def pre_validaciones(state: BotState) -> BotState:
                 "type": "text",
                 "text": {"body": mensaje_alerta}
             })
+            # 🔄 Marca hora de la última alerta solo si fue mostrada
+            if session:
+                session.ultima_alerta_horario = ahora
+                db.session.commit()
+                log_state(state, "⏰ Alerta fuera de horario/feriado enviada y hora actualizada.")
+
     except Exception as e:
         db.session.rollback()
         log_state(state, f"❌ Error al guardar alerta de horario: {str(e)}")
+
+    # ... (tu lógica de bienvenida y resto sigue igual)
 
     # ... tu código de bienvenida, etc. ...
 
