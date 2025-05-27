@@ -80,6 +80,18 @@ def inicializar_intenciones_bot():
     else:
         print("🔹 Ya existen las intenciones bot")
 
+def inicializar_threshold_intencion():
+    clave = "INTENCION_THRESHOLD"
+    valor_defecto = "90"
+    existente = Configuration.query.filter_by(key=clave).first()
+    if not existente:
+        config = Configuration(key=clave, value=valor_defecto)
+        db.session.add(config)
+        db.session.commit()
+        print("✅ Threshold de intención inicializado")
+    else:
+        print("🔹 Ya existe threshold de intención")
+
 
 def inicializar_usuarios():
     usuarios_defecto = [
@@ -171,3 +183,4 @@ def inicializar_todo():
     inicializar_usuarios()
     inicializar_mensajes_bot()    # <--- Agrega esta línea
     inicializar_intenciones_bot()
+    inicializar_threshold_intencion()

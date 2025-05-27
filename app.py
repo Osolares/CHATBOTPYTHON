@@ -554,21 +554,56 @@ def cargar_intenciones_bot():
             return json.loads(config.value)
         except Exception:
             pass
-    # Si falla, usa los valores por defecto
     return INTENCIONES_BOT_DEFECTO
 
+def cargar_threshold_intencion():
+    config = Configuration.query.filter_by(key="INTENCION_THRESHOLD").first()
+    if config and config.value:
+        try:
+            return int(config.value)
+        except Exception:
+            pass
+    return 90  # Valor por defecto
 
-def detectar_intencion(mensaje, threshold=90):
+def detectar_intencion(mensaje, session_id=None):
+    threshold = cargar_threshold_intencion()
     mensaje_norm = mensaje.lower()
     INTENCIONES_BOT = cargar_intenciones_bot()
+    mejor_score = 0
+    mejor_match = None
+    mejor_intencion = None
+
     for intencion, variantes in INTENCIONES_BOT.items():
         for variante in variantes:
             if variante in mensaje_norm:
+                log_text = f"[INTENCIÓN] Coincidencia EXACTA con '{variante}' para intención '{intencion}'"
+                if session_id:
+                    agregar_mensajes_log(log_text, session_id)
+                else:
+                    print(log_text)
                 return intencion
             score = fuzz.partial_ratio(variante, mensaje_norm)
+            if score > mejor_score:
+                mejor_score = score
+                mejor_match = variante
+                mejor_intencion = intencion
             if score >= threshold:
+                log_text = f"[INTENCIÓN] Coincidencia FUZZY con '{variante}' (score: {score}) para intención '{intencion}'"
+                if session_id:
+                    agregar_mensajes_log(log_text, session_id)
+                else:
+                    print(log_text)
                 return intencion
+
+    if mejor_match and mejor_score > 0:
+        log_text = f"[INTENCIÓN] Mejor coincidencia: '{mejor_match}' para '{mensaje}' (score: {mejor_score}), intención '{mejor_intencion}'"
+        if session_id:
+            agregar_mensajes_log(log_text, session_id)
+        else:
+            print(log_text)
+
     return None
+
 
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
@@ -577,9 +612,12 @@ def handle_special_commands(state: BotState) -> BotState:
     texto = state["user_msg"].lower().strip()
     number = state.get("phone_number")
     source = state.get("source")
-
+    session = state.get("session")
     # --- BLOQUE NUEVO: Intenciones básicas y fuzzy matching ---
-    intencion = detectar_intencion(texto)
+    #intencion = detectar_intencion(texto)
+    #intencion = detectar_intencion(texto, session_id=session.idUser)
+    intencion = detectar_intencion(texto, session_id=getattr(session, "idUser", None))
+
 
     if intencion == "ubicacion" or texto == "3":
         state["response_data"] = [
