@@ -198,18 +198,21 @@ def resetear_memoria_slots(session):
         mem.value = "{}"
         db.session.commit()
 
-def actualizar_slots_memoria(memoria_slots, nuevos_slots, campos_protegidos=["marca", "linea"]):
-    """
-    Solo actualiza marca y linea si estaban vacíos, o si el usuario explícitamente los cambia (puedes ampliar luego).
-    Otros campos se actualizan como siempre.
-    """
+def actualizar_slots_memoria(memoria_slots, nuevos_slots, user_msg, campos_protegidos=["marca", "linea"]):
+    user_msg_lower = user_msg.lower()
     for k, v in nuevos_slots.items():
         if v is not None and v != "" and v != "no_sabe":
             if k in campos_protegidos:
-                # Si el campo ya está en memoria, NO lo reemplaces
-                if memoria_slots.get(k) in [None, "", "no_sabe"]:
+                # Permitir corrección si el usuario lo indica explícitamente
+                if (
+                    memoria_slots.get(k) in [None, "", "no_sabe"]
+                    or f"{k}" in user_msg_lower
+                    or ("marca" in user_msg_lower and k == "marca")
+                    or ("modelo" in user_msg_lower and k == "linea")
+                    or ("línea" in user_msg_lower and k == "linea")
+                ):
                     memoria_slots[k] = v
-                # Si en el futuro quieres permitir corrección explícita, aquí lo agregarías
+                # De lo contrario, NO sobreescribe
             else:
                 memoria_slots[k] = v
     return memoria_slots
@@ -830,7 +833,7 @@ si es un mensaje de saludo, bienvenida, agradecimiento o despedida responde algo
                 "text": {"body": body}
             }]
 
-        log_state(state, f"✅ Asistente respondió con memoria: {body[:100]}...")
+        log_state(state, f"✅ Asistente respondió con memoria: {body[:100]}... y el state {state}")
 
     return state
 
@@ -893,6 +896,7 @@ def slot_filling_llm(mensaje):
     prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
     response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
     result = extract_json(response.content.strip())
+
     #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
     return result
 
@@ -1430,7 +1434,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         #for k, v in nuevos_slots.items():
         #    if v is not None and v != "" and v != "no_sabe":
         #        memoria_slots[k] = v
-        memoria_slots = actualizar_slots_memoria(memoria_slots, nuevos_slots)
+        memoria_slots = actualizar_slots_memoria(memoria_slots, nuevos_slots, user_msg)
 
         # Aplica deducción técnica
         memoria_slots = deducir_conocimiento(memoria_slots)
@@ -1448,7 +1452,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
         #for k, v in nuevos_slots.items():
         #    if v is not None and v != "" and v != "no_sabe":
         #        memoria_slots[k] = v
-        memoria_slots = actualizar_slots_memoria(memoria_slots, nuevos_slots)
+        memoria_slots = actualizar_slots_memoria(memoria_slots, nuevos_slots, user_msg)
 
         memoria_slots = deducir_conocimiento(memoria_slots)
         #guardar_memoria_slots(session, memoria_slots)
@@ -1482,6 +1486,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
             if session:
                 guardar_memoria(session.idUser, "user", user_msg)
                 guardar_memoria(session.idUser, "assistant", resumen)
+
+            log_state(state, f"⏺️ Saliendo de Handle Cotizacion Slots : {json.dumps(resumen)} at {now().isoformat()}")
 
             resetear_memoria_slots(session)
             #guardar_memoria(session, "assistant", {json.dumps(resumen)})
@@ -1576,6 +1582,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     #guardar_memoria(session.idUser, 'assistant', memoria_slots)
     #guardar_memoria(session, "assistant", {json.dumps(resumen)})
+    log_state(state, f"⏺️ Saliendo de Handle Cotizacion Slots : {json.dumps(resumen)} at {now().isoformat()}")
+
     resetear_memoria_slots(session)
     state["response_data"] = [{
         "messaging_product": "whatsapp",
