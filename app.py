@@ -25,6 +25,7 @@ from langchain_groq import ChatGroq
 import random
 import difflib
 from rapidfuzz import fuzz
+from init_data import INTENCIONES_BOT_DEFECTO
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -285,7 +286,7 @@ def obtener_mensaje_festivo(fecha, canal='whatsapp', idioma='es'):
     if not mensaje:
         mensaje = obtener_mensaje_bot(
             "alerta_dia_festivo",
-            "🎉 Hoy es día festivo y estamos cerrados. Puedes dejar tu mensaje y te responderemos en el próximo día hábil.",
+            "🎉 Lo sentimos en este momento no podemos atenderte, estamos en feriado nacional. Puedes dejar tu mensaje y te responderemos en el próximo día hábil.",
             canal=canal,
             idioma=idioma
         )
@@ -546,47 +547,28 @@ def extraer_url(texto):
     match = re.search(r"https?://[^\s]+", texto)
     return match.group(0) if match else None
 
-INTENCIONES_BOT = {
-    "formas_pago": [
-        "formas de pago", "medios de pago", "pagar con tarjeta", "aceptan tarjeta", "aceptan visa",
-        "visa cuotas", "puedo pagar con", "puedo pagar", "metodos de pago", "pago contra entrega"
-    ],
-    "envios": [
-        "envio", "hacen envíos", "métodos de env", "metodos de env", "entregan", "delivery", "a domicilio", "puerta de mi casa", "mandan a casa",
-        "hacen envios", "enviar producto", "pueden enviar", "envian el "
-    ],
-    "ubicacion": [
-        "donde estan", "ubicacion", "ubicación", "direccion", "dirección", "donde queda", "donde están",
-        "ubicados", "mapa", "ubicacion tienda", "como llegar", "tienda fisica"
-    ],
-    "cuentas": [
-        "numero de cuenta", "donde deposito ", "bancarias", "banrural", "industrial", "banco", "para depositar"
-    ],
-    "horario": [
-        "horario", "atienden ", "abierto", "cierran", "abren", "a que hora", "a qué hora", "cuando abren", "horario de atencion"
-    ],
-    "contacto": [
-        "contacto", "telefono", "celular", "comunicarme", "llamar", "numero de telefono", "donde puedo llamar"
-    ],
-    "mensaje_despedida": [
-        "gracias por la informacion", "muy amable", "le agradezco", "feliz tarde", "adios", "saludos", "los visito", "feliz dia" , "feliz noche"
-    ]
-    # Agrega más intenciones aquí según tu negocio...
-}
+def cargar_intenciones_bot():
+    config = Configuration.query.filter_by(key="INTENCIONES_BOT").first()
+    if config and config.value:
+        try:
+            return json.loads(config.value)
+        except Exception:
+            pass
+    # Si falla, usa los valores por defecto
+    return INTENCIONES_BOT_DEFECTO
+
 
 def detectar_intencion(mensaje, threshold=90):
     mensaje_norm = mensaje.lower()
+    INTENCIONES_BOT = cargar_intenciones_bot()
     for intencion, variantes in INTENCIONES_BOT.items():
         for variante in variantes:
-            # Coincidencia exacta (recomendado dejarlo)
             if variante in mensaje_norm:
                 return intencion
-            # Fuzzy matching (más rápido y preciso)
             score = fuzz.partial_ratio(variante, mensaje_norm)
             if score >= threshold:
                 return intencion
     return None
-
 
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
@@ -941,11 +923,11 @@ Extrae la siguiente información en JSON. Pon null si no se encuentra.
 Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
 
 Ejemplo:
-Entrada: "Turbo para sportero 2.5"
+Entrada: "Turbo para sportero 2.5 28231-27000"
 el año tambien te lo pueden decir como modelo y puede venir abreviado ejmplo "modelo 90"
 la linea puede tener algunas variaciones o estar mal escrita ejemplo "colola" en vez de "corolla"
 Salida:
-{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null}
+{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null,"codigo_repuesto":"28231-27000"}
 
 Entrada: "{MENSAJE}"
 Salida:

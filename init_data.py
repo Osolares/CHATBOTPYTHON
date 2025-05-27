@@ -34,6 +34,53 @@ def inicializar_configuracion():
     db.session.commit()
     print("✅ Configuración inicial creada")
 
+
+import json
+from models import db, Configuration
+
+# Estructura de intenciones por defecto
+INTENCIONES_BOT_DEFECTO = {
+    "formas_pago": [
+        "formas de pago", "medios de pago", "pagar con tarjeta", "aceptan tarjeta", "aceptan visa",
+        "visa cuotas", "puedo pagar con", "puedo pagar", "metodos de pago", "pago contra entrega"
+    ],
+    "envios": [
+        "envio", "hacen envíos", "métodos de env", "metodos de env", "entregan", "delivery", "a domicilio", "puerta de mi casa", "mandan a casa",
+        "hacen envios", "enviar producto", "pueden enviar", "envian el "
+    ],
+    "ubicacion": [
+        "donde estan", "ubicacion", "ubicación", "direccion", "dirección", "donde queda", "donde están",
+        "ubicados", "mapa", "ubicacion tienda", "como llegar", "tienda fisica"
+    ],
+    "cuentas": [
+        "numero de cuenta", "donde deposito ", "bancarias", "banrural", "industrial", "banco", "para depositar"
+    ],
+    "horario": [
+        "horario", "atienden ", "abierto", "cierran", "abren", "a que hora", "a qué hora", "cuando abren", "horario de atencion"
+    ],
+    "contacto": [
+        "contacto", "telefono", "celular", "comunicarme", "llamar", "numero de telefono", "donde puedo llamar"
+    ],
+    "mensaje_despedida": [
+        "gracias por la informacion", "muy amable", "le agradezco", "feliz tarde", "adios", "saludos", "los visito", "feliz dia" , "feliz noche"
+    ]
+}
+
+def inicializar_intenciones_bot():
+    clave = "INTENCIONES_BOT"
+    existente = Configuration.query.filter_by(key=clave).first()
+    if not existente:
+        config = Configuration(
+            key=clave,
+            value=json.dumps(INTENCIONES_BOT_DEFECTO, ensure_ascii=False)
+        )
+        db.session.add(config)
+        db.session.commit()
+        print("✅ Intenciones Bot inicializadas")
+    else:
+        print("🔹 Ya existen las intenciones bot")
+
+
 def inicializar_usuarios():
     usuarios_defecto = [
         {"phone_number": "50255105350", "nombre": "Oscar", "apellido": "Solares", "tipo_usuario": "admin"},
@@ -123,3 +170,4 @@ def inicializar_todo():
     inicializar_configuracion()
     inicializar_usuarios()
     inicializar_mensajes_bot()    # <--- Agrega esta línea
+    inicializar_intenciones_bot()
