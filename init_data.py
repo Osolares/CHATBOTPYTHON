@@ -2,20 +2,28 @@
 
 from models import db, Configuration, UserSession
 from config import now
+from app import DIAS_FESTIVOS_DEFECTO
+import json
 
 def inicializar_configuracion():
     configuraciones_defecto = {
-        "HORARIO_LUNES_VIERNES": "08:00-17:30",
+        "HORARIO_LUNES": "08:00-17:30",
+        "HORARIO_MARTES": "08:00-17:30",
+        "HORARIO_MIERCOLES": "08:00-17:30",
+        "HORARIO_JUEVES": "08:00-17:30",
+        "HORARIO_VIERNES": "08:00-17:30",
         "HORARIO_SABADO": "08:00-12:30",
-        "HORARIO_DOMINGO": "cerrado",
-        "MENSAJE_BIENVENIDA": "👋 Bienvenido a Intermotores, ¿en qué podemos ayudarte hoy?",
-        "TOKEN_SERVICIO_X": "REEMPLAZAR_ESTE_VALOR"
+        "HORARIO_DOMINGO": None,
+        "DIAS_FESTIVOS": json.dumps(DIAS_FESTIVOS_DEFECTO, ensure_ascii=False),
+        # otros config...
     }
+
+
 
     for clave, valor in configuraciones_defecto.items():
         existente = Configuration.query.filter_by(key=clave).first()
         if not existente:
-            nueva = Configuration(key=clave, value=valor)
+            nueva = Configuration(key=clave, value=valor if valor is not None else "")
             db.session.add(nueva)
     db.session.commit()
     print("✅ Configuración inicial creada")
@@ -63,6 +71,14 @@ def inicializar_mensajes_bot():
         {"tipo": "re_bienvenida", "mensaje": "🚗 ¡Hola Bienvenido(a) de nuevo a Intermotores Guatemala ¿Buscas un motor o repuesto? Pregúntanos sin compromiso.", "canal": "whatsapp"},
         # Mensaje global, para todos los canales (canal='all')
 
+        #DIAS FESTIVOS
+        {"tipo": "alerta_dia_festivo_01-01", "mensaje": "🎉 Hoy es 1 de enero (Año Nuevo). ¡Estamos cerrados! Disfruta tu día y escríbenos mañana.", "canal": "all"},
+        {"tipo": "alerta_dia_festivo_05-01", "mensaje": "🎉 Hoy es 1 de mayo (Día del Trabajo). ¡Estamos cerrados! Gracias por tu preferencia.", "canal": "all"},
+        {"tipo": "alerta_dia_festivo_12-25", "mensaje": "🎄 ¡Feliz Navidad! Hoy no laboramos. Puedes dejar tu mensaje y te atenderemos el siguiente día hábil.", "canal": "all"},
+        {"tipo": "alerta_dia_festivo_2025-04-17", "mensaje": "⛪ Hoy es Jueves Santo y estamos de descanso. Te responderemos el próximo día hábil.", "canal": "all"},
+        {"tipo": "alerta_dia_festivo", "mensaje": "🎉 Hoy es día festivo y estamos cerrados. Puedes dejar tu mensaje y te responderemos en el próximo día hábil.", "canal": "all"},
+
+        {"tipo": "alerta_dia_festivo", "mensaje": "🎉 Hoy es día festivo y estamos cerrados. Puedes dejar tu mensaje y te responderemos en el próximo día hábil.", "canal": "all"},
         # Formas de pago (varios, para rotar)
         #{"tipo": "formas_pago", "mensaje": "💳 Aceptamos efectivo, depósitos, transferencias, Visa Cuotas y pago contra entrega.", "canal": "whatsapp"},
         {"tipo": "formas_pago", "mensaje": "*💲Medios de pago:* \n\n 💵 Efectivo. \n\n 🏦 Depósitos o transferencias bancarias. \n\n 📦 Pago contra Entrega. \nPagas al recibir tu producto, aplica para envíos por medio de Guatex, el monto máximo es de Q5,000. \n\n💳 Visa Cuotas. \nHasta 12 cuotas con tu tarjeta visa \n\n💳 Cuotas Credomatic. \nHasta 12 cuotas con tu tarjeta BAC Credomatic \n\n🔗 Neo Link. \nTe enviamos un link para que pagues con tu tarjeta sin salir de casa", "canal": "whatsapp"},

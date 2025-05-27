@@ -229,10 +229,67 @@ def should_process_message(session):
 
 
 # feriados configurables
-DIAS_FESTIVOS = {"2025-01-01","2025-04-17","2025-04-18","2025-05-01"}
+
+HORARIOS_DEFECTO = {
+    0: "08:00-17:30",  # Lunes
+    1: "08:00-17:30",
+    2: "08:00-17:30",
+    3: "08:00-17:30",
+    4: "08:00-17:30",
+    5: "08:00-12:30",  # Sábado
+    6: None            # Domingo
+}
+# 1. Días festivos (fijos y por año específico)
+DIAS_FESTIVOS_DEFECTO = [
+    "01-01",         # Año Nuevo (cada año)
+    "05-01",         # Día del Trabajo (cada año)
+    "12-25",         # Navidad (cada año)
+    "2025-04-17",    # Jueves Santo (sólo 2025)
+    "2025-12-31"     # Fin de año (sólo 2025)
+]
+
+def cargar_horario_dia(dia_semana):
+    dias = [
+        "HORARIO_LUNES", "HORARIO_MARTES", "HORARIO_MIERCOLES", "HORARIO_JUEVES",
+        "HORARIO_VIERNES", "HORARIO_SABADO", "HORARIO_DOMINGO"
+    ]
+    key = dias[dia_semana]
+    config = Configuration.query.filter_by(key=key).first()
+    if config and config.value:
+        return config.value
+    return HORARIOS_DEFECTO.get(dia_semana)
+
+def cargar_dias_festivos():
+    config = Configuration.query.filter_by(key="DIAS_FESTIVOS").first()
+    if config and config.value:
+        try:
+            return set(json.loads(config.value))
+        except Exception:
+            # Soporta CSV si hay error
+            return set([d.strip() for d in config.value.split(",") if d.strip()])
+    # Si falla, regresa los de inicialización
+    return set(["01-01", "05-01", "12-25", "2025-04-17", "2025-12-31"])
 
 def es_dia_festivo(fecha: datetime) -> bool:
-    return fecha.strftime("%Y-%m-%d") in DIAS_FESTIVOS
+    dias_festivos = cargar_dias_festivos()
+    fecha_str = fecha.strftime("%Y-%m-%d")
+    fecha_mmdd = fecha.strftime("%m-%d")
+    return fecha_str in dias_festivos or fecha_mmdd in dias_festivos
+
+def obtener_mensaje_festivo(fecha, canal='whatsapp', idioma='es'):
+    tipo1 = f"alerta_dia_festivo_{fecha.strftime('%m-%d')}"
+    tipo2 = f"alerta_dia_festivo_{fecha.strftime('%Y-%m-%d')}"
+    mensaje = obtener_mensaje_bot(tipo2, None, canal=canal, idioma=idioma)
+    if not mensaje:
+        mensaje = obtener_mensaje_bot(tipo1, None, canal=canal, idioma=idioma)
+    if not mensaje:
+        mensaje = obtener_mensaje_bot(
+            "alerta_dia_festivo",
+            "🎉 Hoy es día festivo y estamos cerrados. Puedes dejar tu mensaje y te responderemos en el próximo día hábil.",
+            canal=canal,
+            idioma=idioma
+        )
+    return mensaje
 
 def pre_validaciones(state: BotState) -> BotState:
     ahora = now()
@@ -249,11 +306,15 @@ def pre_validaciones(state: BotState) -> BotState:
         session.pausa_hasta = None
         db.session.commit()
 
-    # --- HORARIO ---
-    HORARIO = {
-        0: ("08:00", "17:30"), 1: ("08:00", "17:30"), 2: ("08:00", "17:30"),
-        3: ("08:00", "17:30"), 4: ("08:00", "17:30"), 5: ("08:00", "12:30"), 6: (None, None)
-    }
+    # --- HORARIO DESDE CONFIG --- 
+    HORARIO = {}
+    for i in range(7):
+        h = cargar_horario_dia(i)
+        if h and '-' in str(h):
+            h_ini, h_fin = h.split("-")
+        else:
+            h_ini = h_fin = None
+        HORARIO[i] = (h_ini, h_fin)
 
     dia = ahora.weekday()
     h_ini_str, h_fin_str = HORARIO.get(dia, (None, None))
@@ -265,44 +326,36 @@ def pre_validaciones(state: BotState) -> BotState:
         dentro_horario = h_ini <= ahora <= h_fin
 
     try:
-        if not dentro_horario:
-            mostrar_alerta = False
-
-            if session:
-                ultima_alerta = session.ultima_alerta_horario or datetime.min.replace(tzinfo=GUATEMALA_TZ)
-                if ultima_alerta.tzinfo is None:
-                    ultima_alerta = GUATEMALA_TZ.localize(ultima_alerta)
-
-                if ahora - ultima_alerta > timedelta(hours=1):
-                    mostrar_alerta = True
-                    session.ultima_alerta_horario = ahora
-                    db.session.commit()
-                    log_state(state, "⏰ Alerta de fuera de horario enviada.")
+        mostrar_alerta = False
+        if es_dia_festivo(ahora):
+            mostrar_alerta = True
+            tipo_mensaje = "feriado"
+        elif not dentro_horario:
+            mostrar_alerta = True
+            tipo_mensaje = "fuera_horario"
+        if mostrar_alerta:
+            if tipo_mensaje == "feriado":
+                mensaje_alerta = obtener_mensaje_festivo(ahora, canal=source)
             else:
-                mostrar_alerta = True  # Si no hay sesión, se muestra igual
-
-            if mostrar_alerta:
                 mensaje_alerta = obtener_mensaje_bot(
                     "alerta_fuera_horario",
                     "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente y nuestro equipo te atenderá lo más pronto posible.",
-                    canal=source  # 'whatsapp', 'web', etc.
+                    canal=source
                 )
-
-                state["additional_messages"].append({
-                    "messaging_product": "whatsapp" if source == "whatsapp" else "other",
-                    "to": phone_or_id,
-                    "type": "text",
-                    "text": {
-                        #"body": "🕒 Gracias por comunicarte con nosotros. En este momento estamos fuera de nuestro horario de atención.\n\n💬 Puedes continuar usando nuestro asistente y nuestro equipo te atenderá lo más pronto posible."
-                        "body": mensaje_alerta
-
-                    }
-                })
-
+            state["additional_messages"].append({
+                "messaging_product": "whatsapp" if source == "whatsapp" else "other",
+                "to": phone_or_id,
+                "type": "text",
+                "text": {"body": mensaje_alerta}
+            })
     except Exception as e:
         db.session.rollback()
         log_state(state, f"❌ Error al guardar alerta de horario: {str(e)}")
 
+    # ... tu código de bienvenida, etc. ...
+    return state
+    # ... (Tu código de bienvenida y resto sigue igual)
+    # ...
 
     try:
         # --- BIENVENIDA ---
