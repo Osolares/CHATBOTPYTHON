@@ -25,7 +25,7 @@ from langchain_groq import ChatGroq
 import random
 import difflib
 from rapidfuzz import fuzz
-from init_data import INTENCIONES_BOT_DEFECTO
+from init_data import INTENCIONES_BOT_DEFECTO, PROMPT_ASISTENTE_DEFECTO, PROMPT_SLOT_FILL_DEFECTO
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -870,6 +870,13 @@ def handle_special_commands(state: BotState) -> BotState:
     return state
 
 
+def cargar_prompt_asistente():
+    config = Configuration.query.filter_by(key="PROMPT_ASISTENTE").first()
+    if config and config.value:
+        return config.value
+    # Si no existe en BD, fallback al defecto
+    return PROMPT_ASISTENTE_DEFECTO
+
 def asistente(state: BotState) -> BotState:
     """Maneja mensajes no reconocidos usando DeepSeek"""
 
@@ -903,21 +910,10 @@ Contexto de conversación previa:
 {prompt_usuario}
 """
 
-        safety_prompt = f"""
-Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, responde muy puntual y en las minimas palabras máximo 50 usa emojis ocasionalmente según sea necesario. 
+        # 👉 Carga el prompt base editable desde la BD
+        prompt_base = cargar_prompt_asistente()
+        safety_prompt = prompt_base.replace("{prompt_usuario}", prompt_usuario)
 
-Solo responde sobre:
-- Motores y repuestos para vehículos
-- Piezas, partes o repuestos de automóviles
-
-No incluyas información innecesaria (como el número de palabras).
-nunca confirmes disponibilidad, exitencias, precio, etc
-
-Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
-si es un mensaje de saludo, bienvenida, agradecimiento o despedida responde algo acorde
-
-{prompt_usuario}
-"""
         # 🤖 Llamar al modelo
         response = model.invoke([HumanMessage(content=safety_prompt)])
         body = response.content
@@ -939,34 +935,6 @@ si es un mensaje de saludo, bienvenida, agradecimiento o despedida responde algo
         log_state(state, f"✅ Asistente respondió con memoria: {body[:100]}... y el state {state}")
 
     return state
-
-#PROMPT_SLOT_FILL = """
-#Extrae la siguiente información en JSON. Pon null si no se encuentra.
-#Campos obligatorios: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
-#Campo opcional: descripcion (agrega cualquier dato extra, comentarios del cliente, detalles técnicos que ayuden a la cotización, como VGT, intercooler, importado, turbo, etc)
-#
-#Ejemplo:
-#Entrada: "Quiero un motor 4D56 para L200, año 2017, es versión VGT con intercooler"
-#Salida:
-#{"tipo_repuesto":"motor","marca":null,"modelo":"L200","año":"2017","serie_motor":"4D56","cc":null,"combustible":null,"descripcion":"versión VGT con intercooler"}
-#
-#Entrada: "{MENSAJE}"
-#Salida:
-#"""
-
-#def slot_filling_llm(mensaje):
-#    agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
-#    prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
-#    response = model.invoke([HumanMessage(content=prompt)], max_tokens=200)
-#    try:
-#        result = json.loads(response.content.strip())
-#        agregar_mensajes_log(f"🔁Respuesta LLM {json.dumps(result)}")
-#
-#    except Exception:
-#        agregar_mensajes_log(f"🔁Respuesta LLM EXCEPTTION")
-#
-#        result = {}
-#    return result
 
 # Prompt de slot filling
 PROMPT_SLOT_FILL = """
@@ -993,6 +961,21 @@ def extract_json(texto):
         agregar_mensajes_log(f"[extract_json] Error: {str(e)}")
     return {}
 
+def cargar_prompt_slot_fill():
+    config = Configuration.query.filter_by(key="PROMPT_SLOT_FILL").first()
+    if config and config.value:
+        return config.value
+    return PROMPT_SLOT_FILL_DEFECTO
+
+def slot_filling_llm(mensaje):
+    #agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
+    prompt = cargar_prompt_slot_fill().replace("{MENSAJE}", mensaje)
+    response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
+    result = extract_json(response.content.strip())
+    #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
+    return result
+
+
 def slot_filling_llm(mensaje):
     #agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
 
@@ -1002,6 +985,7 @@ def slot_filling_llm(mensaje):
 
     #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
     return result
+
 
 # Reglas técnicas (comienza con tus casos más comunes)
 REGLAS_SERIE_MOTOR = {

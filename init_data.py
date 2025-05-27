@@ -34,10 +34,6 @@ def inicializar_configuracion():
     db.session.commit()
     print("✅ Configuración inicial creada")
 
-
-import json
-from models import db, Configuration
-
 # Estructura de intenciones por defecto
 INTENCIONES_BOT_DEFECTO = {
     "formas_pago": [
@@ -62,7 +58,7 @@ INTENCIONES_BOT_DEFECTO = {
         "contacto", "telefono", "celular", "comunicarme", "llamar", "numero de telefono", "donde puedo llamar"
     ],
     "mensaje_despedida": [
-        "gracias por la informacion", "muy amable", "le agradezco", "feliz tarde", "adios", "saludos", "los visito", "feliz dia" , "feliz noche"
+        "gracias por la informacion","ok gracias", "muy amable", "le agradezco", "feliz tarde", "adios", "saludos", "los visito", "feliz dia" , "feliz noche"
     ]
 }
 
@@ -91,6 +87,65 @@ def inicializar_threshold_intencion():
         print("✅ Threshold de intención inicializado")
     else:
         print("🔹 Ya existe threshold de intención")
+
+
+# init_data.py
+PROMPT_ASISTENTE_DEFECTO = """
+Eres un asistente llamado Boty especializado en motores y repuestos para vehículos de marcas japonesas y coreanas que labora en Intermotores, responde muy puntual y en las minimas palabras máximo 50 usa emojis ocasionalmente según sea necesario. 
+
+Solo responde sobre:
+- Motores y repuestos para vehículos
+- Piezas, partes o repuestos de automóviles
+
+No incluyas información innecesaria (como el número de palabras).
+nunca confirmes disponibilidad, existencias, precio, etc
+
+Si el mensaje no está relacionado, responde cortésmente indicando que solo puedes ayudar con temas de motores y repuestos.
+si es un mensaje de saludo, bienvenida, agradecimiento o despedida responde algo acorde
+
+{prompt_usuario}
+"""
+
+def inicializar_prompt_asistente():
+    clave = "PROMPT_ASISTENTE"
+    existente = Configuration.query.filter_by(key=clave).first()
+    if not existente:
+        config = Configuration(key=clave, value=PROMPT_ASISTENTE_DEFECTO)
+        db.session.add(config)
+        db.session.commit()
+        print("✅ Prompt asistente inicializado")
+    else:
+        print("🔹 Ya existe prompt asistente")
+
+
+# init_data.py
+from models import db, Configuration
+
+PROMPT_SLOT_FILL_DEFECTO = """
+Extrae la siguiente información en JSON. Pon null si no se encuentra.
+Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible, codigo_repuesto
+
+Ejemplo:
+Entrada: "Turbo para sportero 2.5 28231-27000"
+el año tambien te lo pueden decir como modelo y puede venir abreviado ejmplo "modelo 90"
+la linea puede tener algunas variaciones o estar mal escrita ejemplo "colola" en vez de "corolla"
+Salida:
+{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null,"codigo_repuesto":"28231-27000"}
+
+Entrada: "{MENSAJE}"
+Salida:
+"""
+
+def inicializar_prompt_slot_fill():
+    clave = "PROMPT_SLOT_FILL"
+    existente = Configuration.query.filter_by(key=clave).first()
+    if not existente:
+        config = Configuration(key=clave, value=PROMPT_SLOT_FILL_DEFECTO)
+        db.session.add(config)
+        db.session.commit()
+        print("✅ Prompt slot filling inicializado")
+    else:
+        print("🔹 Ya existe prompt slot filling")
 
 
 def inicializar_usuarios():
@@ -181,6 +236,8 @@ def inicializar_mensajes_bot():
 def inicializar_todo():
     inicializar_configuracion()
     inicializar_usuarios()
-    inicializar_mensajes_bot()    # <--- Agrega esta línea
+    inicializar_mensajes_bot()
     inicializar_intenciones_bot()
     inicializar_threshold_intencion()
+    inicializar_prompt_asistente()
+    inicializar_prompt_slot_fill()
