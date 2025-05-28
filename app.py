@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from config import db, Config
-from models import UserSession, Log, ProductModel, Configuration, Memory, MensajeBot, KnowledgeBase, UsuarioBloqueado
+from models import UserSession, Log, ProductModel, Configuration, Memory, MensajeBot, KnowledgeBase, UsuarioBloqueado, LLMConfig
 #from woocommerce_service import WooCommerceService, obtener_producto_por_url, buscar_producto_por_nombre, formatear_producto_whatsapp
 from woocommerce_service import WooCommerceService
 from datetime import datetime
@@ -32,16 +32,72 @@ from init_data import inicializar_todo
 # Instancia global del servicio
 woo_service = WooCommerceService()
 
+def get_llm_config_list():
+    # Devuelve todas las configuraciones activas ordenadas por prioridad (para fallback)
+    configs = LLMConfig.query.filter_by(status="active").order_by(LLMConfig.prioridad.asc()).all()
+    return configs
+
+from langchain_openai import ChatOpenAI
+#from langchain_groq import ChatGroq   # Si usas Groq, importa el correcto
+
+def create_llm_instance(config):
+    provider = config.provider
+    model = config.model
+    temperature = config.temperature
+    max_tokens = config.max_tokens
+
+    if provider == "deepseek":
+        api_key = Config.DEEPSEEK_API_KEY
+        base_url = "https://api.deepseek.com/v1"
+        return ChatOpenAI(
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+    elif provider == "openai":
+        api_key = Config.OPENAI_API_KEY
+        return ChatOpenAI(
+            model=model,
+            api_key=api_key,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+    # Agrega aquí otros proveedores
+    #elif provider == "groq":
+    #    api_key = Config.GROQ_API_KEY
+    #    return ChatGroq(...)
+
+    else:
+        raise Exception(f"Proveedor LLM no soportado: {provider}")
+
+def run_llm_with_fallback(prompt):
+    configs = get_llm_config_list()
+    error = None
+    for config in configs:
+        try:
+            llm = create_llm_instance(config)
+            response = llm.invoke([HumanMessage(content=prompt)])
+            return response.content
+        except Exception as e:
+            # Loguea error, intenta el siguiente
+            error = str(e)
+            print(f"[LLM ERROR] {config.provider} - {config.model}: {error}")
+            continue
+    # Si ninguno respondió, lanza el último error
+    raise Exception(f"Ningún LLM respondió correctamente. Último error: {error}")
+
 # Configuración de DeepSeek
 #deepseek_key = os.environ["DEEPSEEK_API_KEY"]
-deepseek_key = f"{Config.DEEPSEEK_API_KEY}"
-model = ChatOpenAI(
-    model="deepseek-chat",
-    api_key=deepseek_key,
-    base_url="https://api.deepseek.com/v1",
-    temperature=0.5,
-    max_tokens=100,
-)
+#deepseek_key = f"{Config.DEEPSEEK_API_KEY}"
+#model = ChatOpenAI(
+#    model="deepseek-chat",
+#    api_key=deepseek_key,
+#    base_url="https://api.deepseek.com/v1",
+#    temperature=0.5,
+#    max_tokens=100,
+#)
 
 #llm = ChatGroq(
 #    model="llama3-70b-8192"
@@ -922,8 +978,15 @@ Contexto de conversación previa:
         safety_prompt = prompt_base.replace("{prompt_usuario}", prompt_usuario)
 
         # 🤖 Llamar al modelo
-        response = model.invoke([HumanMessage(content=safety_prompt)])
-        body = response.content
+        #response = model.invoke([HumanMessage(content=safety_prompt)])
+        #body = response.content
+
+        try:
+            body = run_llm_with_fallback(safety_prompt)
+        except Exception as e:
+            body = "❌ Ocurrió un error técnico al consultar el asistente. Intenta nuevamente en unos minutos."
+            agregar_mensajes_log(str(e), session_id)
+
 
         # 📝 Guardar memorias
         if session_id:
@@ -977,10 +1040,17 @@ def cargar_prompt_slot_fill():
 def slot_filling_llm(mensaje):
     #agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
     prompt = cargar_prompt_slot_fill().replace("{MENSAJE}", mensaje)
-    response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
-    result = extract_json(response.content.strip())
+    #response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
+    #result = extract_json(response.content.strip())
+
+    try:
+        body = run_llm_with_fallback(prompt)
+    except Exception as e:
+        body = "❌ Ocurrió un error técnico al consultar el asistente. Intenta nuevamente en unos minutos."
+        agregar_mensajes_log(str(e), body)
+
     #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
-    return result
+    return body
 
 
 #def slot_filling_llm(mensaje):
@@ -1801,7 +1871,7 @@ def send_messages(state: BotState) -> BotState:
             log_state(state, f"⏺️ ERROR en send_messages: {error_msg}")
 
     log_state(state, f"✅ Envío de mensajes completado para {source}")
-    agregar_mensajes_log(f"✅ Respuesta: {json.dumps(state)}")
+    agregar_mensajes_log(f"✅ Respuesta: {state}")
 
     return state
 

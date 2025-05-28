@@ -129,8 +129,9 @@ Ejemplo:
 Entrada: "Turbo para sportero 2.5 28231-27000"
 el año tambien te lo pueden decir como modelo y puede venir abreviado ejmplo "modelo 90"
 la linea puede tener algunas variaciones o estar mal escrita ejemplo "colola" en vez de "corolla"
+La anotacion puede ser un resumen de la peticion del cliente
 Salida:
-{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null,"codigo_repuesto":"28231-27000"}
+{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null,"codigo_repuesto":"28231-27000","anotacion":"el cliente dijo que necesita un turbo para mitsubishi Sportero 2.5"}
 
 Entrada: "{MENSAJE}"
 Salida:
@@ -491,6 +492,30 @@ def inicializar_configuracion_delay():
         db.session.add(config)
         db.session.commit()
 
+def inicializar_llm_config():
+    from models import db, LLMConfig
+    if not LLMConfig.query.filter_by(status="active").first():
+        db.session.add(LLMConfig(
+            provider="deepseek",
+            model="deepseek-chat",
+            temperature=0.5,
+            max_tokens=100,
+            prioridad=1,
+            descripcion="Deepseek principal"
+        ))
+        # Ejemplo para agregar otro LLM como fallback
+        db.session.add(LLMConfig(
+            provider="openai",
+            model="gpt-4o",
+            temperature=0.5,
+            max_tokens=100,
+            prioridad=2,
+            descripcion="OpenAI Fallback"
+        ))
+        db.session.commit()
+        print("✅ LLM Config inicializada")
+
+
 def inicializar_usuarios():
     usuarios_defecto = [
         {"phone_number": "50255105350", "nombre": "Oscar", "apellido": "Solares", "tipo_usuario": "admin"},
@@ -588,3 +613,4 @@ def inicializar_todo():
     inicializar_configuracion_delay()
     inicializar_tipos_mensajes_bloqueados()
     inicializar_usuarios_bloqueados()
+    inicializar_llm_config()

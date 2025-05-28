@@ -104,3 +104,16 @@ class UsuarioBloqueado(db.Model):
     razon = db.Column(db.String(255))  # opcional
     activo = db.Column(db.Boolean, default=True)
     creado_en = db.Column(db.DateTime, default=now)
+
+class LLMConfig(db.Model):
+    __tablename__ = 'llm_configs'
+    id = db.Column(db.Integer, primary_key=True)
+    provider = db.Column(db.String(30), nullable=False, default="deepseek")
+    model = db.Column(db.String(60), nullable=False, default="deepseek-chat")
+    temperature = db.Column(db.Float, default=0.5)
+    max_tokens = db.Column(db.Integer, default=100)
+    status = db.Column(db.String(20), default="active")  # active/inactive
+    prioridad = db.Column(db.Integer, default=1)         # para fallback
+    descripcion = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=now)
+    updated_at = db.Column(db.DateTime, default=now, onupdate=now)
