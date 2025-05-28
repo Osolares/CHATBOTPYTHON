@@ -1,6 +1,6 @@
 # init_data.py
 
-from models import db, Configuration, UserSession
+from models import db, Configuration, UserSession, KnowledgeBase
 from config import now
 import json
 
@@ -24,6 +24,9 @@ def inicializar_configuracion():
         "HORARIO_DOMINGO": None,
         "DIAS_FESTIVOS": json.dumps(DIAS_FESTIVOS_DEFECTO, ensure_ascii=False),
         # otros config...
+            # ...Fuzzy Slot Fill...
+        "FUZZY_MATCH_SCORE": "90",  # Puedes poner 80, 85, 90 según prefieras
+
     }
 
     for clave, valor in configuraciones_defecto.items():
@@ -118,9 +121,6 @@ def inicializar_prompt_asistente():
         print("🔹 Ya existe prompt asistente")
 
 
-# init_data.py
-from models import db, Configuration
-
 PROMPT_SLOT_FILL_DEFECTO = """
 Extrae la siguiente información en JSON. Pon null si no se encuentra.
 Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible, codigo_repuesto
@@ -146,6 +146,196 @@ def inicializar_prompt_slot_fill():
         print("✅ Prompt slot filling inicializado")
     else:
         print("🔹 Ya existe prompt slot filling")
+
+
+def inicializar_knowledge_base():
+    # Reglas de serie motor
+    reglas_serie_motor = [
+        
+        # Solo unos ejemplos, agrega todos los que tienes arriba...
+        ("1kz", {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "culata de aluminio"], "lineas": ["Hilux", "Prado", "4Runner"]}),
+        ("2kd", {"marca": "Toyota", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Innova"]}),
+        # ... el resto
+
+        #Toyota
+        ("2kd", {"marca": "Toyota", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Innova"]}),
+        ("1kd", {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Prado"]}),
+        ("2tr", {"marca": "Toyota", "cilindros": "4", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Hilux", "Fortuner", "Hiace"]}),
+        ("1tr", {"marca": "Toyota", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Hiace", "Hilux"]}),
+        ("3rz", {"marca": "Toyota", "cilindros": "4", "cc": "2.7", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Hilux", "Tacoma"]}),
+        ("5vz", {"marca": "Toyota", "cilindros": "6", "cc": "3.4", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["4Runner", "Tacoma", "T100"]}),
+        ("2nz", {"marca": "Toyota", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Yaris", "Platz"]}),
+        ("1nz", {"marca": "Toyota", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Yaris", "Vios", "Echo"]}),
+        ("1zr", {"marca": "Toyota", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["Dual VVT-i"], "lineas": ["Corolla", "Auris"]}),
+        ("2zr", {"marca": "Toyota", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["Dual VVT-i"], "lineas": ["Corolla", "Auris"]}),
+        ("1gr", {"marca": "Toyota", "cilindros": "6", "cc": "4.0", "combustible": "gasolina", "caracteristicas": ["V6", "VVT-i"], "lineas": ["Hilux", "Prado", "4Runner"]}),
+        ("3l", {"marca": "Toyota", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": [], "lineas": ["Hilux", "Hiace", "Dyna"]}),
+        ("1hz", {"marca": "Toyota", "cilindros": "6", "cc": "4.2", "combustible": "diésel", "caracteristicas": [], "lineas": ["Land Cruiser", "Coaster"]}),
+        ("1hd", {"marca": "Toyota", "cilindros": "6", "cc": "4.2", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["Land Cruiser", "Coaster"]}),
+        ("5l", {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": [], "lineas": ["Hiace", "Hilux"]}),
+        ("1gr", {"marca": "Toyota", "cilindros": "6", "cc": "4.0", "combustible": "gasolina", "caracteristicas": ["V6", "VVT-i"], "lineas": ["4Runner", "Prado", "FJ Cruiser"]}),
+        ("3s", {"marca": "Toyota", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Camry", "RAV4", "Carina"]}),
+        ("22r", {"marca": "Toyota", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["SOHC", "legendario", "carburado/EFI (según año)"], "lineas": ["Hilux", "Pickup", "4Runner", "Corona"]}),
+    
+        #Mitsubishi
+        ("4d56", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["L200", "Montero Sport", "Pajero", "L300"]}),
+        ("4d56u", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail", "intercooler"], "lineas": ["L200 Sportero", "Montero Sport"]}),
+        ("4m40", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["Montero", "Pajero", "L200"]}),
+        ("4g63", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Eclipse", "Lancer", "Galant"]}),
+        ("4g64", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["L200", "Montero Sport", "Outlander"]}),
+        ("6g72", {"marca": "Mitsubishi", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Montero", "Pajero", "3000GT"]}),
+        ("4g54", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.6", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["L200", "Montero"]}),
+        ("6g74", {"marca": "Mitsubishi", "cilindros": "6", "cc": "3.5", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Montero", "Pajero"]}),
+        ("4b11", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC", "MIVEC"], "lineas": ["Lancer", "Outlander"]}),
+        ("4b12", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["DOHC", "MIVEC"], "lineas": ["Lancer", "Outlander"]}),
+        ("4m42", {"marca": "Mitsubishi/Fuso", "cilindros": "4", "cc": "3.9", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["Canter"]}),
+    
+        #Nissan
+        ("qd32", {"marca": "Nissan", "cilindros": "4", "cc": "3.2", "combustible": "diésel", "caracteristicas": [], "lineas": ["D21", "Terrano", "Urvan"]}),
+        ("td27", {"marca": "Nissan", "cilindros": "4", "cc": "2.7", "combustible": "diésel", "caracteristicas": [], "lineas": ["D21", "Terrano", "Urvan"]}),
+        ("yd25", {"marca": "Nissan", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Navara", "Frontier", "NP300"]}),
+        ("ka24", {"marca": "Nissan", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Frontier", "Xterra", "Altima"]}),
+        ("hr16", {"marca": "Nissan", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Versa", "Tiida", "March"]}),
+        ("sr20de", {"marca": "Nissan", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Primera", "Sentra", "200SX"]}),
+        ("ga16de", {"marca": "Nissan", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Sentra", "Tsuru", "Sunny"]}),
+        ("qr25de", {"marca": "Nissan", "cilindros": "4", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Altima", "X-Trail", "Sentra"]}),
+        ("vg30e", {"marca": "Nissan", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Pathfinder", "D21", "300ZX"]}),
+        ("rb25det", {"marca": "Nissan", "cilindros": "6", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["turbo", "DOHC"], "lineas": ["Skyline"]}),
+    
+        #Mazda
+        ("wl", {"marca": "Mazda", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["BT-50", "B2500"]}),
+        ("rf", {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": [], "lineas": ["323", "626"]}),
+        ("fe", {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["626", "B2000", "MPV"]}),
+        ("f2", {"marca": "Mazda", "cilindros": "4", "cc": "2.2", "combustible": "gasolina", "caracteristicas": [], "lineas": ["B2200", "626"]}),
+        ("fs", {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["626", "Premacy"]}),
+        ("rf-t", {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["626", "Bongo"]}),
+        ("z5", {"marca": "Mazda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": [], "lineas": ["323", "Familia"]}),
+        ("wlt", {"marca": "Mazda", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["BT-50", "B2500"]}),
+    
+        #Honda
+        ("r18", {"marca": "Honda", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["i-VTEC"], "lineas": ["Civic", "CR-V"]}),
+        ("l15", {"marca": "Honda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["i-VTEC", "Turbo (algunas versiones)"], "lineas": ["Fit", "City", "HR-V", "Civic"]}),
+        ("k24", {"marca": "Honda", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["i-VTEC"], "lineas": ["CR-V", "Accord", "Odyssey"]}),
+        ("d15b", {"marca": "Honda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["SOHC", "VTEC"], "lineas": ["Civic", "City"]}),
+        ("d17a", {"marca": "Honda", "cilindros": "4", "cc": "1.7", "combustible": "gasolina", "caracteristicas": ["SOHC", "VTEC"], "lineas": ["Civic"]}),
+        ("b16a", {"marca": "Honda", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC", "VTEC"], "lineas": ["Civic", "CRX", "Integra"]}),
+        ("b18b", {"marca": "Honda", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Integra", "Civic"]}),
+        ("f23a", {"marca": "Honda", "cilindros": "4", "cc": "2.3", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["Accord", "Odyssey"]}),
+    
+        #Suzuki
+        ("m13a", {"marca": "Suzuki", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Swift", "Jimny"]}),
+        ("m15a", {"marca": "Suzuki", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Swift", "SX4", "Ertiga"]}),
+        ("j20a", {"marca": "Suzuki", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Grand Vitara", "SX4"]}),
+        ("h27a", {"marca": "Suzuki", "cilindros": "6", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["XL-7", "Grand Vitara"]}),
+        ("g13bb", {"marca": "Suzuki", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["Swift", "Baleno"]}),
+        ("m18a", {"marca": "Suzuki", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Grand Vitara"]}),
+        ("h25a", {"marca": "Suzuki", "cilindros": "6", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Grand Vitara"]}),
+    
+        #Hyundai/Kia
+        ("j3", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.9", "combustible": "diésel", "caracteristicas": ["turbo", "CRDI"], "lineas": ["Terracan", "Bongo"]}),
+        ("d4cb", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["H1", "Starex", "Grand Starex", "porter"]}),
+        ("d4ea", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Tucson", "Sportage"]}),
+        ("d4fb", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.6", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Accent", "Rio", "i20"]}),
+        ("g4gc", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Elantra", "Tucson"]}),
+        ("g4kd", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Tucson", "Sportage", "Cerato"]}),
+        ("g4ke", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Santa Fe", "Sonata", "Optima"]}),
+        ("d4ea", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Tucson", "Sportage"]}),
+        ("g6ea", {"marca": "Hyundai/Kia", "cilindros": "6", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Santa Fe", "Terracan"]}),
+        ("g4fa", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.4", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["i20", "Accent"]}),
+        ("g4fj", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.0", "combustible": "gasolina", "caracteristicas": ["turbo", "DOHC"], "lineas": ["i10", "Picanto"]}),
+    
+        #Isuzu
+        ("4jb1", {"marca": "Isuzu", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": ["turbo (algunas versiones)"], "lineas": ["D-Max", "Trooper"]}),
+        ("4ja1", {"marca": "Isuzu", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": [], "lineas": ["D-Max", "Trooper"]}),
+        ("4jh1", {"marca": "Isuzu", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["D-Max", "NPR"]}),
+        ("4hk1", {"marca": "Isuzu", "cilindros": "4", "cc": "5.2", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["NQR", "NPR"]}),
+    
+        #subaru
+        ("ej20", {"marca": "Subaru", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC", "turbo (algunas versiones)"], "lineas": ["Impreza", "Legacy", "Forester"]}),
+        ("ez30", {"marca": "Subaru", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC"], "lineas": ["Legacy", "Outback"]}),
+        ("fb20", {"marca": "Subaru", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC"], "lineas": ["XV", "Impreza", "Forester"]}),
+    
+        #Daihatsu
+        ("hc-e", {"marca": "Daihatsu", "cilindros": "3", "cc": "1.0", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Charade"]}),
+        ("ej-ve", {"marca": "Daihatsu", "cilindros": "3", "cc": "1.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Sirion", "Cuore"]}),
+    
+        #Hino
+        ("n04c", {"marca": "Hino", "cilindros": "4", "cc": "4.0", "combustible": "diésel", "caracteristicas": ["common rail"], "lineas": ["300", "Dutro"]}),
+        ("j05e", {"marca": "Hino", "cilindros": "4", "cc": "5.1", "combustible": "diésel", "caracteristicas": [], "lineas": ["500"]}),
+
+    ]
+    for clave, valor in reglas_serie_motor:
+        existente = KnowledgeBase.query.filter_by(tipo="serie_motor", clave=clave).first()
+        if not existente:
+            kb = KnowledgeBase(tipo="serie_motor", clave=clave, valor=json.dumps(valor, ensure_ascii=False))
+            db.session.add(kb)
+
+    # Frases "no sé"
+    frases_no_se = ["no sé", "no se", "nose", "no tengo", "no la tengo", "no recuerdo", "desconozco", "no aplica"]
+    for frase in frases_no_se:
+        existente = KnowledgeBase.query.filter_by(tipo="frase_no_se", clave=frase).first()
+        if not existente:
+            kb = KnowledgeBase(tipo="frase_no_se", clave=frase, valor=json.dumps(frase, ensure_ascii=False))
+            db.session.add(kb)
+
+    # Tipos de repuesto
+    tipos_repuesto = [
+        "motor", "culata", "turbina", "bomba", "inyector", "alternador", "radiador", "turbo", 
+        "caja de velocidades", "eje de levas", "termostato", "caja", "transmisión", "transmision", "computadora",
+        # ... el resto
+    ]
+    for tipo in tipos_repuesto:
+        existente = KnowledgeBase.query.filter_by(tipo="tipo_repuesto", clave=tipo).first()
+        if not existente:
+            kb = KnowledgeBase(tipo="tipo_repuesto", clave=tipo, valor=json.dumps(tipo, ensure_ascii=False))
+            db.session.add(kb)
+
+    # Preguntas slots
+    preguntas_slots = {
+        "tipo_repuesto": [
+            "¿Qué repuesto necesitas? (ejemplo: motor, culata, turbo, etc.)",
+            "¿Sobre qué repuesto te gustaría cotizar?",
+            "¿Cuál es el repuesto de tu interes?",
+            "¿Qué tipo de repuesto necesitas?",
+        ],
+        "marca": [
+            "¿Cuál es la marca de tu vehículo?",
+            "¿Qué marca del auto?"
+        ],
+        "linea": [
+            "¿Qué línea/modelo es tu vehículo?",
+            "¿Podrías decirme la línea del vehículo?"
+        ],
+        "año": [
+            "¿De qué año es tu vehículo?",
+            "¿Sabes el año del auto?",
+            "¿Para qué año necesitas?"
+
+        ],
+        "serie_motor": [
+            "¿Conoces la serie del motor?",
+            "¿Sabes la serie del motor?",
+            "¿Tienes el número de serie del motor?"
+        ],
+        "comnbustible": [
+            "¿El motor es diésel o gasolina?",
+            "¿Su vehículo es diésel o gasolina?",
+            "¿Diésel o gasolina?"
+        ],
+        "cc": [
+            "¿Cuántos centímetros cúbicos es el motor?",
+            "¿Cuántos c.c es el motor?"
+        ]
+            # ... agrega para cada slot
+    }
+    for slot, preguntas in preguntas_slots.items():
+        existente = KnowledgeBase.query.filter_by(tipo="pregunta_slot", clave=slot).first()
+        if not existente:
+            kb = KnowledgeBase(tipo="pregunta_slot", clave=slot, valor=json.dumps(preguntas, ensure_ascii=False))
+            db.session.add(kb)
+
+    db.session.commit()
+    print("✅ Knowledge base inicializada")
 
 
 def inicializar_usuarios():

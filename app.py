@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from config import db, Config
-from models import UserSession, Log, ProductModel, Configuration, Memory, MensajeBot
+from models import UserSession, Log, ProductModel, Configuration, Memory, MensajeBot, KnowledgeBase
 #from woocommerce_service import WooCommerceService, obtener_producto_por_url, buscar_producto_por_nombre, formatear_producto_whatsapp
 from woocommerce_service import WooCommerceService
 from datetime import datetime
@@ -24,8 +24,9 @@ from collections import deque
 from langchain_groq import ChatGroq
 import random
 import difflib
-from rapidfuzz import fuzz
+from rapidfuzz import fuzz, process
 from init_data import INTENCIONES_BOT_DEFECTO, PROMPT_ASISTENTE_DEFECTO, PROMPT_SLOT_FILL_DEFECTO
+import unicodedata
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -565,8 +566,6 @@ def cargar_threshold_intencion():
             pass
     return 90  # Valor por defecto
 
-import unicodedata
-from rapidfuzz import fuzz
 
 def quitar_acentos(texto):
     """Elimina acentos/tildes y normaliza el texto a ASCII básico"""
@@ -937,20 +936,20 @@ Contexto de conversación previa:
     return state
 
 # Prompt de slot filling
-PROMPT_SLOT_FILL = """
-Extrae la siguiente información en JSON. Pon null si no se encuentra.
-Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
-
-Ejemplo:
-Entrada: "Turbo para sportero 2.5 28231-27000"
-el año tambien te lo pueden decir como modelo y puede venir abreviado ejmplo "modelo 90"
-la linea puede tener algunas variaciones o estar mal escrita ejemplo "colola" en vez de "corolla"
-Salida:
-{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null,"codigo_repuesto":"28231-27000"}
-
-Entrada: "{MENSAJE}"
-Salida:
-"""
+#PROMPT_SLOT_FILL = """
+#Extrae la siguiente información en JSON. Pon null si no se encuentra.
+#Campos: tipo_repuesto, marca, modelo, año, serie_motor, cc, combustible
+#
+#Ejemplo:
+#Entrada: "Turbo para sportero 2.5 28231-27000"
+#el año tambien te lo pueden decir como modelo y puede venir abreviado ejmplo "modelo 90"
+#la linea puede tener algunas variaciones o estar mal escrita ejemplo "colola" en vez de "corolla"
+#Salida:
+#{"tipo_repuesto":"turbo","marca":null,"linea":"sportero","año":null,"serie_motor":null,"cc":"2.5","combustible":null,"codigo_repuesto":"28231-27000"}
+#
+#Entrada: "{MENSAJE}"
+#Salida:
+#"""
 
 def extract_json(texto):
     try:
@@ -976,15 +975,15 @@ def slot_filling_llm(mensaje):
     return result
 
 
-def slot_filling_llm(mensaje):
-    #agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
-
-    prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
-    response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
-    result = extract_json(response.content.strip())
-
-    #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
-    return result
+#def slot_filling_llm(mensaje):
+#    #agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
+#
+#    prompt = PROMPT_SLOT_FILL.replace("{MENSAJE}", mensaje)
+#    response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
+#    result = extract_json(response.content.strip())
+#
+#    #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
+#    return result
 
 
 # Reglas técnicas (comienza con tus casos más comunes)
@@ -1097,11 +1096,11 @@ REGLAS_SERIE_MOTOR = {
     "j05e": {"marca": "Hino", "cilindros": "4", "cc": "5.1", "combustible": "diésel", "caracteristicas": [], "lineas": ["500"]},
 
 }
-REGLAS_MODELOS = {
-    "Sportero": {"marca": "Mitsubishi", "serie_motor": "4D56U", "cc": "2.5", "combustible": "diésel"},
-    "l200": {"marca": "Mitsubishi"}
-
-}
+#REGLAS_MODELOS = {
+#    "Sportero": {"marca": "Mitsubishi", "serie_motor": "4D56U", "cc": "2.5", "combustible": "diésel"},
+#    "l200": {"marca": "Mitsubishi"}
+#
+#}
 
 # Estructura principal: MARCAS con sus LINEAS/VARIANTES
 MARCAS_LINEAS = {
@@ -1217,14 +1216,6 @@ MARCAS_LINEAS = {
     # Agrega otras marcas y modelos populares aquí...
 }
 
-
-ALIAS_MODELOS = {
-    "l200": "L200",
-    "l-200": "L200",
-    "l 200": "L200",
-    # Agrega más si necesitas
-}
-
 FRASES_NO_SE = ["no sé", "no se", "nose", "no tengo", "no la tengo", "no recuerdo", "desconozco", "no aplica"]
 
 TIPOS_REPUESTO = [
@@ -1234,163 +1225,6 @@ TIPOS_REPUESTO = [
     "carburador", "flauta", "barilla", "boster", "booster", "piston",
 
 ]
-
-def extraer_tipo_repuesto(texto_usuario):
-    texto_norm = texto_usuario.lower()
-    for tipo in TIPOS_REPUESTO:
-        if tipo in texto_norm:
-            return tipo
-    return None
-#def es_no_se(texto):
-#    texto = texto.strip().lower()
-#    return any(f in texto for f in FRASES_NO_SE)
-def es_no_se(texto):
-    texto = texto.strip().lower()
-    return any(f in texto for f in FRASES_NO_SE)
-
-#def es_cotizacion_completa(slots):
-#    # Ruta 1: tipo_repuesto, marca, modelo, año, serie_motor
-#    if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "marca", "linea", "año", "serie_motor"]):
-#        return True
-#    # Ruta 2: tipo_repuesto, serie_motor, año
-#    if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "serie_motor", "año"]):
-#        return True
-#    # Ruta 3: modelo, tipo_repuesto, combustible, cc, año
-#    if all(slots.get(k) not in [None, ""] for k in ["linea", "tipo_repuesto", "combustible", "cc", "año"]):
-#        return True
-#    return False
-def obtener_marca_y_linea(linea_usuario):
-    # Normaliza para buscar (lowercase y sin espacios/guiones)
-    normalizado = linea_usuario.lower().replace("-", "").replace(" ", "")
-    for marca, lineas in MARCAS_LINEAS.items():
-        for linea, alias_list in lineas.items():
-            for alias in alias_list:
-                alias_norm = alias.lower().replace("-", "").replace(" ", "")
-                if normalizado == alias_norm:
-                    return marca, linea  # Retorna la marca real y el modelo/linea estándar
-    return None, None  # Si no encuentra
-
-def extraer_linea_y_marca_usuario(texto_usuario):
-    texto_norm = texto_usuario.lower().replace("-", "").replace("  ", " ").strip()
-    # Recolecta todos los alias en una lista [(marca, linea, alias_normalizado)]
-    alias_todos = []
-    for marca, lineas in MARCAS_LINEAS.items():
-        for linea, alias_list in lineas.items():
-            for alias in alias_list:
-                alias_norm = alias.lower().replace("-", "").replace(" ", "")
-                alias_todos.append((marca, linea, alias_norm))
-    # Busca alias más cercano en el mensaje
-    palabras_usuario = texto_norm.replace(" ", "")
-    mejores = difflib.get_close_matches(palabras_usuario, [alias_norm for (_, _, alias_norm) in alias_todos], n=1, cutoff=0.7)
-    if mejores:
-        for marca, linea, alias_norm in alias_todos:
-            if alias_norm == mejores[0]:
-                return marca, linea
-    # Si no hay fuzzy match, intenta match parcial (por si el usuario pone varias palabras: "suzuki xl7")
-    for marca, lineas in MARCAS_LINEAS.items():
-        for linea, alias_list in lineas.items():
-            for alias in alias_list:
-                alias_norm = alias.lower().replace("-", "").replace(" ", "")
-                if alias_norm in palabras_usuario:
-                    return marca, linea
-    return None, None
-
-
-def es_cotizacion_completa(slots):
-    # Ruta 1: Todos completos o con "no_sabe"
-    if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "marca", "linea", "año", "serie_motor"]):
-        return True
-    # Ruta 2: tipo_repuesto, serie_motor, año (permite "no_sabe" en año)
-    if (
-        slots.get("tipo_repuesto") not in [None, "", "no_sabe"] and
-        slots.get("serie_motor") not in [None, "", "no_sabe"] and
-        slots.get("año") not in [None, ""]
-    ):
-        return True
-    # Ruta 3: modelo, tipo_repuesto, combustible, cc, año (permite "no_sabe" en año)
-    if (
-        slots.get("linea") not in [None, "", "no_sabe"] and
-        slots.get("tipo_repuesto") not in [None, "", "no_sabe"] and
-        slots.get("combustible") not in [None, "", "no_sabe"] and
-        slots.get("cc") not in [None, "", "no_sabe"] and
-        slots.get("año") not in [None, ""]
-    ):
-        return True
-    # Ruta alternativa: Todos menos año
-    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "marca", "linea", "serie_motor", "cc", "combustible"]):
-        return True
-    return False
-
-
-#def deducir_conocimiento(slots):
-#    # Deducción por serie_motor (case-insensitive)
-#    serie_motor = slots.get("serie_motor")
-#    if serie_motor:
-#        clave = serie_motor.lower().strip()
-#        for key in REGLAS_SERIE_MOTOR:
-#            if key.lower().strip() == clave:
-#                for campo, valor in REGLAS_SERIE_MOTOR[key].items():
-#                    if not slots.get(campo):
-#                        slots[campo] = valor
-#                break
-#
-#    # Deducción por modelo/linea (case-insensitive)
-#    linea = slots.get("linea") or slots.get("modelo")  # según como uses los nombres de slot
-#    if linea:
-#        clave_linea = linea.lower().strip()
-#        for key in REGLAS_MODELOS:
-#            if key.lower().strip() == clave_linea:
-#                for campo, valor in REGLAS_MODELOS[key].items():
-#                    if not slots.get(campo):
-#                        slots[campo] = valor
-#                break
-#
-#    return slots
-def deducir_conocimiento(slots):
-    # Deducción por serie_motor (igual que antes)
-    serie_motor = slots.get("serie_motor")
-    if serie_motor:
-        clave = serie_motor.lower().strip()
-        for key in REGLAS_SERIE_MOTOR:
-            if key.lower().strip() == clave:
-                for campo, valor in REGLAS_SERIE_MOTOR[key].items():
-                    if not slots.get(campo):
-                        slots[campo] = valor
-                break
-
-    # Deducción por linea/modelo usando MARCAS_LINEAS y alias
-    linea = slots.get("linea")
-    if linea and not slots.get("marca"):
-        marca, linea_std = obtener_marca_y_linea(linea)
-        if marca:
-            slots["marca"] = marca
-            slots["linea"] = linea_std.capitalize()  # Guarda el nombre estándar
-
-    return slots
-
-#def campos_faltantes(slots):
-#    necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible"]
-#    return [c for c in necesarios if not slots.get(c)]
-def campos_faltantes(slots):
-    necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible", "cc"]
-    # Solo pide los que son None, "", o no existen. IGNORA los slots marcados como "no_sabe"
-    return [c for c in necesarios if (not slots.get(c) or slots.get(c) in ["", None])]
-
-
-#def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
-#    resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items()])
-#    mensaje = (
-#        f"🚗 *Nuevo Lead para Cotización*\n\n"
-#        f"📞 Cliente: {session.phone_number}\n"
-#        f"Datos:\n{resumen}\n\n"
-#        f"ID Sesión: {session.idUser}\n"
-#    )
-#    bot_enviar_mensaje_whatsapp({
-#        "messaging_product": "whatsapp",
-#        "to": numero_admin,
-#        "type": "text",
-#        "text": {"body": mensaje}
-#    }, state)
 
 # Frases random para cada slot (puedes ampliar)
 PREGUNTAS_SLOTS = {
@@ -1429,6 +1263,191 @@ PREGUNTAS_SLOTS = {
         "¿Cuántos c.c es el motor?"
     ]
 }
+
+def cargar_reglas_serie_motor():
+    reglas = KnowledgeBase.query.filter_by(tipo="serie_motor", activo=True).all()
+    return {k.clave: json.loads(k.valor) for k in reglas}
+
+def cargar_alias_modelos():
+    alias = KnowledgeBase.query.filter_by(tipo="alias_modelo", activo=True).all()
+    return {k.clave: json.loads(k.valor) for k in alias}
+
+def cargar_frases_no_se():
+    frases = KnowledgeBase.query.filter_by(tipo="frase_no_se", activo=True).all()
+    return [json.loads(k.valor) for k in frases]
+
+def cargar_tipos_repuesto():
+    tipos = KnowledgeBase.query.filter_by(tipo="tipo_repuesto", activo=True).all()
+    return [json.loads(k.valor) for k in tipos]
+
+def cargar_preguntas_slots():
+    slots = KnowledgeBase.query.filter_by(tipo="pregunta_slot", activo=True).all()
+    return {k.clave: json.loads(k.valor) for k in slots}
+
+REGLAS_SERIE_MOTOR = cargar_reglas_serie_motor() or REGLAS_SERIE_MOTOR
+FRASES_NO_SE = cargar_frases_no_se() or FRASES_NO_SE
+TIPOS_REPUESTO = cargar_tipos_repuesto() or TIPOS_REPUESTO
+PREGUNTAS_SLOTS = cargar_preguntas_slots() or PREGUNTAS_SLOTS
+
+def cargar_fuzzy_threshold():
+    config = Configuration.query.filter_by(key="FUZZY_MATCH_SCORE").first()
+    if config and config.value:
+        try:
+            return int(config.value)
+        except Exception:
+            pass
+    return 90  # Valor por defecto
+
+
+def extraer_tipo_repuesto(texto_usuario):
+    texto_norm = texto_usuario.lower()
+    for tipo in TIPOS_REPUESTO:
+        if tipo in texto_norm:
+            return tipo
+    return None
+#def es_no_se(texto):
+#    texto = texto.strip().lower()
+#    return any(f in texto for f in FRASES_NO_SE)
+def es_no_se(texto):
+    texto = texto.strip().lower()
+    return any(f in texto for f in FRASES_NO_SE)
+
+def obtener_marca_y_linea(linea_usuario):
+    # Normaliza para buscar (lowercase y sin espacios/guiones)
+    normalizado = linea_usuario.lower().replace("-", "").replace(" ", "")
+    for marca, lineas in MARCAS_LINEAS.items():
+        for linea, alias_list in lineas.items():
+            for alias in alias_list:
+                alias_norm = alias.lower().replace("-", "").replace(" ", "")
+                if normalizado == alias_norm:
+                    return marca, linea  # Retorna la marca real y el modelo/linea estándar
+    return None, None  # Si no encuentra
+
+#def extraer_linea_y_marca_usuario(texto_usuario):
+#    texto_norm = texto_usuario.lower().replace("-", "").replace("  ", " ").strip()
+#    # Recolecta todos los alias en una lista [(marca, linea, alias_normalizado)]
+#    alias_todos = []
+#    for marca, lineas in MARCAS_LINEAS.items():
+#        for linea, alias_list in lineas.items():
+#            for alias in alias_list:
+#                alias_norm = alias.lower().replace("-", "").replace(" ", "")
+#                alias_todos.append((marca, linea, alias_norm))
+#    # Busca alias más cercano en el mensaje
+#    palabras_usuario = texto_norm.replace(" ", "")
+#    mejores = difflib.get_close_matches(palabras_usuario, [alias_norm for (_, _, alias_norm) in alias_todos], n=1, cutoff=0.7)
+#    if mejores:
+#        for marca, linea, alias_norm in alias_todos:
+#            if alias_norm == mejores[0]:
+#                return marca, linea
+#    # Si no hay fuzzy match, intenta match parcial (por si el usuario pone varias palabras: "suzuki xl7")
+#    for marca, lineas in MARCAS_LINEAS.items():
+#        for linea, alias_list in lineas.items():
+#            for alias in alias_list:
+#                alias_norm = alias.lower().replace("-", "").replace(" ", "")
+#                if alias_norm in palabras_usuario:
+#                    return marca, linea
+#    return None, None
+
+from rapidfuzz import fuzz, process
+
+def extraer_linea_y_marca_usuario(texto_usuario, log_func=None, score_threshold=80):
+    """
+    Busca el alias de línea/modelo con mejor coincidencia (fuzzy) usando RapidFuzz.
+    Retorna: (marca, linea_estandar, alias_coincidido, score)
+    log_func: función para loggear si quieres, ejemplo agregar_mensajes_log
+    """
+    texto_norm = texto_usuario.lower().replace("-", "").replace("  ", " ").strip()
+    alias_todos = []
+    for marca, lineas in MARCAS_LINEAS.items():
+        for linea, alias_list in lineas.items():
+            for alias in alias_list:
+                alias_norm = alias.lower().replace("-", "").replace(" ", "")
+                alias_todos.append((marca, linea, alias, alias_norm))
+
+    # Arma lista solo de los alias normalizados
+    alias_norm_list = [item[3] for item in alias_todos]
+    # Score fuzzy contra cada alias
+    result = process.extractOne(
+        texto_norm.replace(" ", ""),
+        alias_norm_list,
+        scorer=fuzz.ratio
+    )
+    if result and result[1] >= score_threshold:
+        alias_norm_coinc = result[0]
+        score = result[1]
+        # Busca marca/linea original para ese alias_norm
+        for marca, linea, alias, alias_norm in alias_todos:
+            if alias_norm == alias_norm_coinc:
+                if log_func:
+                    log_func(f"🔍 Fuzzy match: '{texto_usuario}' ≈ '{alias}' [{marca} {linea}] (score={score})")
+                return marca, linea, alias, score
+    # Si no hay fuzzy match, intenta match parcial (por si el usuario pone varias palabras)
+    for marca, lineas in MARCAS_LINEAS.items():
+        for linea, alias_list in lineas.items():
+            for alias in alias_list:
+                alias_norm = alias.lower().replace("-", "").replace(" ", "")
+                if alias_norm in texto_norm.replace(" ", ""):
+                    if log_func:
+                        log_func(f"🔍 Partial match: '{texto_usuario}' contiene '{alias}' [{marca} {linea}]")
+                    return marca, linea, alias, 100
+    return None, None, None, 0
+
+
+def es_cotizacion_completa(slots):
+    # Ruta 1: Todos completos o con "no_sabe"
+    if all(slots.get(k) not in [None, ""] for k in ["tipo_repuesto", "marca", "linea", "año", "serie_motor"]):
+        return True
+    # Ruta 2: tipo_repuesto, serie_motor, año (permite "no_sabe" en año)
+    if (
+        slots.get("tipo_repuesto") not in [None, "", "no_sabe"] and
+        slots.get("serie_motor") not in [None, "", "no_sabe"] and
+        slots.get("año") not in [None, ""]
+    ):
+        return True
+    # Ruta 3: modelo, tipo_repuesto, combustible, cc, año (permite "no_sabe" en año)
+    if (
+        slots.get("linea") not in [None, "", "no_sabe"] and
+        slots.get("tipo_repuesto") not in [None, "", "no_sabe"] and
+        slots.get("combustible") not in [None, "", "no_sabe"] and
+        slots.get("cc") not in [None, "", "no_sabe"] and
+        slots.get("año") not in [None, ""]
+    ):
+        return True
+    # Ruta alternativa: Todos menos año
+    if all(slots.get(k) not in [None, "", "no_sabe"] for k in ["tipo_repuesto", "marca", "linea", "serie_motor", "cc", "combustible"]):
+        return True
+    return False
+
+def deducir_conocimiento(slots):
+    # Deducción por serie_motor (igual que antes)
+    serie_motor = slots.get("serie_motor")
+    if serie_motor:
+        clave = serie_motor.lower().strip()
+        for key in REGLAS_SERIE_MOTOR:
+            if key.lower().strip() == clave:
+                for campo, valor in REGLAS_SERIE_MOTOR[key].items():
+                    if not slots.get(campo):
+                        slots[campo] = valor
+                break
+
+    # Deducción por linea/modelo usando MARCAS_LINEAS y alias
+    linea = slots.get("linea")
+    if linea and not slots.get("marca"):
+        marca, linea_std = obtener_marca_y_linea(linea)
+        if marca:
+            slots["marca"] = marca
+            slots["linea"] = linea_std.capitalize()  # Guarda el nombre estándar
+
+    return slots
+
+#def campos_faltantes(slots):
+#    necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible"]
+#    return [c for c in necesarios if not slots.get(c)]
+def campos_faltantes(slots):
+    necesarios = ["tipo_repuesto", "marca", "linea", "año", "serie_motor", "combustible", "cc"]
+    # Solo pide los que son None, "", o no existen. IGNORA los slots marcados como "no_sabe"
+    return [c for c in necesarios if (not slots.get(c) or slots.get(c) in ["", None])]
+
 
 def handle_cotizacion_slots(state: dict) -> dict:
     from datetime import datetime, timedelta
@@ -1473,26 +1492,6 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
             return state
         
-        #agregar_mensajes_log(f"🔁reconocio cotizacion keywords {json.dumps(memoria_slots)}")
-
-    # 2. Detecta "no sé" y marca el campo faltante como "no_sabe"
-    #faltan = campos_faltantes(memoria_slots)
-    #if len(faltan) == 1 and es_no_se(user_msg):
-    #    campo_faltante = faltan[0]
-    #    memoria_slots[campo_faltante] = "no_sabe"
-    #    guardar_memoria_slots(session, memoria_slots)
-    #    agregar_mensajes_log(f"[DEBUG] Usuario marcó {campo_faltante} como no_sabe")
-    #    # Mensaje empático
-    #    state["response_data"] = [{
-    #        "messaging_product": "whatsapp",
-    #        "to": state.get("phone_number"),
-    #        "type": "text",
-    #        "text": {"body": f"No te preocupes si no tienes el dato de {campo_faltante}. ¡Sigo con la cotización con lo que ya tenemos! 🚗"}
-    #    }]
-    #    state["cotizacion_completa"] = False
-    #    return state
-
-    # 3. Slot filling LLM (si el mensaje no es "no sé")
     if not es_no_se(user_msg):
 
         #agregar_mensajes_log(f"🔁no es nose ")
@@ -1510,13 +1509,28 @@ def handle_cotizacion_slots(state: dict) -> dict:
         # Si no hay marca/linea, usa fuzzy helper
         if not nuevos_slots.get("linea") or not nuevos_slots.get("marca"):
             #agregar_mensajes_log(f"🔁buscando linea y marca{json.dumps(nuevos_slots)}")
+            # Si no hay marca/linea, usa fuzzy helper mejorado
 
-            marca_detectada, linea_detectada = extraer_linea_y_marca_usuario(user_msg)
-            if linea_detectada and not nuevos_slots.get("linea"):
-                nuevos_slots["linea"] = linea_detectada.capitalize()
-            if marca_detectada and not nuevos_slots.get("marca"):
-                nuevos_slots["marca"] = marca_detectada
+            #marca_detectada, linea_detectada = extraer_linea_y_marca_usuario(user_msg)
+            #if linea_detectada and not nuevos_slots.get("linea"):
+            #    nuevos_slots["linea"] = linea_detectada.capitalize()
+            #if marca_detectada and not nuevos_slots.get("marca"):
+            #    nuevos_slots["marca"] = marca_detectada
         
+            score_threshold = cargar_fuzzy_threshold()  # Lee el threshold de la base de datos
+            marca, linea, alias, score = extraer_linea_y_marca_usuario(
+                user_msg,
+                log_func=agregar_mensajes_log,
+                score_threshold=score_threshold
+            )
+            if linea and not nuevos_slots.get("linea"):
+                nuevos_slots["linea"] = linea.capitalize()
+            if marca and not nuevos_slots.get("marca"):
+                nuevos_slots["marca"] = marca
+            # Puedes dejar aquí un log más explícito si quieres:
+            if score >= score_threshold:
+                agregar_mensajes_log(f"🎯 Coincidencia fuzzy: '{user_msg}' ≈ '{alias}' (score={score}) -> {marca} {linea}")
+
         # Ahora sí, fusiona con memoria_slots
         #for k, v in nuevos_slots.items():
         #    if v is not None and v != "" and v != "no_sabe":
@@ -1530,11 +1544,11 @@ def handle_cotizacion_slots(state: dict) -> dict:
         faltan = campos_faltantes(memoria_slots)
 
         # Normaliza modelos si es posible
-        modelo = nuevos_slots.get("linea")
-        if modelo:
-            modelo_key = modelo.lower().replace("-", "").replace(" ", "")
-            if modelo_key in ALIAS_MODELOS:
-                nuevos_slots["linea"] = ALIAS_MODELOS[modelo_key]
+        #modelo = nuevos_slots.get("linea")
+        #if modelo:
+        #    modelo_key = modelo.lower().replace("-", "").replace(" ", "")
+        #    if modelo_key in ALIAS_MODELOS:
+        #        nuevos_slots["linea"] = ALIAS_MODELOS[modelo_key]
 
         #for k, v in nuevos_slots.items():
         #    if v is not None and v != "" and v != "no_sabe":
@@ -1697,127 +1711,6 @@ def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
     }, state)
 
 
-#def extraer_json_llm(texto):
-#    """
-#    Extrae un JSON de la respuesta del LLM, aunque no tenga llaves.
-#    """
-#    agregar_mensajes_log("🔁 Mensaje en extraer json llm", texto)
-#
-#    # 1. Busca el primer bloque {...}
-#    try:
-#        match = re.search(r"\{[\s\S]*\}", texto)
-#        if match:
-#            return json.loads(match.group())
-#    except Exception as e:
-#        print("❌ Error extrayendo JSON estándar:", e)
-#
-#    # 2. Si NO tiene {}, intenta armar el dict con pares clave:valor
-#    try:
-#        # Saca todas las líneas tipo: "clave": valor
-#        pairs = re.findall(r'["\']?([\w_]+)["\']?\s*:\s*("?[^",\n]+?"?|null)', texto)
-#        if pairs:
-#            d = {}
-#            for k, v in pairs:
-#                v = v.strip().strip('"')
-#                if v.lower() == "null":
-#                    v = None
-#                d[k] = v
-#            return d
-#    except Exception as e:
-#        print("❌ Error extrayendo pares clave:valor:", e)
-#
-#    # 3. Si nada, regresa dict vacío
-#    return {}
-#
-#
-#CAMPOS_COTIZACION = ["categoria", "marca", "modelo", "anio"]  # Puedes añadir "serie", "combustible" si quieres
-#
-#PROMPT_EXTRACCION = """
-#Eres un asistente de cotizaciones para repuestos de autos. 
-#Recibe un mensaje y extrae SOLO la información relevante en formato JSON, dejando en null los campos que no puedas identificar. 
-#Responde solo el JSON.
-#
-#Ejemplo:
-#Entrada: "Quiero un alternador Toyota Hilux 2016 diésel"
-#Salida:
-#{{
-#    "categoria": "alternador",
-#    "marca": "Toyota",
-#    "modelo": "Hilux",
-#    "anio": "2016",
-#    "serie": null,
-#    "combustible": "diésel"
-#}}
-#
-#Entrada: "{user_msg}"
-#Salida:
-#"""
-#
-#
-#def asistente(state: BotState) -> BotState:
-#    user_msg = state["user_msg"]
-#    session = state.get("session")
-#    session_id = session.idUser if session else None
-#
-#    # 1. Recuperar memoria de slots actual
-#    memoria_actual = None
-#    if session_id:
-#        memorias = obtener_ultimas_memorias(session_id, limite=10)
-#        for m in reversed(memorias):
-#            if m.key == "slots_cotizacion":
-#                try:
-#                    memoria_actual = json.loads(m.value)
-#                except:
-#                    memoria_actual = None
-#                break
-#    if not memoria_actual:
-#        memoria_actual = {campo: None for campo in CAMPOS_COTIZACION + ["serie", "combustible"]}
-#
-#    # 2. Enviar el mensaje al LLM para extraer datos
-#    prompt = PROMPT_EXTRACCION.format(user_msg=user_msg)
-#    response = model.invoke([HumanMessage(content=prompt)])
-#    extraidos = extraer_json_llm(response.content)
-#
-#    # 3. Actualizar los slots
-#    for campo in memoria_actual:
-#        nuevo = extraidos.get(campo)
-#        if nuevo:
-#            memoria_actual[campo] = nuevo
-#
-#    # 4. Guardar slots actualizados
-#    if session_id:
-#        guardar_memoria(session_id, "slots_cotizacion", json.dumps(memoria_actual, ensure_ascii=False))
-#
-#    # 5. ¿Faltan datos?
-#    faltantes = [campo for campo in CAMPOS_COTIZACION if not memoria_actual.get(campo)]
-#    if faltantes:
-#        pregunta = "Para cotizar necesito que me indiques: " + ", ".join(faltantes) + "."
-#        state["response_data"] = [{
-#            "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
-#            "to": state.get("phone_number") or state.get("email"),
-#            "type": "text",
-#            "text": {"body": pregunta}
-#        }]
-#    else:
-#        # 6. Consultar WooCommerce y responder
-#        productos = woo_service.buscar_productos_con_filtros(memoria_actual)
-#        if productos:
-#            mensaje = woo_service.formatear_producto_whatsapp(productos[0])
-#        else:
-#            mensaje = "No encontramos ese producto exacto en inventario. ¿Quieres intentar con otra marca/modelo?"
-#
-#        state["response_data"] = [{
-#            "messaging_product": "whatsapp" if state["source"] == "whatsapp" else "other",
-#            "to": state.get("phone_number") or state.get("email"),
-#            "type": "text",
-#            "text": {"body": mensaje}
-#        
-#        # Si quieres limpiar la memoria de slots aquí puedes hacerlo
-#
-#    log_state(state, f"Slots actuales: {memoria_actual}")
-#    return state
-
-
 def send_messages(state: BotState) -> BotState:
     """Envía mensajes al canal correcto según la fuente."""
     session_id = state["session"].idUser if state.get("session") else None
@@ -1952,26 +1845,6 @@ def log_state(state: BotState, mensaje: str) -> None:
     state["logs"].append(mensaje)
     # 2) persiste en base de datos
     #agregar_mensajes_log(mensaje, state["session"].idUser if state.get("session") else None)
-
-
-#def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
-#    """Guarda un mensaje en memoria y en la base de datos."""
-#    #agregar_mensajes_log(f"En agregar_mensajes_log: {state}")
-#
-#    try:
-#        texto_str = json.dumps(texto, ensure_ascii=False) if isinstance(texto, (dict, list)) else str(texto)
-#        
-#        with db.session.begin():
-#            nuevo_registro = Log(texto=texto_str, session_id=session_id)
-#            db.session.add(nuevo_registro)
-#    except Exception as e:
-#        fallback = f"[ERROR LOG] No se pudo guardar: {str(texto)[:200]}... | Error: {str(e)}"
-#        try:
-#            with db.session.begin():
-#                fallback_registro = Log(texto=fallback, session_id=session_id)
-#                db.session.add(fallback_registro)
-#        except Exception as e2:
-#            pass
 
 def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int] = None) -> None:
     """Guarda un mensaje en memoria y en la base de datos."""

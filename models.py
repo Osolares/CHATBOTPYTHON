@@ -82,3 +82,16 @@ class MensajeBot(db.Model):
     canal = db.Column(db.String(20), default='all')      # 'all', 'whatsapp', 'web', etc.
     created_at = db.Column(db.DateTime, default=now)
     updated_at = db.Column(db.DateTime, default=now, onupdate=now)
+
+class KnowledgeBase(db.Model):
+    __tablename__ = 'knowledge_base'
+    id = db.Column(db.Integer, primary_key=True)
+    tipo = db.Column(db.String(50), nullable=False)  # 'serie_motor', 'marca_linea', 'alias_modelo', 'tipo_repuesto', 'frase_no_se', 'pregunta_slot'
+    clave = db.Column(db.String(100), nullable=False)  # Ejemplo: '1kz', 'corolla', 'l200', etc.
+    valor = db.Column(db.Text, nullable=False)         # Un dict o lista serializado en JSON
+    activo = db.Column(db.Boolean, default=True)
+    descripcion = db.Column(db.String(255))
+    canal = db.Column(db.String(20), default='all')
+    idioma = db.Column(db.String(10), default='es')
+    created_at = db.Column(db.DateTime, default=now)
+    updated_at = db.Column(db.DateTime, default=now, onupdate=now)
