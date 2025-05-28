@@ -431,3 +431,4 @@ def inicializar_todo():
     inicializar_threshold_intencion()
     inicializar_prompt_asistente()
     inicializar_prompt_slot_fill()
+    inicializar_knowledge_base()
