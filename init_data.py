@@ -44,7 +44,11 @@ def inicializar_configuracion():
         #("PHONE_NUMBER_ID", os.getenv("PHONE_NUMBER_ID") or "coloca_id_default_aqui"),
         ("WHATSAPP_TOKEN", os.getenv("WHATSAPP_TOKEN")),
         ("PHONE_NUMBER_ID", os.getenv("PHONE_NUMBER_ID")),
-  
+
+        ("DEEPSEEK_API_KEY", os.getenv("DEEPSEEK_API_KEY", "")),
+        ("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", "")),
+        ("GROQ_API_KEY", os.getenv("GROQ_API_KEY", "")),
+
     ]
     for key, value in configs:
         if not Configuration.query.filter_by(key=key).first():

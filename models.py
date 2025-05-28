@@ -110,6 +110,7 @@ class LLMConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     provider = db.Column(db.String(30), nullable=False, default="deepseek")
     model = db.Column(db.String(60), nullable=False, default="deepseek-chat")
+    api_key = db.Column(db.String(150), nullable=True)           # <-- NUEVO CAMPO
     temperature = db.Column(db.Float, default=0.5)
     max_tokens = db.Column(db.Integer, default=100)
     status = db.Column(db.String(20), default="active")  # active/inactive

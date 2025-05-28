@@ -39,7 +39,6 @@ def get_llm_config_list():
 
 from langchain_openai import ChatOpenAI
 #from langchain_groq import ChatGroq   # Si usas Groq, importa el correcto
-
 def create_llm_instance(config):
     provider = config.provider
     model = config.model
@@ -47,7 +46,7 @@ def create_llm_instance(config):
     max_tokens = config.max_tokens
 
     if provider == "deepseek":
-        api_key = Config.DEEPSEEK_API_KEY
+        api_key = get_config("DEEPSEEK_API_KEY", os.getenv("DEEPSEEK_API_KEY"))
         base_url = "https://api.deepseek.com/v1"
         return ChatOpenAI(
             model=model,
@@ -57,18 +56,17 @@ def create_llm_instance(config):
             max_tokens=max_tokens
         )
     elif provider == "openai":
-        api_key = Config.OPENAI_API_KEY
+        api_key = get_config("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
         return ChatOpenAI(
             model=model,
             api_key=api_key,
             temperature=temperature,
             max_tokens=max_tokens
         )
-    # Agrega aquí otros proveedores
-    #elif provider == "groq":
-    #    api_key = Config.GROQ_API_KEY
-    #    return ChatGroq(...)
-
+    elif provider == "groq":
+        api_key = get_config("GROQ_API_KEY", os.getenv("GROQ_API_KEY"))
+        # return ChatGroq(...)  # Según el SDK que uses
+        raise NotImplementedError("Implementa el init para Groq aquí.")
     else:
         raise Exception(f"Proveedor LLM no soportado: {provider}")
 
