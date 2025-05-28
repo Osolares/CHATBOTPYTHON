@@ -1046,7 +1046,7 @@ def slot_filling_llm(mensaje):
         result = extract_json(body.content.strip())
 
     except Exception as e:
-        body = "❌ Ocurrió un error técnico al consultar el asistente. Intenta nuevamente en unos minutos."
+        result = "❌ Ocurrió un error técnico al consultar el asistente. Intenta nuevamente en unos minutos."
         agregar_mensajes_log(str(e), body)
 
     #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
