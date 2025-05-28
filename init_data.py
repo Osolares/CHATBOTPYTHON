@@ -1,6 +1,6 @@
 # init_data.py
 
-from models import db, Configuration, UserSession, KnowledgeBase
+from models import db, Configuration, UserSession, KnowledgeBase, UsuarioBloqueado
 from config import now
 import json
 
@@ -459,6 +459,28 @@ def inicializar_knowledge_base():
 
     db.session.commit()
     print("✅ Knowledge base inicializada")
+
+def inicializar_usuarios_bloqueados():
+    usuarios = [
+        ("whatsapp", "502123456", "usuario problemático"),
+        ("whatsapp", "50233334444", "spam"),
+        ("web", "correo@ejemplo.com", "abuso"),
+    ]
+    for tipo, identificador, razon in usuarios:
+        if not UsuarioBloqueado.query.filter_by(tipo=tipo, identificador=identificador).first():
+            db.session.add(UsuarioBloqueado(tipo=tipo, identificador=identificador, razon=razon))
+    db.session.commit()
+
+def inicializar_tipos_mensajes_bloqueados():
+    from models import Configuration
+    tipos_bloqueados = {
+        "whatsapp": ["reaction"],
+        "telegram": ["sticker"],
+        "web": []
+    }
+    if not Configuration.query.filter_by(key="TIPOS_MENSAJES_BLOQUEADOS").first():
+        db.session.add(Configuration(key="TIPOS_MENSAJES_BLOQUEADOS", value=json.dumps(tipos_bloqueados)))
+    db.session.commit()
 
 
 def inicializar_usuarios():

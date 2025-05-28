@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
 from config import db, Config
-from models import UserSession, Log, ProductModel, Configuration, Memory, MensajeBot, KnowledgeBase
+from models import UserSession, Log, ProductModel, Configuration, Memory, MensajeBot, KnowledgeBase, UsuarioBloqueado
 #from woocommerce_service import WooCommerceService, obtener_producto_por_url, buscar_producto_por_nombre, formatear_producto_whatsapp
 from woocommerce_service import WooCommerceService
 from datetime import datetime
@@ -27,6 +27,7 @@ import difflib
 from rapidfuzz import fuzz, process
 from init_data import INTENCIONES_BOT_DEFECTO, PROMPT_ASISTENTE_DEFECTO, PROMPT_SLOT_FILL_DEFECTO
 import unicodedata
+from init_data import inicializar_todo
 
 # Instancia global del servicio
 woo_service = WooCommerceService()
@@ -78,33 +79,39 @@ def obtener_mensaje_bot(tipo, mensaje_default=None, canal='whatsapp', idioma='es
         return random.choice(mensajes).mensaje
     return mensaje_default
 
+def cargar_usuarios_bloqueados():
+    # Devuelve un dict: {'whatsapp': [nros], 'telegram': [ids], ...}
+    res = {}
+    for user in UsuarioBloqueado.query.filter_by(activo=True).all():
+        if user.tipo not in res:
+            res[user.tipo] = []
+        res[user.tipo].append(user.identificador)
+    return res
+
+def cargar_tipos_mensajes_bloqueados():
+    config = Configuration.query.filter_by(key="TIPOS_MENSAJES_BLOQUEADOS").first()
+    if config and config.value:
+        return json.loads(config.value)
+    return {}
+
 
 def block(source, message):
-    # --- BLOQUEO DE USUARIOS ---
-
-    BLOQUEADOS = {
-        "whatsapp": ["502123456", "50233334444","reaction"],
-        "telegram": ["123456789"],
-        "web": ["correo@ejemplo.com"]
-    }
-
-    #TIPOS_BLOQUEADOS = {
-    #    "type": ["emoji", "reaction"]
-    #}
+    BLOQUEADOS = cargar_usuarios_bloqueados()
+    TIPOS_BLOQUEADOS = cargar_tipos_mensajes_bloqueados()
 
     phone_number = message.get("from")
-    #types = "type"
     type_msg = message.get("type")
 
-
-    #if phone_number in BLOQUEADOS.get(source, []) or type_msg in TIPOS_BLOQUEADOS.get(types, []) :
-    if phone_number in BLOQUEADOS.get(source, []) or type_msg in BLOQUEADOS.get(source, []) :
-
-        # Para usuarios bloqueados SI interrumpimos el flujo
-        error_msg = f"❌ Error en  Usuario o mensaje bloqueado"
+    if phone_number in BLOQUEADOS.get(source, []):
+        error_msg = f"❌ Usuario bloqueado: {phone_number} ({source})"
         agregar_mensajes_log(error_msg)
         return {"status": "blocked", "message": error_msg}
-    
+
+    if type_msg in TIPOS_BLOQUEADOS.get(source, []):
+        error_msg = f"❌ Tipo de mensaje bloqueado: {type_msg} ({source})"
+        agregar_mensajes_log(error_msg)
+        return {"status": "blocked", "message": error_msg}
+
     return {"status": "success"}
 
 def ya_esta_procesado(message_id: str) -> bool:
@@ -2225,12 +2232,12 @@ def recibir_mensajes(req):
         if messages_list:
             message = messages_list[0]
             phone_number = message.get("from")
-            
-            # Verificar si el usuario está bloqueado
-            block_result = block("whatsapp", phone_number)
+
+            # ...
+            block_result = block("whatsapp", message)
             if block_result.get("status") == "blocked":
-                agregar_mensajes_log(f"Usuario bloqueado intentó contactar: {phone_number}")
-                return jsonify({'status': 'blocked', 'message': 'Usuario bloqueado'}), 200
+                agregar_mensajes_log(f"Usuario o tipo de mensaje bloqueado intentó contactar: {message.get('from')}")
+                return jsonify({'status': 'blocked', 'message': block_result['message']}), 200
 
             # Crea estado inicial
             initial_state = {
@@ -2685,8 +2692,6 @@ def crear_usuario():
 #    db.create_all()
 with flask_app.app_context():
     db.create_all()
-
-    from init_data import inicializar_todo
     inicializar_todo()
 
 

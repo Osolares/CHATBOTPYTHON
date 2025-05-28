@@ -95,3 +95,12 @@ class KnowledgeBase(db.Model):
     idioma = db.Column(db.String(10), default='es')
     created_at = db.Column(db.DateTime, default=now)
     updated_at = db.Column(db.DateTime, default=now, onupdate=now)
+
+class UsuarioBloqueado(db.Model):
+    __tablename__ = 'usuarios_bloqueados'
+    id = db.Column(db.Integer, primary_key=True)
+    tipo = db.Column(db.String(20), default='whatsapp')  # whatsapp, telegram, web, etc.
+    identificador = db.Column(db.String(120), nullable=False)  # número, email, etc.
+    razon = db.Column(db.String(255))  # opcional
+    activo = db.Column(db.Boolean, default=True)
+    creado_en = db.Column(db.DateTime, default=now)
