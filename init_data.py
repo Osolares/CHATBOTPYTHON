@@ -149,126 +149,249 @@ def inicializar_prompt_slot_fill():
 
 
 def inicializar_knowledge_base():
-    # Reglas de serie motor
-    reglas_serie_motor = [
-        
-        # Solo unos ejemplos, agrega todos los que tienes arriba...
-        ("1kz", {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "culata de aluminio"], "lineas": ["Hilux", "Prado", "4Runner"]}),
-        ("2kd", {"marca": "Toyota", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Innova"]}),
-        # ... el resto
+    # -- Reglas de serie motor --
+    reglas_serie_motor = {
 
         #Toyota
-        ("2kd", {"marca": "Toyota", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Innova"]}),
-        ("1kd", {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Prado"]}),
-        ("2tr", {"marca": "Toyota", "cilindros": "4", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Hilux", "Fortuner", "Hiace"]}),
-        ("1tr", {"marca": "Toyota", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Hiace", "Hilux"]}),
-        ("3rz", {"marca": "Toyota", "cilindros": "4", "cc": "2.7", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Hilux", "Tacoma"]}),
-        ("5vz", {"marca": "Toyota", "cilindros": "6", "cc": "3.4", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["4Runner", "Tacoma", "T100"]}),
-        ("2nz", {"marca": "Toyota", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Yaris", "Platz"]}),
-        ("1nz", {"marca": "Toyota", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Yaris", "Vios", "Echo"]}),
-        ("1zr", {"marca": "Toyota", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["Dual VVT-i"], "lineas": ["Corolla", "Auris"]}),
-        ("2zr", {"marca": "Toyota", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["Dual VVT-i"], "lineas": ["Corolla", "Auris"]}),
-        ("1gr", {"marca": "Toyota", "cilindros": "6", "cc": "4.0", "combustible": "gasolina", "caracteristicas": ["V6", "VVT-i"], "lineas": ["Hilux", "Prado", "4Runner"]}),
-        ("3l", {"marca": "Toyota", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": [], "lineas": ["Hilux", "Hiace", "Dyna"]}),
-        ("1hz", {"marca": "Toyota", "cilindros": "6", "cc": "4.2", "combustible": "diésel", "caracteristicas": [], "lineas": ["Land Cruiser", "Coaster"]}),
-        ("1hd", {"marca": "Toyota", "cilindros": "6", "cc": "4.2", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["Land Cruiser", "Coaster"]}),
-        ("5l", {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": [], "lineas": ["Hiace", "Hilux"]}),
-        ("1gr", {"marca": "Toyota", "cilindros": "6", "cc": "4.0", "combustible": "gasolina", "caracteristicas": ["V6", "VVT-i"], "lineas": ["4Runner", "Prado", "FJ Cruiser"]}),
-        ("3s", {"marca": "Toyota", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Camry", "RAV4", "Carina"]}),
-        ("22r", {"marca": "Toyota", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["SOHC", "legendario", "carburado/EFI (según año)"], "lineas": ["Hilux", "Pickup", "4Runner", "Corona"]}),
-    
-        #Mitsubishi
-        ("4d56", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["L200", "Montero Sport", "Pajero", "L300"]}),
-        ("4d56u", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail", "intercooler"], "lineas": ["L200 Sportero", "Montero Sport"]}),
-        ("4m40", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["Montero", "Pajero", "L200"]}),
-        ("4g63", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Eclipse", "Lancer", "Galant"]}),
-        ("4g64", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["L200", "Montero Sport", "Outlander"]}),
-        ("6g72", {"marca": "Mitsubishi", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Montero", "Pajero", "3000GT"]}),
-        ("4g54", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.6", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["L200", "Montero"]}),
-        ("6g74", {"marca": "Mitsubishi", "cilindros": "6", "cc": "3.5", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Montero", "Pajero"]}),
-        ("4b11", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC", "MIVEC"], "lineas": ["Lancer", "Outlander"]}),
-        ("4b12", {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["DOHC", "MIVEC"], "lineas": ["Lancer", "Outlander"]}),
-        ("4m42", {"marca": "Mitsubishi/Fuso", "cilindros": "4", "cc": "3.9", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["Canter"]}),
-    
-        #Nissan
-        ("qd32", {"marca": "Nissan", "cilindros": "4", "cc": "3.2", "combustible": "diésel", "caracteristicas": [], "lineas": ["D21", "Terrano", "Urvan"]}),
-        ("td27", {"marca": "Nissan", "cilindros": "4", "cc": "2.7", "combustible": "diésel", "caracteristicas": [], "lineas": ["D21", "Terrano", "Urvan"]}),
-        ("yd25", {"marca": "Nissan", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Navara", "Frontier", "NP300"]}),
-        ("ka24", {"marca": "Nissan", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Frontier", "Xterra", "Altima"]}),
-        ("hr16", {"marca": "Nissan", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Versa", "Tiida", "March"]}),
-        ("sr20de", {"marca": "Nissan", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Primera", "Sentra", "200SX"]}),
-        ("ga16de", {"marca": "Nissan", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Sentra", "Tsuru", "Sunny"]}),
-        ("qr25de", {"marca": "Nissan", "cilindros": "4", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Altima", "X-Trail", "Sentra"]}),
-        ("vg30e", {"marca": "Nissan", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Pathfinder", "D21", "300ZX"]}),
-        ("rb25det", {"marca": "Nissan", "cilindros": "6", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["turbo", "DOHC"], "lineas": ["Skyline"]}),
-    
-        #Mazda
-        ("wl", {"marca": "Mazda", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["BT-50", "B2500"]}),
-        ("rf", {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": [], "lineas": ["323", "626"]}),
-        ("fe", {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["626", "B2000", "MPV"]}),
-        ("f2", {"marca": "Mazda", "cilindros": "4", "cc": "2.2", "combustible": "gasolina", "caracteristicas": [], "lineas": ["B2200", "626"]}),
-        ("fs", {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["626", "Premacy"]}),
-        ("rf-t", {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["626", "Bongo"]}),
-        ("z5", {"marca": "Mazda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": [], "lineas": ["323", "Familia"]}),
-        ("wlt", {"marca": "Mazda", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["BT-50", "B2500"]}),
-    
-        #Honda
-        ("r18", {"marca": "Honda", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["i-VTEC"], "lineas": ["Civic", "CR-V"]}),
-        ("l15", {"marca": "Honda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["i-VTEC", "Turbo (algunas versiones)"], "lineas": ["Fit", "City", "HR-V", "Civic"]}),
-        ("k24", {"marca": "Honda", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["i-VTEC"], "lineas": ["CR-V", "Accord", "Odyssey"]}),
-        ("d15b", {"marca": "Honda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["SOHC", "VTEC"], "lineas": ["Civic", "City"]}),
-        ("d17a", {"marca": "Honda", "cilindros": "4", "cc": "1.7", "combustible": "gasolina", "caracteristicas": ["SOHC", "VTEC"], "lineas": ["Civic"]}),
-        ("b16a", {"marca": "Honda", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC", "VTEC"], "lineas": ["Civic", "CRX", "Integra"]}),
-        ("b18b", {"marca": "Honda", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Integra", "Civic"]}),
-        ("f23a", {"marca": "Honda", "cilindros": "4", "cc": "2.3", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["Accord", "Odyssey"]}),
-    
-        #Suzuki
-        ("m13a", {"marca": "Suzuki", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Swift", "Jimny"]}),
-        ("m15a", {"marca": "Suzuki", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Swift", "SX4", "Ertiga"]}),
-        ("j20a", {"marca": "Suzuki", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Grand Vitara", "SX4"]}),
-        ("h27a", {"marca": "Suzuki", "cilindros": "6", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["XL-7", "Grand Vitara"]}),
-        ("g13bb", {"marca": "Suzuki", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["Swift", "Baleno"]}),
-        ("m18a", {"marca": "Suzuki", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Grand Vitara"]}),
-        ("h25a", {"marca": "Suzuki", "cilindros": "6", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Grand Vitara"]}),
-    
-        #Hyundai/Kia
-        ("j3", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.9", "combustible": "diésel", "caracteristicas": ["turbo", "CRDI"], "lineas": ["Terracan", "Bongo"]}),
-        ("d4cb", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["H1", "Starex", "Grand Starex", "porter"]}),
-        ("d4ea", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Tucson", "Sportage"]}),
-        ("d4fb", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.6", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Accent", "Rio", "i20"]}),
-        ("g4gc", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Elantra", "Tucson"]}),
-        ("g4kd", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Tucson", "Sportage", "Cerato"]}),
-        ("g4ke", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Santa Fe", "Sonata", "Optima"]}),
-        ("d4ea", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Tucson", "Sportage"]}),
-        ("g6ea", {"marca": "Hyundai/Kia", "cilindros": "6", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Santa Fe", "Terracan"]}),
-        ("g4fa", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.4", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["i20", "Accent"]}),
-        ("g4fj", {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.0", "combustible": "gasolina", "caracteristicas": ["turbo", "DOHC"], "lineas": ["i10", "Picanto"]}),
-    
-        #Isuzu
-        ("4jb1", {"marca": "Isuzu", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": ["turbo (algunas versiones)"], "lineas": ["D-Max", "Trooper"]}),
-        ("4ja1", {"marca": "Isuzu", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": [], "lineas": ["D-Max", "Trooper"]}),
-        ("4jh1", {"marca": "Isuzu", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["D-Max", "NPR"]}),
-        ("4hk1", {"marca": "Isuzu", "cilindros": "4", "cc": "5.2", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["NQR", "NPR"]}),
-    
-        #subaru
-        ("ej20", {"marca": "Subaru", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC", "turbo (algunas versiones)"], "lineas": ["Impreza", "Legacy", "Forester"]}),
-        ("ez30", {"marca": "Subaru", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC"], "lineas": ["Legacy", "Outback"]}),
-        ("fb20", {"marca": "Subaru", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC"], "lineas": ["XV", "Impreza", "Forester"]}),
-    
-        #Daihatsu
-        ("hc-e", {"marca": "Daihatsu", "cilindros": "3", "cc": "1.0", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Charade"]}),
-        ("ej-ve", {"marca": "Daihatsu", "cilindros": "3", "cc": "1.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Sirion", "Cuore"]}),
-    
-        #Hino
-        ("n04c", {"marca": "Hino", "cilindros": "4", "cc": "4.0", "combustible": "diésel", "caracteristicas": ["common rail"], "lineas": ["300", "Dutro"]}),
-        ("j05e", {"marca": "Hino", "cilindros": "4", "cc": "5.1", "combustible": "diésel", "caracteristicas": [], "lineas": ["500"]}),
+        "1kz": {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "culata de aluminio"], "lineas": ["Hilux", "Prado", "4Runner"]},
+        "2kd": {"marca": "Toyota", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Innova"]},
+        "1kd": {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Hilux", "Fortuner", "Prado"]},
+        "2tr": {"marca": "Toyota", "cilindros": "4", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Hilux", "Fortuner", "Hiace"]},
+        "1tr": {"marca": "Toyota", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Hiace", "Hilux"]},
+        "3rz": {"marca": "Toyota", "cilindros": "4", "cc": "2.7", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Hilux", "Tacoma"]},
+        "5vz": {"marca": "Toyota", "cilindros": "6", "cc": "3.4", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["4Runner", "Tacoma", "T100"]},
+        "2nz": {"marca": "Toyota", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Yaris", "Platz"]},
+        "1nz": {"marca": "Toyota", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["VVT-i"], "lineas": ["Yaris", "Vios", "Echo"]},
+        "1zr": {"marca": "Toyota", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["Dual VVT-i"], "lineas": ["Corolla", "Auris"]},
+        "2zr": {"marca": "Toyota", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["Dual VVT-i"], "lineas": ["Corolla", "Auris"]},
+        "1gr": {"marca": "Toyota", "cilindros": "6", "cc": "4.0", "combustible": "gasolina", "caracteristicas": ["V6", "VVT-i"], "lineas": ["Hilux", "Prado", "4Runner"]},
+        "3l": {"marca": "Toyota", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": [], "lineas": ["Hilux", "Hiace", "Dyna"]},
+        "1hz": {"marca": "Toyota", "cilindros": "6", "cc": "4.2", "combustible": "diésel", "caracteristicas": [], "lineas": ["Land Cruiser", "Coaster"]},
+        "1hd": {"marca": "Toyota", "cilindros": "6", "cc": "4.2", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["Land Cruiser", "Coaster"]},
+        "5l": {"marca": "Toyota", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": [], "lineas": ["Hiace", "Hilux"]},
+        "1gr": {"marca": "Toyota", "cilindros": "6", "cc": "4.0", "combustible": "gasolina", "caracteristicas": ["V6", "VVT-i"], "lineas": ["4Runner", "Prado", "FJ Cruiser"]},
+        "3s": {"marca": "Toyota", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Camry", "RAV4", "Carina"]},
+        "22r": {"marca": "Toyota", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["SOHC", "legendario", "carburado/EFI (según año)"], "lineas": ["Hilux", "Pickup", "4Runner", "Corona"]},
 
-    ]
-    for clave, valor in reglas_serie_motor:
+        #Mitsubishi
+        "4d56": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["L200", "Montero Sport", "Pajero", "L300"]},
+        "4d56u": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail", "intercooler"], "lineas": ["L200 Sportero", "Montero Sport"]},
+        "4m40": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["Montero", "Pajero", "L200"]},
+        "4g63": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Eclipse", "Lancer", "Galant"]},
+        "4g64": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["L200", "Montero Sport", "Outlander"]},
+        "6g72": {"marca": "Mitsubishi", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Montero", "Pajero", "3000GT"]},
+        "4g54": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.6", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["L200", "Montero"]},
+        "6g74": {"marca": "Mitsubishi", "cilindros": "6", "cc": "3.5", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Montero", "Pajero"]},
+        "4b11": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC", "MIVEC"], "lineas": ["Lancer", "Outlander"]},
+        "4b12": {"marca": "Mitsubishi", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["DOHC", "MIVEC"], "lineas": ["Lancer", "Outlander"]},
+        "4m42": {"marca": "Mitsubishi/Fuso", "cilindros": "4", "cc": "3.9", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["Canter"]},
+
+        #Nissan
+        "qd32": {"marca": "Nissan", "cilindros": "4", "cc": "3.2", "combustible": "diésel", "caracteristicas": [], "lineas": ["D21", "Terrano", "Urvan"]},
+        "td27": {"marca": "Nissan", "cilindros": "4", "cc": "2.7", "combustible": "diésel", "caracteristicas": [], "lineas": ["D21", "Terrano", "Urvan"]},
+        "yd25": {"marca": "Nissan", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo", "common rail"], "lineas": ["Navara", "Frontier", "NP300"]},
+        "ka24": {"marca": "Nissan", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Frontier", "Xterra", "Altima"]},
+        "hr16": {"marca": "Nissan", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Versa", "Tiida", "March"]},
+        "sr20de": {"marca": "Nissan", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Primera", "Sentra", "200SX"]},
+        "ga16de": {"marca": "Nissan", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Sentra", "Tsuru", "Sunny"]},
+        "qr25de": {"marca": "Nissan", "cilindros": "4", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Altima", "X-Trail", "Sentra"]},
+        "vg30e": {"marca": "Nissan", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Pathfinder", "D21", "300ZX"]},
+        "rb25det": {"marca": "Nissan", "cilindros": "6", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["turbo", "DOHC"], "lineas": ["Skyline"]},
+
+        #Mazda
+        "wl": {"marca": "Mazda", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["BT-50", "B2500"]},
+        "rf": {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": [], "lineas": ["323", "626"]},
+        "fe": {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["626", "B2000", "MPV"]},
+        "f2": {"marca": "Mazda", "cilindros": "4", "cc": "2.2", "combustible": "gasolina", "caracteristicas": [], "lineas": ["B2200", "626"]},
+        "fs": {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["626", "Premacy"]},
+        "rf-t": {"marca": "Mazda", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["626", "Bongo"]},
+        "z5": {"marca": "Mazda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": [], "lineas": ["323", "Familia"]},
+        "wlt": {"marca": "Mazda", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["BT-50", "B2500"]},
+
+        #Honda
+        "r18": {"marca": "Honda", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["i-VTEC"], "lineas": ["Civic", "CR-V"]},
+        "l15": {"marca": "Honda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["i-VTEC", "Turbo (algunas versiones)"], "lineas": ["Fit", "City", "HR-V", "Civic"]},
+        "k24": {"marca": "Honda", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["i-VTEC"], "lineas": ["CR-V", "Accord", "Odyssey"]},
+        "d15b": {"marca": "Honda", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["SOHC", "VTEC"], "lineas": ["Civic", "City"]},
+        "d17a": {"marca": "Honda", "cilindros": "4", "cc": "1.7", "combustible": "gasolina", "caracteristicas": ["SOHC", "VTEC"], "lineas": ["Civic"]},
+        "b16a": {"marca": "Honda", "cilindros": "4", "cc": "1.6", "combustible": "gasolina", "caracteristicas": ["DOHC", "VTEC"], "lineas": ["Civic", "CRX", "Integra"]},
+        "b18b": {"marca": "Honda", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Integra", "Civic"]},
+        "f23a": {"marca": "Honda", "cilindros": "4", "cc": "2.3", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["Accord", "Odyssey"]},
+
+        #Suzuki
+        "m13a": {"marca": "Suzuki", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Swift", "Jimny"]},
+        "m15a": {"marca": "Suzuki", "cilindros": "4", "cc": "1.5", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Swift", "SX4", "Ertiga"]},
+        "j20a": {"marca": "Suzuki", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Grand Vitara", "SX4"]},
+        "h27a": {"marca": "Suzuki", "cilindros": "6", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["XL-7", "Grand Vitara"]},
+        "g13bb": {"marca": "Suzuki", "cilindros": "4", "cc": "1.3", "combustible": "gasolina", "caracteristicas": ["SOHC"], "lineas": ["Swift", "Baleno"]},
+        "m18a": {"marca": "Suzuki", "cilindros": "4", "cc": "1.8", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Grand Vitara"]},
+        "h25a": {"marca": "Suzuki", "cilindros": "6", "cc": "2.5", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Grand Vitara"]},
+
+        #Hyundai/Kia
+        "j3": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.9", "combustible": "diésel", "caracteristicas": ["turbo", "CRDI"], "lineas": ["Terracan", "Bongo"]},
+        "d4cb": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["H1", "Starex", "Grand Starex", "porter"]},
+        "d4ea": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Tucson", "Sportage"]},
+        "d4fb": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.6", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Accent", "Rio", "i20"]},
+        "g4gc": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Elantra", "Tucson"]},
+        "g4kd": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Tucson", "Sportage", "Cerato"]},
+        "g4ke": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.4", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Santa Fe", "Sonata", "Optima"]},
+        "d4ea": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "2.0", "combustible": "diésel", "caracteristicas": ["CRDI", "turbo"], "lineas": ["Tucson", "Sportage"]},
+        "g6ea": {"marca": "Hyundai/Kia", "cilindros": "6", "cc": "2.7", "combustible": "gasolina", "caracteristicas": ["V6"], "lineas": ["Santa Fe", "Terracan"]},
+        "g4fa": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.4", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["i20", "Accent"]},
+        "g4fj": {"marca": "Hyundai/Kia", "cilindros": "4", "cc": "1.0", "combustible": "gasolina", "caracteristicas": ["turbo", "DOHC"], "lineas": ["i10", "Picanto"]},
+
+        #Isuzu
+        "4jb1": {"marca": "Isuzu", "cilindros": "4", "cc": "2.8", "combustible": "diésel", "caracteristicas": ["turbo (algunas versiones)"], "lineas": ["D-Max", "Trooper"]},
+        "4ja1": {"marca": "Isuzu", "cilindros": "4", "cc": "2.5", "combustible": "diésel", "caracteristicas": [], "lineas": ["D-Max", "Trooper"]},
+        "4jh1": {"marca": "Isuzu", "cilindros": "4", "cc": "3.0", "combustible": "diésel", "caracteristicas": ["turbo"], "lineas": ["D-Max", "NPR"]},
+        "4hk1": {"marca": "Isuzu", "cilindros": "4", "cc": "5.2", "combustible": "diésel", "caracteristicas": ["turbo", "intercooler"], "lineas": ["NQR", "NPR"]},
+
+        #subaru
+        "ej20": {"marca": "Subaru", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC", "turbo (algunas versiones)"], "lineas": ["Impreza", "Legacy", "Forester"]},
+        "ez30": {"marca": "Subaru", "cilindros": "6", "cc": "3.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC"], "lineas": ["Legacy", "Outback"]},
+        "fb20": {"marca": "Subaru", "cilindros": "4", "cc": "2.0", "combustible": "gasolina", "caracteristicas": ["Boxer", "DOHC"], "lineas": ["XV", "Impreza", "Forester"]},
+
+        #Daihatsu
+        "hc-e": {"marca": "Daihatsu", "cilindros": "3", "cc": "1.0", "combustible": "gasolina", "caracteristicas": [], "lineas": ["Charade"]},
+        "ej-ve": {"marca": "Daihatsu", "cilindros": "3", "cc": "1.0", "combustible": "gasolina", "caracteristicas": ["DOHC"], "lineas": ["Sirion", "Cuore"]},
+
+        #Hino
+        "n04c": {"marca": "Hino", "cilindros": "4", "cc": "4.0", "combustible": "diésel", "caracteristicas": ["common rail"], "lineas": ["300", "Dutro"]},
+        "j05e": {"marca": "Hino", "cilindros": "4", "cc": "5.1", "combustible": "diésel", "caracteristicas": [], "lineas": ["500"]},
+
+    }
+    for clave, valor in reglas_serie_motor.items():
         existente = KnowledgeBase.query.filter_by(tipo="serie_motor", clave=clave).first()
         if not existente:
             kb = KnowledgeBase(tipo="serie_motor", clave=clave, valor=json.dumps(valor, ensure_ascii=False))
             db.session.add(kb)
+
+
+    # Marcas con sus líneas/alias (estructura MARCAS_LINEAS)
+    MARCAS_LINEAS = {
+
+        "Toyota": {
+            "corolla": ["corolla", "corola", "corolaa", "corolla xli", "corolla gli", "corola xli", "corola gli"],
+            "hilux": ["hilux", "hiluxx", "hi lux", "hi-lux"],
+            "prado": ["prado", "pradoo", "land cruiser prado", "prado land cruiser", "prado tx", "prado tz", "prado gx"],
+            "rav4": ["rav4", "rav 4", "rav-4", "rav"],
+            "fortuner": ["fortuner", "fortiner", "fortuner sw4", "sw4"],
+            "yaris": ["yaris", "yaris sedan", "yariz", "yaris hatchback"],
+            "camry": ["camry", "camri"],
+            "4runner": ["4runner", "4 runner", "4-runner", "forerunner"],
+            "tacoma": ["tacoma", "tacoma pickup", "takoma"],
+            "hiace": ["hiace", "hi ace", "hi-ace", "hiaze", "hiaice", "hiaice"],
+            "avanza": ["avanza", "avanze"],
+            "land cruiser": ["land cruiser", "landcruiser", "land cruiser 70", "land cruiser 80"],
+            "22R": ["22r", "22-r", "22 r", "22erre"],
+
+        },
+        "Honda": {
+            "civic": ["civic", "civik", "sibic"],
+            "crv": ["crv", "cr-v", "cr v", "cruv"],
+            "accord": ["accord", "acord"],
+            "fit": ["fit", "fit hatchback", "honda fit"],
+            "pilot": ["pilot", "piloto"],
+            "city": ["city", "citi", "honda city"],
+        },
+        "Hyundai": {
+            "accent": ["accent", "acscent", "ascen", "acscent"],
+            "tucson": ["tucson", "tucsón", "tuczon", "tuckson"],
+            "elantra": ["elantra", "elantra hd", "elantra gls"],
+            "santa fe": ["santa fe", "santafe", "santa-fe", "santafé"],
+            "creta": ["creta"],
+            "grand i10": ["grand i10", "i10", "i-10", "grand i-10"],
+            "h1": ["h1", "h-1", "hyundai h1", "h uno"],
+            "sonata": ["sonata", "sonatta"],
+            "veracruz": ["veracruz", "vera cruz"],
+        },
+        "Kia": {
+            "sportage": ["sportage", "sportaje", "sportage r", "sportage revolution"],
+            "sorento": ["sorento", "sorrento", "sorento prime"],
+            "rio": ["rio", "río", "río sedan", "rio sedan"],
+            "picanto": ["picanto", "pikanto"],
+            "cerato": ["cerato", "ceratto"],
+            "optima": ["optima", "óptima"],
+            "forte": ["forte"],
+        },
+        "Mazda": {
+            "3": ["mazda 3", "mazda3", "mazda tres", "3", "tres"],
+            "6": ["mazda 6", "mazda6", "mazda seis", "6", "seis"],
+            "cx-5": ["cx5", "cx-5", "cx 5"],
+            "cx-3": ["cx3", "cx-3", "cx 3"],
+            "bt-50": ["bt50", "bt-50", "bt 50"],
+        },
+        "suzuki": {
+            "swift": ["swift", "switf"],
+            "vitara": ["vitara", "vitara live", "vitarra", "gran vitara"],
+            "jimny": ["jimny", "jimni"],
+            "alto": ["alto"],
+            "xl7": ["xl7", "xl 7", "xl-7", "xl siete", "x l 7", "xlseven"],
+            "ertiga": ["ertiga", "ertiga suzuki"],
+        },
+        "Nissan": {
+            "frontier": ["frontier", "fronter", "nissan frontier", "nissan frontera"],
+            "sentra": ["sentra", "sentra b13", "sentra b14", "sentra b15"],
+            "tiida": ["tiida", "tida"],
+            "xtrail": ["xtrail", "x-trail", "x trail", "extrail", "xtrail t30", "xtrail t31"],
+            "versa": ["versa", "bersa"],
+            "murano": ["murano", "morano"],
+            "altima": ["altima", "áltima"],
+            "np300": ["np300", "np 300", "n p 300"],
+            "urvan": ["urvan", "urban", "urvam"],
+        },
+        "Chevrolet": {
+            "aveo": ["aveo", "aveo family"],
+            "tracker": ["tracker", "trackker"],
+            "spark": ["spark", "sparc", "sparck", "spark gt"],
+            "captiva": ["captiva"],
+            "cruze": ["cruze", "cruse"],
+            "sail": ["sail", "sail sedan"],
+        },
+        "Mitsubishi": {
+            "l200": ["l200", "l-200", "l 200", "l doscientos", "l dos cientos", "ldoscientos"],
+            "montero": ["montero", "montero sport", "montero limited"],
+            "outlander": ["outlander", "out lander"],
+            "mirage": ["mirage", "miraje"],
+            "pajero": ["pajero", "pallero"],
+            "sportero": ["sportero", "sporttero"],
+            "l300": ["l300", "l-300", "l 300", "l trescientos"],
+        },
+        "Volkswagen": {
+            "golf": ["golf", "golfo"],
+            "jetta": ["jetta", "jeta", "yeta"],
+            "vento": ["vento", "bento"],
+            "passat": ["passat", "pazat"],
+            "amarok": ["amarok", "amarock"],
+            "polo": ["polo"],
+            "saveiro": ["saveiro", "saveyro"],
+        },
+        "Ford": {
+            "ranger": ["ranger", "ranguer"],
+            "escape": ["escape", "escap"],
+            "fiesta": ["fiesta"],
+            "explorer": ["explorer", "explorador"],
+            "ecosport": ["ecosport", "eco sport"],
+            "f150": ["f150", "f-150", "f 150"],
+        },
+        "Isuzu": {
+            "dmax": ["dmax", "d-max", "d max"],
+            "trooper": ["trooper"],
+            "mu-x": ["mux", "mu-x", "mu x"],
+        },
+
+
+    }
+    # Guarda todo el diccionario como un solo registro
+    existente = KnowledgeBase.query.filter_by(tipo="marca_linea", clave="all").first()
+    if not existente:
+        kb = KnowledgeBase(
+            tipo="marca_linea",
+            clave="all",
+            valor=json.dumps(MARCAS_LINEAS, ensure_ascii=False),
+            descripcion="Todas las marcas, líneas/modelos y sus variantes de alias"
+        )
+        db.session.add(kb)
 
     # Frases "no sé"
     frases_no_se = ["no sé", "no se", "nose", "no tengo", "no la tengo", "no recuerdo", "desconozco", "no aplica"]

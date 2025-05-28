@@ -1268,6 +1268,12 @@ def cargar_reglas_serie_motor():
     reglas = KnowledgeBase.query.filter_by(tipo="serie_motor", activo=True).all()
     return {k.clave: json.loads(k.valor) for k in reglas}
 
+def cargar_marcas_lineas():
+    kb = KnowledgeBase.query.filter_by(tipo="marca_linea", clave="all", activo=True).first()
+    if kb:
+        return json.loads(kb.valor)
+    return {}
+
 def cargar_alias_modelos():
     alias = KnowledgeBase.query.filter_by(tipo="alias_modelo", activo=True).all()
     return {k.clave: json.loads(k.valor) for k in alias}
@@ -1454,6 +1460,13 @@ def handle_cotizacion_slots(state: dict) -> dict:
     FRASES_NO_SE = cargar_frases_no_se() or FRASES_NO_SE
     TIPOS_REPUESTO = cargar_tipos_repuesto() or TIPOS_REPUESTO
     PREGUNTAS_SLOTS = cargar_preguntas_slots() or PREGUNTAS_SLOTS
+    MARCAS_LINEAS = cargar_marcas_lineas() or MARCAS_LINEAS  # El fallback es opcional si quieres
+
+# Luego puedes usar MARCAS_LINEAS["Toyota"]["corolla"] etc...
+
+    #REGLAS_SERIE_MOTOR = cargar_reglas_serie_motor() or {
+    #    # aquí tu diccionario por defecto (opcional, solo si quieres fallback)
+    #}
 
     # Limpia mensaje si viene en formato dict (WhatsApp)
     if isinstance(user_msg, dict):
