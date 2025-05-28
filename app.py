@@ -1045,12 +1045,14 @@ def slot_filling_llm(mensaje):
 
     try:
         body = run_llm_with_fallback(prompt)
+        result = extract_json(body.content.strip())
+
     except Exception as e:
         body = "❌ Ocurrió un error técnico al consultar el asistente. Intenta nuevamente en unos minutos."
         agregar_mensajes_log(str(e), body)
 
     #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
-    return body
+    return result
 
 
 #def slot_filling_llm(mensaje):
