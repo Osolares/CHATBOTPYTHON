@@ -3,6 +3,7 @@
 from models import db, Configuration, UserSession, KnowledgeBase, UsuarioBloqueado
 from config import now
 import json
+import os
 
 # 1. Días festivos (fijos y por año específico)
 DIAS_FESTIVOS_DEFECTO = [
@@ -37,6 +38,18 @@ def inicializar_configuracion():
     db.session.commit()
     print("✅ Configuración inicial creada")
 
+    configs = [
+        # Otros configs...
+        #("WHATSAPP_TOKEN", os.getenv("WHATSAPP_TOKEN") or "coloca_token_default_aqui"),
+        #("PHONE_NUMBER_ID", os.getenv("PHONE_NUMBER_ID") or "coloca_id_default_aqui"),
+        ("WHATSAPP_TOKEN", os.getenv("WHATSAPP_TOKEN")),
+        ("PHONE_NUMBER_ID", os.getenv("PHONE_NUMBER_ID")),
+  
+    ]
+    for key, value in configs:
+        if not Configuration.query.filter_by(key=key).first():
+            db.session.add(Configuration(key=key, value=value))
+    db.session.commit()
 # Estructura de intenciones por defecto
 INTENCIONES_BOT_DEFECTO = {
     "formas_pago": [

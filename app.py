@@ -1429,8 +1429,6 @@ def obtener_marca_y_linea(linea_usuario):
 #                    return marca, linea
 #    return None, None
 
-from rapidfuzz import fuzz, process
-
 def extraer_linea_y_marca_usuario(texto_usuario, log_func=None, score_threshold=80):
     """
     Busca el alias de línea/modelo con mejor coincidencia (fuzzy) usando RapidFuzz.
@@ -1965,20 +1963,49 @@ def agregar_mensajes_log(texto: Union[str, dict, list], session_id: Optional[int
         except Exception as e2:
             print("❌ ERROR al guardar el error del log:", e2)
 
+def get_config(key, fallback=None):
+    config = Configuration.query.filter_by(key=key).first()
+    if config and config.value:
+        return config.value
+    return fallback
+
+#def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], state: BotState) -> Optional[bytes]:
+#
+#    headers = {
+#        "Content-Type": "application/json",
+#        "Authorization": f"{Config.WHATSAPP_TOKEN}"
+#    }
+#
+#    try:
+#        connection = http.client.HTTPSConnection("graph.facebook.com")
+#        json_data = json.dumps(data)
+#        connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
+#        #agregar_mensajes_log(f"✅ Mensaje enviado a whatsapp: {state['phone_number']}, {json_data}")
+#        log_state(state, f"⏺️ Mensaje enviado en bot_enviar_mensaje_whatsapp: {data}")
+#
+#        response = connection.getresponse()
+#        return response.read()
+#    except Exception as e:
+#        log_state(state, f"⏺️ Error enviando a WhatsApp: {str(e)}")
+#        return None
+#    finally:
+#        connection.close()
+
 def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], state: BotState) -> Optional[bytes]:
+    import http.client
+
+    whatsapp_token = get_config("WHATSAPP_TOKEN", os.getenv("WHATSAPP_TOKEN"))
+    phone_number_id = get_config("PHONE_NUMBER_ID", os.getenv("PHONE_NUMBER_ID"))
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"{Config.WHATSAPP_TOKEN}"
+        "Authorization": whatsapp_token
     }
-
     try:
         connection = http.client.HTTPSConnection("graph.facebook.com")
         json_data = json.dumps(data)
-        connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
-        #agregar_mensajes_log(f"✅ Mensaje enviado a whatsapp: {state['phone_number']}, {json_data}")
+        connection.request("POST", f"/v22.0/{phone_number_id}/messages", json_data, headers)
         log_state(state, f"⏺️ Mensaje enviado en bot_enviar_mensaje_whatsapp: {data}")
-
         response = connection.getresponse()
         return response.read()
     except Exception as e:
