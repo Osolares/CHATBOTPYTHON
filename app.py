@@ -1035,23 +1035,40 @@ def cargar_prompt_slot_fill():
         return config.value
     return PROMPT_SLOT_FILL_DEFECTO
 
+#def slot_filling_llm(mensaje):
+#    #agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
+#    prompt = cargar_prompt_slot_fill().replace("{MENSAJE}", mensaje)
+#    #response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
+#    #result = extract_json(response.content.strip())
+#
+#    try:
+#        body = run_llm_with_fallback(prompt)
+#        result = extract_json(body.content.strip())
+#
+#    except Exception as e:
+#        result = "❌ Ocurrió un error técnico al consultar el asistente. Intenta nuevamente en unos minutos."
+#        agregar_mensajes_log(str(e), body)
+#
+#    #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
+#    return result
+
 def slot_filling_llm(mensaje):
-    #agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
     prompt = cargar_prompt_slot_fill().replace("{MENSAJE}", mensaje)
-    #response = model.invoke([HumanMessage(content=prompt)], max_tokens=100)
-    #result = extract_json(response.content.strip())
 
     try:
-        body = run_llm_with_fallback(prompt)
-        result = extract_json(body.content.strip())
-
+        body = run_llm_with_fallback(prompt)  # Esto debe ser un string, NO un objeto con .content
+        result = extract_json(body.strip())
+        if not isinstance(result, dict):
+            # Intenta decodificar si accidentalmente retorna un string JSON
+            try:
+                result = json.loads(result)
+            except Exception:
+                result = {}
     except Exception as e:
-        result = "❌ Ocurrió un error técnico al consultar el asistente. Intenta nuevamente en unos minutos."
-        agregar_mensajes_log(str(e), body)
+        result = {}
+        agregar_mensajes_log(f"❌ Ocurrió un error técnico al consultar el asistente. {str(e)}")
 
-    #agregar_mensajes_log(f"🔁Respuesta LLM {response}")
     return result
-
 
 #def slot_filling_llm(mensaje):
 #    #agregar_mensajes_log(f"🔁mensaje entrante {json.dumps(mensaje)}")
