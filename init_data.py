@@ -483,11 +483,19 @@ def inicializar_tipos_mensajes_bloqueados():
     db.session.commit()
 
 
+def inicializar_configuracion_delay():
+    clave = "WHATSAPP_DELAY_SECONDS"
+    valor_defecto = "4"
+    if not Configuration.query.filter_by(key=clave).first():
+        config = Configuration(key=clave, value=valor_defecto, descripcion="Delay entre mensajes WhatsApp (segundos)")
+        db.session.add(config)
+        db.session.commit()
+
 def inicializar_usuarios():
     usuarios_defecto = [
         {"phone_number": "50255105350", "nombre": "Oscar", "apellido": "Solares", "tipo_usuario": "admin"},
-        {"phone_number": "50255101111", "nombre": "Soporte", "apellido": "Técnico", "tipo_usuario": "colaborador"},
-        {"phone_number": "50255102222", "nombre": "Carlos", "apellido": "Cliente", "tipo_usuario": "cliente"}
+        {"phone_number": "50212342468", "nombre": "Soporte", "apellido": "Técnico", "tipo_usuario": "colaborador"},
+        {"phone_number": "50212345678", "nombre": "Carlos", "apellido": "Cliente", "tipo_usuario": "cliente"}
     ]
 
     for usr in usuarios_defecto:
@@ -577,3 +585,6 @@ def inicializar_todo():
     inicializar_prompt_asistente()
     inicializar_prompt_slot_fill()
     inicializar_knowledge_base()
+    inicializar_configuracion_delay()
+    inicializar_tipos_mensajes_bloqueados()
+    inicializar_usuarios_bloqueados()

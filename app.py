@@ -1730,6 +1730,14 @@ def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
         "text": {"body": mensaje}
     }, state)
 
+def get_whatsapp_delay():
+    from models import Configuration
+    config = Configuration.query.filter_by(key="WHATSAPP_DELAY_SECONDS").first()
+    try:
+        return float(config.value)
+    except Exception:
+        return 4.0  # fallback
+
 
 def send_messages(state: BotState) -> BotState:
     """Envía mensajes al canal correcto según la fuente."""
@@ -1765,8 +1773,9 @@ def send_messages(state: BotState) -> BotState:
                     })
                     bot_enviar_mensaje_whatsapp(typing_indicator, state)
 
-                time.sleep(4)
-
+                # Usa el delay configurable
+                delay = get_whatsapp_delay()
+                time.sleep(delay)
                 bot_enviar_mensaje_whatsapp(mensaje, state)
 
 
