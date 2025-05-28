@@ -1284,11 +1284,6 @@ def cargar_preguntas_slots():
     slots = KnowledgeBase.query.filter_by(tipo="pregunta_slot", activo=True).all()
     return {k.clave: json.loads(k.valor) for k in slots}
 
-REGLAS_SERIE_MOTOR = cargar_reglas_serie_motor() or REGLAS_SERIE_MOTOR
-FRASES_NO_SE = cargar_frases_no_se() or FRASES_NO_SE
-TIPOS_REPUESTO = cargar_tipos_repuesto() or TIPOS_REPUESTO
-PREGUNTAS_SLOTS = cargar_preguntas_slots() or PREGUNTAS_SLOTS
-
 def cargar_fuzzy_threshold():
     config = Configuration.query.filter_by(key="FUZZY_MATCH_SCORE").first()
     if config and config.value:
@@ -1454,6 +1449,11 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     session = state.get("session")
     user_msg = state.get("user_msg")
+
+    REGLAS_SERIE_MOTOR = cargar_reglas_serie_motor() or REGLAS_SERIE_MOTOR
+    FRASES_NO_SE = cargar_frases_no_se() or FRASES_NO_SE
+    TIPOS_REPUESTO = cargar_tipos_repuesto() or TIPOS_REPUESTO
+    PREGUNTAS_SLOTS = cargar_preguntas_slots() or PREGUNTAS_SLOTS
 
     # Limpia mensaje si viene en formato dict (WhatsApp)
     if isinstance(user_msg, dict):
