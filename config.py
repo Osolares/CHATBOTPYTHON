@@ -44,3 +44,5 @@ class Config:
     
     # Web
     WEB_SECRET_KEY = os.getenv('WEB_SECRET_KEY')
+
+    DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')

@@ -16,14 +16,14 @@ from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
 from menus import generar_list_menu, generar_menu_principal
 from datetime import datetime, timedelta
-from pytz import timezone
+#from pytz import timezone
 from config import now,GUATEMALA_TZ
 import re
 import threading
 from collections import deque
 from langchain_groq import ChatGroq
 import random
-import difflib
+#import difflib
 from rapidfuzz import fuzz, process
 from init_data import INTENCIONES_BOT_DEFECTO, PROMPT_ASISTENTE_DEFECTO, PROMPT_SLOT_FILL_DEFECTO
 import unicodedata
@@ -33,7 +33,8 @@ from init_data import inicializar_todo
 woo_service = WooCommerceService()
 
 # Configuración de DeepSeek
-deepseek_key = os.environ["DEEPSEEK_API_KEY"]
+#deepseek_key = os.environ["DEEPSEEK_API_KEY"]
+deepseek_key = f"{Config.DEEPSEEK_API_KEY}"
 model = ChatOpenAI(
     model="deepseek-chat",
     api_key=deepseek_key,
@@ -1518,7 +1519,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
         # Slot filling LLM
         nuevos_slots = slot_filling_llm(user_msg)
-        agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
+        #agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
         
         # Si no hay tipo_repuesto, intenta extraerlo por palabra clave
         if not nuevos_slots.get("tipo_repuesto"):
@@ -1800,6 +1801,7 @@ def send_messages(state: BotState) -> BotState:
             log_state(state, f"⏺️ ERROR en send_messages: {error_msg}")
 
     log_state(state, f"✅ Envío de mensajes completado para {source}")
+    agregar_mensajes_log(f"✅ Respuesta: {json.dumps(state)}")
 
     return state
 
@@ -1902,7 +1904,7 @@ def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], state: BotState) -> Option
         connection = http.client.HTTPSConnection("graph.facebook.com")
         json_data = json.dumps(data)
         connection.request("POST", f"/v22.0/{Config.PHONE_NUMBER_ID}/messages", json_data, headers)
-        agregar_mensajes_log(f"✅ Mensaje enviado a whatsapp: {state['phone_number']}, {json_data}")
+        #agregar_mensajes_log(f"✅ Mensaje enviado a whatsapp: {state['phone_number']}, {json_data}")
         log_state(state, f"⏺️ Mensaje enviado en bot_enviar_mensaje_whatsapp: {data}")
 
         response = connection.getresponse()
