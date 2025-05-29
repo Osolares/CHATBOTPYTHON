@@ -3,7 +3,6 @@ from models import UserSession, ProductModel, db
 from session_manager import load_or_create_session, get_session
 from menus import generar_list_menu, generar_menu_principal
 import time
-from app import handle_cotizacion_slots
 #from catalog_service import get_marcas_permitidas, get_series_disponibles, get_categorias_disponibles
 
 lista_cancelar = ["exit", "cancel", "salir", "cancelar"]
@@ -394,6 +393,8 @@ def manejar_paso_comentario(number, user_message, producto):
     ]
 
 def manejar_paso_finish(number, user_message, producto):
+    from app import handle_cotizacion_slots  
+
     producto.current_step = 'finished'
     actualizar_interaccion(number)
 
