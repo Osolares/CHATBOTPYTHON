@@ -1886,7 +1886,7 @@ def send_messages(state: BotState) -> BotState:
             log_state(state, f"⏺️ ERROR en send_messages: {error_msg}")
 
     log_state(state, f"✅ Envío de mensajes completado para {source}")
-    agregar_mensajes_log(f"✅ Respuesta: {state}")
+    agregar_mensajes_log(f"✅ Respuesta: {messages}")
 
     return state
 
