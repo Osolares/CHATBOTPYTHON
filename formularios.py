@@ -3,6 +3,7 @@ from models import UserSession, ProductModel, db
 from session_manager import load_or_create_session, get_session
 from menus import generar_list_menu, generar_menu_principal
 import time
+from app import handle_cotizacion_slots
 #from catalog_service import get_marcas_permitidas, get_series_disponibles, get_categorias_disponibles
 
 lista_cancelar = ["exit", "cancel", "salir", "cancelar"]
@@ -400,26 +401,31 @@ def manejar_paso_finish(number, user_message, producto):
         return cancelar_flujo(number)
 
     if user_message == "cotizar_si":
-        session = get_session()
-        if session:
-            # Eliminar productos asociados
-            ProductModel.query.filter_by(session_id=session.idUser).delete()
-            #db.session.delete(session)
-            db.session.commit()
-            actualizar_interaccion(number)
+        session = UserSession.query.filter_by(phone_number=number).first()
 
-        return [
-            {
-                "messaging_product": "whatsapp",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "body": " Formulario recibido, en unos minutos nos pondremos en contacto"
-                }
-            },
-            generar_list_menu(number)
+        slots = {
+            "tipo_repuesto": producto.tipo_repuesto,
+            "marca": producto.marca,
+            "linea": producto.linea,
+            "año": producto.modelo_anio,
+            "serie_motor": None,
+            "cc": None,
+            "combustible": producto.combustible,
+        }
+        # Guarda slots como memoria, para que el slot handler lo use
+        #guardar_memoria(session.idUser, 'slots_cotizacion', slots)
 
-        ]
+        state = {
+            "session": session,
+            "phone_number": number,
+            "source": "whatsapp",
+            "user_msg": "Cotizar",
+            "slots": slots,
+            "response_data": [],
+            "message_data": {},
+        }
+        resultado = handle_cotizacion_slots(state)
+        return resultado["response_data"]
 
 def cancelar_flujo(number):
     """Limpia la sesión y productos asociados"""

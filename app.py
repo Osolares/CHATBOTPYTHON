@@ -908,6 +908,8 @@ def handle_special_commands(state: BotState) -> BotState:
         state["response_data"] = manejar_comando_ofertas(number)
 
     elif texto == "7":
+        notificar_lead_via_whatsapp('50255105350', session, "El usuario necesita hablar con un asesor", state)
+
         state["response_data"] = [
             {
                 "messaging_product": "whatsapp" if source == "whatsapp" else "other",
@@ -923,9 +925,6 @@ def handle_special_commands(state: BotState) -> BotState:
 
     elif texto == "0":
         state["response_data"] = [generar_menu_principal(number)]
-
-
-
 
     log_state(state, f"⏺️ Saliendo de handle special products: {state['response_data']} at {now().isoformat()}")
     return state
@@ -1726,7 +1725,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     # 4. Si aún no se cumple ninguna ruta, pregunta SOLO lo necesario (pero nunca lo de "no_sabe")
     if not es_cotizacion_completa(memoria_slots):
-        frases = ["🚗 ¡Gracias por la información!"]
+        frases = ["🚗 ¡Gracias por la información! \n 🔎Estamos recopilando los datos de su vehículo"]
         resumen = []
         for campo in ["marca", "linea", "año", "serie_motor", "tipo_repuesto", "cc", "combustible"]:
             val = memoria_slots.get(campo)
@@ -1801,11 +1800,20 @@ def handle_cotizacion_slots(state: dict) -> dict:
     state["cotizacion_completa"] = True
     return state
 
+def quitar_codigo_pais(numero, codigo="502"):
+    # Si el número comienza con el código y tiene al menos 11 dígitos (ej. 50255105350)
+    if numero and numero.startswith(codigo) and len(numero) > len(codigo):
+        return numero[len(codigo):]
+    return numero
+
+
 def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
     resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items() if v and v != "no_sabe"])
+    numero_local = quitar_codigo_pais(session.phone_number, "502")
+
     mensaje = (
         f"🚗 *Nuevo Lead para Cotización*\n\n"
-        f"📞 Cliente: {session.phone_number}\n"
+        f"📞 Cliente: {numero_local}\n"
         f"Datos:\n{resumen}\n\n"
         f"ID Sesión: {session.idUser}\n"
     )
