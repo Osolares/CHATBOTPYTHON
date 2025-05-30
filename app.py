@@ -908,7 +908,7 @@ def handle_special_commands(state: BotState) -> BotState:
         state["response_data"] = manejar_comando_ofertas(number)
 
     elif texto == "7":
-        notificar_lead_via_whatsapp('50255105350', session, "El usuario necesita hablar con un asesor", state)
+        notificar_lead_via_whatsapp('50255105350', session, "msg":"El usuario necesita hablar con un asesor", state)
 
         state["response_data"] = [
             {

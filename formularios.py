@@ -1,12 +1,8 @@
 from datetime import datetime, timedelta
 from models import UserSession, ProductModel, db
-from menus import generar_list_menu, generar_menu_principal
-import time
+from menus import generar_list_menu
 
-# Opcional: importa handle_cotizacion_slots localmente cuando lo necesites
-# from app import handle_cotizacion_slots
-
-lista_cancelar = ["exit", "cancel", "salir", "cancelar", "❌ Cancelar/Salir", "cancelar/Salir", "no", "No", "NO"]
+lista_cancelar = ["exit", "cancel", "salir", "cancelar"]
 
 def formulario_motor(number):
     """Inicia el flujo de cotización creando o actualizando sesión"""
@@ -15,15 +11,18 @@ def formulario_motor(number):
         session = UserSession(phone_number=number, last_interaction=datetime.utcnow())
         db.session.add(session)
         db.session.commit()
+    else:
+        # Refresca last_interaction por si la sesión existe
+        session.last_interaction = datetime.utcnow()
+        db.session.commit()
 
-    # Crear o reiniciar producto asociado
-    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
-    if not producto:
-        producto = ProductModel(session_id=session.idUser)
-        db.session.add(producto)
-    
-    producto.current_step = 'awaiting_marca'
-    session.last_interaction = datetime.utcnow()
+    # Siempre borra el producto anterior para evitar residuos de formularios previos
+    ProductModel.query.filter_by(session_id=session.idUser).delete()
+    db.session.commit()
+
+    # Crea nuevo producto
+    producto = ProductModel(session_id=session.idUser, current_step='awaiting_marca')
+    db.session.add(producto)
     db.session.commit()
 
     return [{
@@ -54,87 +53,49 @@ def formulario_motor(number):
 def manejar_paso_actual(number, user_message):
     """Maneja todos los pasos del formulario"""
 
+    # Siempre obtiene la última versión actualizada de session y producto
     session = UserSession.query.filter_by(phone_number=number).first()
     if not session:
-        return [{
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "interactive",
-            "interactive":{
-                "type":"button",
-                "body": {
-                    "text": "⚠️ Sesión no encontrada. Envía '1' para comenzar. "
-                },
-                "footer": {"text": ""},
-                "action": {
-                    "buttons":[
-                        {
-                            "type": "reply",
-                            "reply":{
-                                "id":"exit",
-                                "title":"❌ Cancelar/Salir"
-                            }
-                        }
-                    ]
-                }
-            }
-        }]
-    
-    # CHEQUEO de cancelar o timeout
-    if user_message in lista_cancelar or (
+        return error_inicio(number, "⚠️ Sesión no encontrada. Envía '1' para comenzar. ")
+
+    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    if not producto:
+        return error_inicio(number, "⚠️ Producto no encontrado. Envía '1' para comenzar. ")
+
+    # Si cancela o timeout
+    if user_message.lower() in lista_cancelar or (
         session.last_interaction and datetime.utcnow() - session.last_interaction > timedelta(hours=1)
     ):
         return cancelar_flujo(number)
 
-    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
-    if not producto:
-        return [{
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "interactive",
-            "interactive":{
-                "type":"button",
-                "body": {
-                    "text": "⚠️ Producto no encontrado. Envía '1' para comenzar. "
-                },
-                "footer": {"text": ""},
-                "action": {
-                    "buttons":[
-                        {
-                            "type": "reply",
-                            "reply":{
-                                "id":"exit",
-                                "title":"❌ Cancelar/Salir"
-                            }
-                        }
-                    ]
-                }
-            }
-        }]
+    # Decide el paso según current_step
+    paso = producto.current_step
+    if paso == 'awaiting_marca':
+        return manejar_paso_marca(number, user_message)
+    elif paso == 'awaiting_modelo':
+        return manejar_paso_modelo(number, user_message)
+    elif paso == 'awaiting_combustible':
+        return manejar_paso_combustible(number, user_message)
+    elif paso == 'awaiting_año':
+        return manejar_paso_anio(number, user_message)
+    elif paso == 'awaiting_tipo_repuesto':
+        return manejar_paso_tipo_repuesto(number, user_message)
+    elif paso == 'awaiting_comentario':
+        return manejar_paso_comentario(number, user_message)
+    elif paso == 'completed':
+        return manejar_paso_finish(number, user_message)
+    else:
+        return error_inicio(number, "⚠️ Flujo no reconocido. Envía '1' para reiniciar. ")
 
-    handlers = {
-        'awaiting_marca': manejar_paso_marca,
-        'awaiting_modelo': manejar_paso_modelo,
-        'awaiting_combustible': manejar_paso_combustible,
-        'awaiting_año': manejar_paso_anio,
-        'awaiting_tipo_repuesto': manejar_paso_tipo_repuesto,
-        'awaiting_comentario': manejar_paso_comentario,
-        'completed': manejar_paso_finish
-    }
-
-    handler = handlers.get(producto.current_step)
-    return handler(number, user_message) if handler else [{
+def error_inicio(number, mensaje):
+    return [{
         "messaging_product": "whatsapp",
         "recipient_type": "individual",
         "to": number,
         "type": "interactive",
         "interactive":{
             "type":"button",
-            "body": {
-                "text": "⚠️ Flujo no reconocido. Envía '1' para reiniciar. "
-            },
+            "body": {"text": mensaje},
             "footer": {"text": ""},
             "action": {
                 "buttons":[
@@ -213,30 +174,8 @@ def manejar_paso_combustible(number, user_message):
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
     lista_combustible = ["gasolina", "diesel", "disel", "diésel", "gas", "gas propano"]
     if not user_message.lower() in lista_combustible:
-        return [{
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "interactive",
-            "interactive":{
-                "type":"button",
-                "body": {
-                    "text": "⚠️ Combustible inválido. Ingresa el combustible.\nEjemplo: Gasolina, Diesel "
-                },
-                "footer": {"text": ""},
-                "action": {
-                    "buttons":[
-                        {
-                            "type": "reply",
-                            "reply":{
-                                "id":"exit",
-                                "title":"❌ Cancelar/Salir"
-                            }
-                        }
-                    ]
-                }
-            }
-        }]
+        return error_inicio(number, "⚠️ Combustible inválido. Ingresa el combustible.\nEjemplo: Gasolina, Diesel ")
+
     producto.combustible = user_message
     producto.current_step = 'awaiting_año'
     session.last_interaction = datetime.utcnow()
@@ -270,30 +209,7 @@ def manejar_paso_anio(number, user_message):
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
     if not user_message.isdigit() or not (1950 < int(user_message) <= datetime.now().year + 1):
-        return [{
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "interactive",
-            "interactive":{
-                "type":"button",
-                "body": {
-                    "text": "⚠️ Año inválido. Ingresa un año entre 1950 y actual.\nEjemplo: 1995, 2000, 2005, 2008, 2015, 2020 "
-                },
-                "footer": {"text": ""},
-                "action": {
-                    "buttons":[
-                        {
-                            "type": "reply",
-                            "reply":{
-                                "id":"exit",
-                                "title":"❌ Cancelar/Salir"
-                            }
-                        }
-                    ]
-                }
-            }
-        }]
+        return error_inicio(number, "⚠️ Año inválido. Ingresa un año entre 1950 y actual.\nEjemplo: 1995, 2000, 2005, 2008, 2015, 2020 ")
     producto.modelo_anio = user_message
     producto.current_step = 'awaiting_tipo_repuesto'
     session.last_interaction = datetime.utcnow()
@@ -376,18 +292,18 @@ def manejar_paso_comentario(number, user_message):
     }]
 
 def manejar_paso_finish(number, user_message):
-    from app import handle_cotizacion_slots  # Importa aquí para evitar circular import
+    # Llamada directa para integración con el handler de slots (no hagas import arriba, hazlo aquí)
+    from app import handle_cotizacion_slots
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
     producto.current_step = 'finished'
     session.last_interaction = datetime.utcnow()
     db.session.commit()
 
-    if user_message in lista_cancelar:
+    if user_message.lower() in lista_cancelar:
         return cancelar_flujo(number)
 
     if user_message == "cotizar_si":
-        # Crea los slots a partir del producto guardado
         slots = {
             "tipo_repuesto": producto.tipo_repuesto,
             "marca": producto.marca,
@@ -407,7 +323,6 @@ def manejar_paso_finish(number, user_message):
             "message_data": {},
         }
         resultado = handle_cotizacion_slots(state)
-        # Limpia producto asociado (opcional)
         ProductModel.query.filter_by(session_id=session.idUser).delete()
         db.session.commit()
         return resultado["response_data"]
