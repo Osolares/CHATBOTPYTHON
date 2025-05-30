@@ -317,7 +317,7 @@ def manejar_paso_anio(number, user_message):
                             "id":"exit",
                             "title":"❌ Cancelar/Salir"
                         }
-                    ]
+                    }
                 ]
             }
         }
