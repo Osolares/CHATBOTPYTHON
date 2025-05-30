@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from models import UserSession, ProductModel, db
 from menus import generar_list_menu
-from app import handle_cotizacion_slots  # Importación directa, sin circularidad si solo usas aquí
 # from catalog_service import get_marcas_permitidas, get_series_disponibles, get_categorias_disponibles
 
 lista_cancelar = ["exit", "cancel", "salir", "cancelar"]
@@ -239,6 +238,8 @@ def manejar_paso_comentario(number, user_message):
     }]
 
 def manejar_paso_finish(number, user_message):
+    from app import handle_cotizacion_slots  # Importación directa, sin circularidad si solo usas aquí
+
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
     if not producto:
