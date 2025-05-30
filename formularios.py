@@ -5,22 +5,19 @@ from menus import generar_list_menu
 lista_cancelar = ["exit", "cancel", "salir", "cancelar"]
 
 def formulario_motor(number):
-    """Inicia el flujo de cotización creando o actualizando sesión"""
     session = UserSession.query.filter_by(phone_number=number).first()
     if not session:
         session = UserSession(phone_number=number, last_interaction=datetime.utcnow())
         db.session.add(session)
         db.session.commit()
     else:
-        # Refresca last_interaction por si la sesión existe
         session.last_interaction = datetime.utcnow()
         db.session.commit()
 
-    # Siempre borra el producto anterior para evitar residuos de formularios previos
+    # Limpia producto previo si existe (no debe haber nunca más de uno)
     ProductModel.query.filter_by(session_id=session.idUser).delete()
     db.session.commit()
 
-    # Crea nuevo producto
     producto = ProductModel(session_id=session.idUser, current_step='awaiting_marca')
     db.session.add(producto)
     db.session.commit()
@@ -51,25 +48,21 @@ def formulario_motor(number):
     }]
 
 def manejar_paso_actual(number, user_message):
-    """Maneja todos los pasos del formulario"""
-
-    # Siempre obtiene la última versión actualizada de session y producto
     session = UserSession.query.filter_by(phone_number=number).first()
-    if not session:
-        return error_inicio(number, "⚠️ Sesión no encontrada. Envía '1' para comenzar. ")
+    producto = None
+    if session:
+        producto = ProductModel.query.filter_by(session_id=session.idUser).first()
 
-    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
-    if not producto:
-        return error_inicio(number, "⚠️ Producto no encontrado. Envía '1' para comenzar. ")
-
-    # Si cancela o timeout
-    if user_message.lower() in lista_cancelar or (
-        session.last_interaction and datetime.utcnow() - session.last_interaction > timedelta(hours=1)
-    ):
+    # Si el usuario cancela o se vence la sesión
+    if not session or not producto:
+        return cancelar_flujo(number)
+    if user_message.lower() in lista_cancelar:
+        return cancelar_flujo(number)
+    if session.last_interaction and (datetime.utcnow() - session.last_interaction > timedelta(hours=1)):
         return cancelar_flujo(number)
 
-    # Decide el paso según current_step
     paso = producto.current_step
+
     if paso == 'awaiting_marca':
         return manejar_paso_marca(number, user_message)
     elif paso == 'awaiting_modelo':
@@ -114,6 +107,8 @@ def error_inicio(number, mensaje):
 def manejar_paso_marca(number, user_message):
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    if not producto:
+        return cancelar_flujo(number)
     producto.marca = user_message
     producto.current_step = 'awaiting_modelo'
     session.last_interaction = datetime.utcnow()
@@ -146,6 +141,8 @@ def manejar_paso_marca(number, user_message):
 def manejar_paso_modelo(number, user_message):
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    if not producto:
+        return cancelar_flujo(number)
     producto.linea = user_message
     producto.current_step = 'awaiting_combustible'
     session.last_interaction = datetime.utcnow()
@@ -172,8 +169,10 @@ def manejar_paso_modelo(number, user_message):
 def manejar_paso_combustible(number, user_message):
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    if not producto:
+        return cancelar_flujo(number)
     lista_combustible = ["gasolina", "diesel", "disel", "diésel", "gas", "gas propano"]
-    if not user_message.lower() in lista_combustible:
+    if user_message.lower() not in lista_combustible:
         return error_inicio(number, "⚠️ Combustible inválido. Ingresa el combustible.\nEjemplo: Gasolina, Diesel ")
 
     producto.combustible = user_message
@@ -208,6 +207,8 @@ def manejar_paso_combustible(number, user_message):
 def manejar_paso_anio(number, user_message):
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    if not producto:
+        return cancelar_flujo(number)
     if not user_message.isdigit() or not (1950 < int(user_message) <= datetime.now().year + 1):
         return error_inicio(number, "⚠️ Año inválido. Ingresa un año entre 1950 y actual.\nEjemplo: 1995, 2000, 2005, 2008, 2015, 2020 ")
     producto.modelo_anio = user_message
@@ -242,6 +243,8 @@ def manejar_paso_anio(number, user_message):
 def manejar_paso_tipo_repuesto(number, user_message):
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    if not producto:
+        return cancelar_flujo(number)
     producto.tipo_repuesto = user_message
     producto.current_step = 'awaiting_comentario'
     session.last_interaction = datetime.utcnow()
@@ -269,6 +272,8 @@ def manejar_paso_tipo_repuesto(number, user_message):
 def manejar_paso_comentario(number, user_message):
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    if not producto:
+        return cancelar_flujo(number)
     producto.estado = user_message
     producto.current_step = 'completed'
     session.last_interaction = datetime.utcnow()
@@ -292,10 +297,11 @@ def manejar_paso_comentario(number, user_message):
     }]
 
 def manejar_paso_finish(number, user_message):
-    # Llamada directa para integración con el handler de slots (no hagas import arriba, hazlo aquí)
     from app import handle_cotizacion_slots
     session = UserSession.query.filter_by(phone_number=number).first()
     producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    if not producto:
+        return cancelar_flujo(number)
     producto.current_step = 'finished'
     session.last_interaction = datetime.utcnow()
     db.session.commit()
@@ -327,7 +333,6 @@ def manejar_paso_finish(number, user_message):
         db.session.commit()
         return resultado["response_data"]
 
-    # Si no es cotizar, termina y muestra menú
     return [
         {
             "messaging_product": "whatsapp",
