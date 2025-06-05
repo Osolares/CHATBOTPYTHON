@@ -599,6 +599,7 @@ def handle_product_flow(state: BotState) -> BotState:
     #agregar_mensajes_log(f"En handle_product_flow: {state}")
 
     if state["flujo_producto"]:
+
         # Obtener la sesión de db del estado o usar la global
         session = state.get("db_session", db.session)
         
@@ -652,6 +653,47 @@ def quitar_acentos(texto):
         if unicodedata.category(c) != 'Mn'
     )
 
+#def detectar_intencion(mensaje, session_id=None):
+#    threshold = cargar_threshold_intencion()
+#    mensaje_norm = quitar_acentos(mensaje.lower())
+#    INTENCIONES_BOT = cargar_intenciones_bot()
+#    mejor_score = 0
+#    mejor_match = None
+#    mejor_intencion = None
+#
+#    for intencion, variantes in INTENCIONES_BOT.items():
+#        for variante in variantes:
+#            variante_norm = quitar_acentos(variante.lower())
+#            # Coincidencia exacta
+#            if variante_norm in mensaje_norm:
+#                log_text = f"[INTENCIÓN] Coincidencia EXACTA con '{variante}' para intención '{intencion}'"
+#                if session_id:
+#                    agregar_mensajes_log(log_text, session_id)
+#                else:
+#                    print(log_text)
+#                return intencion
+#            # Fuzzy matching
+#            score = fuzz.partial_ratio(variante_norm, mensaje_norm)
+#            if score > mejor_score:
+#                mejor_score = score
+#                mejor_match = variante
+#                mejor_intencion = intencion
+#            if score >= threshold:
+#                log_text = f"[INTENCIÓN] Coincidencia FUZZY con '{variante}' (score: {score}) para intención '{intencion}'"
+#                if session_id:
+#                    agregar_mensajes_log(log_text, session_id)
+#                else:
+#                    print(log_text)
+#                return intencion
+#
+#    if mejor_match and mejor_score > 0:
+#        log_text = f"[INTENCIÓN] Mejor coincidencia: '{mejor_match}' para '{mensaje}' (score: {mejor_score}), intención '{mejor_intencion}'"
+#        if session_id:
+#            agregar_mensajes_log(log_text, session_id)
+#        else:
+#            print(log_text)
+#
+#    return None
 def detectar_intencion(mensaje, session_id=None):
     threshold = cargar_threshold_intencion()
     mensaje_norm = quitar_acentos(mensaje.lower())
@@ -664,26 +706,35 @@ def detectar_intencion(mensaje, session_id=None):
         for variante in variantes:
             variante_norm = quitar_acentos(variante.lower())
             # Coincidencia exacta
-            if variante_norm in mensaje_norm:
+            if variante_norm == mensaje_norm:
                 log_text = f"[INTENCIÓN] Coincidencia EXACTA con '{variante}' para intención '{intencion}'"
                 if session_id:
                     agregar_mensajes_log(log_text, session_id)
                 else:
                     print(log_text)
                 return intencion
-            # Fuzzy matching
-            score = fuzz.partial_ratio(variante_norm, mensaje_norm)
-            if score > mejor_score:
-                mejor_score = score
-                mejor_match = variante
-                mejor_intencion = intencion
-            if score >= threshold:
-                log_text = f"[INTENCIÓN] Coincidencia FUZZY con '{variante}' (score: {score}) para intención '{intencion}'"
+            # Coincidencia parcial (el mensaje contiene la variante, para frases medianas/largas)
+            if len(variante_norm) > 3 and variante_norm in mensaje_norm:
+                log_text = f"[INTENCIÓN] Coincidencia IN ('{variante}') para intención '{intencion}'"
                 if session_id:
                     agregar_mensajes_log(log_text, session_id)
                 else:
                     print(log_text)
                 return intencion
+            # Fuzzy matching SOLO si ambos textos son suficientemente largos
+            if len(mensaje_norm) >= 4 and len(variante_norm) >= 4:
+                score = fuzz.partial_ratio(variante_norm, mensaje_norm)
+                if score > mejor_score:
+                    mejor_score = score
+                    mejor_match = variante
+                    mejor_intencion = intencion
+                if score >= threshold:
+                    log_text = f"[INTENCIÓN] Coincidencia FUZZY con '{variante}' (score: {score}) para intención '{intencion}'"
+                    if session_id:
+                        agregar_mensajes_log(log_text, session_id)
+                    else:
+                        print(log_text)
+                    return intencion
 
     if mejor_match and mejor_score > 0:
         log_text = f"[INTENCIÓN] Mejor coincidencia: '{mejor_match}' para '{mensaje}' (score: {mejor_score}), intención '{mejor_intencion}'"
@@ -698,6 +749,9 @@ def detectar_intencion(mensaje, session_id=None):
 def handle_special_commands(state: BotState) -> BotState:
     """Maneja comandos especiales (1-8, 0, hola) para cada usuario, considerando la fuente"""
     #agregar_mensajes_log(f"En handle_special_commands: {state}")
+
+    if state.get("flujo_producto"):
+        return state
 
     texto = state["user_msg"].lower().strip()
     number = state.get("phone_number")

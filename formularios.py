@@ -3,6 +3,7 @@ from models import UserSession, ProductModel, db
 from session_manager import load_or_create_session, get_session
 from menus import generar_list_menu, generar_menu_principal
 import time
+import json
 
 lista_cancelar = ["exit", "cancel", "salir", "cancelar"]
 
@@ -520,8 +521,10 @@ def manejar_paso_finish(number, user_message, producto):
             "session": session,
             "phone_number": number,
             "source": "whatsapp",
-            "user_msg": "Cotizar",
-            "slots": slots,
+            #"user_msg": "Cotizar",
+            "user_msg": f"Cotizar\n: {json.dumps(slots, ensure_ascii=False)}",
+
+            #"slots": slots,
             "response_data": [],
             "message_data": {},
         }
