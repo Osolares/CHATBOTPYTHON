@@ -466,7 +466,7 @@ def pre_validaciones(state: BotState) -> BotState:
                     "👋 ¡Bienvenido(a) a Intermotores Guatemala! Estamos aquí para ayudarte a encontrar el repuesto ideal para tu vehículo. 🚗\n\n🗒️ Consulta nuestro menú.",
                     canal=source
                 )
-            else:
+            elif kind == "retorno":
                 msg = obtener_mensaje_bot(
                     "re_bienvenida",
                     "👋 ¡Hola de nuevo! Gracias por contactar a Intermotores Guatemala. ¿En qué podemos ayudarte hoy? 🚗\n\n🗒️ Consulta nuestro menú.",
@@ -510,7 +510,11 @@ def load_or_create_session(state: BotState) -> BotState:
     message_data = state.get("message_data", {})
     state.setdefault("logs", [])
 
-    session = None
+
+    #session = None
+    # Usar la sesión de db pasada en el estado, o crear una nueva
+    session = state.get("db_session", db.session)
+
     #agregar_mensajes_log(f"Entrando En userSession: {state}")
 
     try:
@@ -518,8 +522,9 @@ def load_or_create_session(state: BotState) -> BotState:
 
         if source == "whatsapp":
             log_state(state, f"⏺️ Canal: WhatsApp")
-            session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
-            if not session:
+            #session = db.session.query(UserSession).filter_by(phone_number=phone_number).first()
+            user_session = session.query(UserSession).filter_by(phone_number=phone_number).first()
+            if not user_session:
                 log_state(state, f"⏺️ No existe sesión previa. Creando nueva...")
                 session = UserSession(phone_number=phone_number)
                 db.session.add(session)
@@ -529,39 +534,42 @@ def load_or_create_session(state: BotState) -> BotState:
         elif source == "telegram":
             chat_id = message_data.get("chat_id")
             log_state(state, f"⏺️ Canal: Telegram")
-            session = db.session.query(UserSession).filter_by(telegram_id=chat_id).first()
-            if not session:
-                session = UserSession(telegram_id=chat_id)
-                db.session.add(session)
-                db.session.flush()
+            user_session = session.query(UserSession).filter_by(telegram_id=chat_id).first()
+            if not user_session:
+                user_session = UserSession(telegram_id=chat_id)
+                session.add(user_session)
+                session.flush()
 
         elif source == "messenger":
             messenger_id = message_data.get("recipient", {}).get("id")
             log_state(state, f"⏺️ Canal: Messenger")
-            session = db.session.query(UserSession).filter_by(messenger_id=messenger_id).first()
-            if not session:
-                session = UserSession(messenger_id=messenger_id)
-                db.session.add(session)
-                db.session.flush()
+            user_session = session.query(UserSession).filter_by(messenger_id=messenger_id).first()
+            if not user_session:
+                user_session = UserSession(messenger_id=messenger_id)
+                session.add(user_session)
+                session.flush()
 
         elif source == "web":
             email = message_data.get("email")
             log_state(state, f"⏺️ Canal: Web")
-            session = db.session.query(UserSession).filter_by(email=email).first()
-            if not session and email:
-                session = UserSession(email=email)
-                db.session.add(session)
-                db.session.flush()
+            user_session = session.query(UserSession).filter_by(email=email).first()
+            if not user_session and email:
+                user_session = UserSession(email=email)
+                session.add(user_session)
+                session.flush()
 
-        if session:
+        if user_session:
             log_state(state, f"⏺️ Actualizando timestamp de última interacción.")
-            session.last_interaction = now()
-            state["session"] = session
+            user_session.last_interaction = now()
+            state["session"] = user_session
+            session.commit()
 
-        db.session.commit()
+        #db.session.commit()
 
     except Exception as e:
-        db.session.rollback()
+        #db.session.rollback()
+        session.rollback()
+
         log_state(state, f"❌ Error al crear o cargar sesión: {str(e)}")
 
     if not state.get("session"):
@@ -591,12 +599,20 @@ def handle_product_flow(state: BotState) -> BotState:
     #agregar_mensajes_log(f"En handle_product_flow: {state}")
 
     if state["flujo_producto"]:
+        # Obtener la sesión de db del estado o usar la global
+        session = state.get("db_session", db.session)
+        
+        # Refrescar el objeto de sesión si es necesario
+        if state.get("session"):
+            state["session"] = session.merge(state["session"])
+            
         response = manejar_paso_actual(
             state["phone_number"],
             state["user_msg"]
         )
         # FUTURO: Aquí podríamos modificar 'response' si quisiéramos respuestas distintas por source.
         state["response_data"] = response
+
     log_state(state, f"⏺️ Saliendo de handle product flow: {state['flujo_producto']} at {now().isoformat()}")
     return state
 
@@ -830,6 +846,36 @@ def handle_special_commands(state: BotState) -> BotState:
             }
         ]
         return state 
+    
+    elif intencion == "no_responder":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": ""
+                }
+            }
+        ]
+        return state 
+
+    elif intencion == "saltar_mensaje":
+        state["response_data"] = [
+            {
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": number,
+                "type": "text",
+                "text": {
+                    "preview_url": False,
+                    "body": "Un asesor te atenderá lo más pronto posible 🤝"
+                }
+            }
+        ]
+        return state 
     # --- FIN BLOQUE NUEVO ---
 
     # Verifica si el mensaje parece interés en un producto con URL
@@ -946,12 +992,12 @@ def asistente(state: BotState) -> BotState:
         session_id = session.idUser if session else None
 
         # Verificar duplicado
-        last_log = db.session.query(Log).filter(
-            Log.session_id == session_id
-        ).order_by(Log.fecha_y_hora.desc()).first()
-        if last_log and user_msg in (last_log.texto or ""):
-            agregar_mensajes_log("🔁 Mensaje duplicado detectado, ignorando respuesta asistente", session_id)
-            return state
+        #last_log = db.session.query(Log).filter(
+        #    Log.session_id == session_id
+        #).order_by(Log.fecha_y_hora.desc()).first()
+        #if last_log and user_msg in (last_log.texto or ""):
+        #    agregar_mensajes_log("🔁 Mensaje duplicado detectado, ignorando respuesta asistente", session_id)
+        #    return state
 
         # 🧠 Obtener contexto previo
         contexto_memoria = ""
@@ -2495,7 +2541,7 @@ def webhook():
 
 
 def procesar_mensaje_entrada(data):
-    from app import flask_app  # Asegúrate que esta es tu instancia Flask global
+    from app import flask_app, db  # Asegúrate que esta es tu instancia Flask global
 
     with flask_app.app_context():
         try:
@@ -2528,6 +2574,18 @@ def procesar_mensaje_entrada(data):
                 agregar_mensajes_log(f"⛔ Usuario o mensaje bloqueado intentó contactar: {phone_number} > {data}")
                 return
 
+
+            # Crear una nueva sesión de base de datos para este hilo
+            session = db.session
+
+            # Obtener o crear la sesión del usuario con la nueva sesión de db
+            user_session = session.query(UserSession).filter_by(phone_number=phone_number).first()
+            if not user_session:
+                user_session = UserSession(phone_number=phone_number)
+                session.add(user_session)
+                session.commit()
+
+
             # Estado inicial del bot
             initial_state = {
                 "phone_number": phone_number,
@@ -2535,7 +2593,9 @@ def procesar_mensaje_entrada(data):
                 "response_data": [],
                 "message_data": message,
                 "logs": [],
-                "source": "whatsapp"
+                "source": "whatsapp",
+                "db_session": session  # Pasamos la sesión activa
+
             }
 
             # Procesamiento de tipo de mensaje
@@ -2565,13 +2625,17 @@ def procesar_mensaje_entrada(data):
             # Ejecutar el flujo del boT
             final_state = app_flow.invoke(initial_state)
 
+            # Cerrar la sesión al finalizar
+            session.close()
             # Guardar todos los logs una vez finalizado el flujo
             #for msg in final_state["logs"]:
             #    agregar_mensajes_log({"final_log": msg}, final_state["session"].idUser)
 
         except Exception as e:
             agregar_mensajes_log(f"❌ Error en procesar_mensaje_entrada: {str(e)}")
-
+            if 'session' in locals():
+                session.rollback()
+                session.close()
 
 @flask_app.route('/webhook/telegram', methods=['POST'])
 def webhook_telegram():
