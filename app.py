@@ -2128,7 +2128,7 @@ def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], state: BotState) -> Option
         connection = http.client.HTTPSConnection("graph.facebook.com")
         json_data = json.dumps(data)
         connection.request("POST", f"/v22.0/{phone_number_id}/messages", json_data, headers)
-        log_state(state, f"⏺️ Mensaje enviado en bot_enviar_mensaje_whatsapp: {data}")
+        log_state(state, f"⏺️ Mensaje enviado en bot_enviar_mensaje_whatsapp: {json_data}")
         response = connection.getresponse()
         return response.read()
     except Exception as e:
