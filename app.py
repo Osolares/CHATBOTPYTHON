@@ -2620,7 +2620,7 @@ def procesar_mensaje_entrada(data):
                 if text:
                     initial_state["user_msg"] = text
 
-            agregar_mensajes_log(f"Mensaje completo recibido: {data} \n\n 📥 Mensaje recibido initial_state: {json.dumps(initial_state)}")
+            #agregar_mensajes_log(f"Mensaje completo recibido: {data} \n\n 📥 Mensaje recibido initial_state: {json.dumps(initial_state)}")
 
             # Ejecutar el flujo del boT
             final_state = app_flow.invoke(initial_state)
