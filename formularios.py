@@ -104,11 +104,11 @@ def manejar_paso_actual(number, user_message):
             }
         ]
     
-    elif session and (
+    elif user_session and (
         user_message in lista_cancelar or 
         (
-            session.last_interaction and 
-            datetime.utcnow() - session.last_interaction > timedelta(hours=1)
+            user_session.last_interaction and 
+            datetime.utcnow() - user_session.last_interaction > timedelta(hours=1)
         )
     ):
         return cancelar_flujo(number)
