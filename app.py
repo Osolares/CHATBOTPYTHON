@@ -2066,7 +2066,9 @@ def is_human_message(platform: str, message_data: dict) -> bool:
 
 def log_state(state: BotState, mensaje: str) -> None:
     # 1) append al estado en memoria
-    state["logs"].append(mensaje)
+    #state["logs"].append(mensaje)
+    state.setdefault("logs", []).append(mensaje)
+
     # 2) persiste en base de datos
     #agregar_mensajes_log(mensaje, state["session"].idUser if state.get("session") else None)
 
@@ -2128,7 +2130,7 @@ def bot_enviar_mensaje_whatsapp(data: Dict[str, Any], state: BotState) -> Option
         connection = http.client.HTTPSConnection("graph.facebook.com")
         json_data = json.dumps(data)
         connection.request("POST", f"/v22.0/{phone_number_id}/messages", json_data, headers)
-        log_state(state, f"⏺️ Mensaje enviado en bot_enviar_mensaje_whatsapp: {json_data}")
+        log_state(state, f"⏺️ Mensaje enviado en bot_enviar_mensaje_whatsapp: {data}")
         response = connection.getresponse()
         return response.read()
     except Exception as e:
