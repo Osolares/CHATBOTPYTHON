@@ -505,14 +505,14 @@ def manejar_paso_finish(number, user_message, producto):
         }
 
         if session:
+            # Guarda slots como memoria, para que el slot handler lo use
+            guardar_memoria(session.idUser, 'slots_cotizacion', slots)
+
             # Eliminar productos asociados
             ProductModel.query.filter_by(session_id=session.idUser).delete()
             #db.session.delete(session)
             db.session.commit()
             actualizar_interaccion(number)
-
-        # Guarda slots como memoria, para que el slot handler lo use
-        guardar_memoria(session.idUser, 'slots_cotizacion', slots)
 
         state = {
             "session": session,
