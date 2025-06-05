@@ -561,7 +561,7 @@ def manejar_paso_finish(number, user_message, producto):
             "phone_number": number,
             "source": "whatsapp",
             #"user_msg": "Cotizar",
-            "user_msg": f"Cotizar:\n {json.dumps(slots, ensure_ascii=False)}",
+            "user_msg": f"Cotizar este formulario:\n {json.dumps(slots, ensure_ascii=False)}",
 
             #"slots": slots,
             "response_data": [],

@@ -1653,12 +1653,20 @@ def handle_cotizacion_slots(state: dict) -> dict:
     TIPOS_REPUESTO = cargar_tipos_repuesto() or TIPOS_REPUESTO
     PREGUNTAS_SLOTS = cargar_preguntas_slots() or PREGUNTAS_SLOTS
     MARCAS_LINEAS = cargar_marcas_lineas() or MARCAS_LINEAS  # El fallback es opcional si quieres
-
 # Luego puedes usar MARCAS_LINEAS["Toyota"]["corolla"] etc...
 
     #REGLAS_SERIE_MOTOR = cargar_reglas_serie_motor() or {
     #    # aquí tu diccionario por defecto (opcional, solo si quieres fallback)
     #}
+
+
+    # --- Detecta si es un mensaje estructurado desde formulario ---
+    slots_from_formulario = None
+    if isinstance(user_msg, str) and user_msg.startswith("Cotizar este formulario:"):
+        try:
+            slots_from_formulario = json.loads(user_msg.split("Cotizar este formulario:", 1)[1].strip())
+        except Exception as e:
+            slots_from_formulario = None
 
     # Limpia mensaje si viene en formato dict (WhatsApp)
     if isinstance(user_msg, dict):
@@ -1691,20 +1699,30 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
     # Si la memoria está vacía, filtra por keywords (primer mensaje)
     if not memoria_slots or all(v in [None, "", "no_sabe"] for v in memoria_slots.values()):
-        cotizacion_keywords = ["motor","necesito","que precio","qué precio", "precio","cuesta", "vale","bale", "quiero", "cuanto cuesta","cuánto cuesta","hay ","tiene", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador","turbo","cigüeñal","cigueñal","ciguenal","starter","eje de levas"]
+        cotizacion_keywords = ["motor","Cotizar este formulario","necesito","que precio","qué precio", "precio","cuesta", "vale","bale", "quiero", "cuanto cuesta","cuánto cuesta","hay ","tiene", "culata", "cotizar", "repuesto", "turbina", "bomba", "inyector", "alternador","turbo","cigüeñal","cigueñal","ciguenal","starter","eje de levas"]
         if not any(kw in user_msg.lower() for kw in cotizacion_keywords):
             #agregar_mensajes_log(f"🔁no hay cotizacion keywords {json.dumps(memoria_slots)}")
 
             return state
         
-    if not es_no_se(user_msg):
+    #if not es_no_se(user_msg):
 
         #agregar_mensajes_log(f"🔁no es nose ")
 
         # Slot filling LLM
-        nuevos_slots = slot_filling_llm(user_msg)
         #agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
-        
+        #nuevos_slots = slot_filling_llm(user_msg)
+
+    # --- Obtención de nuevos slots según origen ---
+    if slots_from_formulario:
+        nuevos_slots = slots_from_formulario
+    else:
+        if not es_no_se(user_msg):
+            nuevos_slots = slot_filling_llm(user_msg)
+        else:
+            nuevos_slots = {}
+
+
         # Si no hay tipo_repuesto, intenta extraerlo por palabra clave
         if not nuevos_slots.get("tipo_repuesto"):
             tipo_detectado = extraer_tipo_repuesto(user_msg)
