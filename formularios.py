@@ -441,40 +441,40 @@ def manejar_paso_comentario(number, user_message, producto):
         }
     ]
 
-def manejar_paso_finish(number, user_message, producto):
-    from app import db
-    
-    db_session = db.session
-
-    producto.current_step = 'finished'
-    db_session.commit()
-
-    actualizar_interaccion(number)
-
-    if user_message in lista_cancelar:
-        return cancelar_flujo(number)
-
-    if user_message == "cotizar_si":
-        session = get_session()
-        if session:
-            # Eliminar productos asociados
-            ProductModel.query.filter_by(session_id=session.idUser).delete()
-            #db.session.delete(session)
-            db.session.commit()
-            actualizar_interaccion(number)
-
-        return [
-            {
-                "messaging_product": "whatsapp",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "body": " Formulario recibido, en unos minutos nos pondremos en contacto"
-                }
-            },
-            generar_list_menu(number)
-
-        ]
+#def manejar_paso_finish(number, user_message, producto):
+#    from app import db
+#    
+#    db_session = db.session
+#
+#    producto.current_step = 'finished'
+#    db_session.commit()
+#
+#    actualizar_interaccion(number)
+#
+#    if user_message in lista_cancelar:
+#        return cancelar_flujo(number)
+#
+#    if user_message == "cotizar_si":
+#        session = get_session()
+#        if session:
+#            # Eliminar productos asociados
+#            ProductModel.query.filter_by(session_id=session.idUser).delete()
+#            #db.session.delete(session)
+#            db.session.commit()
+#            actualizar_interaccion(number)
+#
+#        return [
+#            {
+#                "messaging_product": "whatsapp",
+#                "to": number,
+#                "type": "text",
+#                "text": {
+#                    "body": " Formulario recibido, en unos minutos nos pondremos en contacto"
+#                }
+#            },
+#            generar_list_menu(number)
+#
+#        ]
 
 def manejar_paso_finish(number, user_message, producto):
 
@@ -491,8 +491,8 @@ def manejar_paso_finish(number, user_message, producto):
         return cancelar_flujo(number)
 
     if user_message == "cotizar_si":
-        #session = UserSession.query.filter_by(phone_number=number).first()
-        session = get_session()
+        session = UserSession.query.filter_by(phone_number=number).first()
+        #session = get_session()
 
         slots = {
             "tipo_repuesto": producto.tipo_repuesto,
@@ -509,7 +509,9 @@ def manejar_paso_finish(number, user_message, producto):
             #guardar_memoria(session.idUser, 'slots_cotizacion', slots)
 
             # Eliminar productos asociados
-            ProductModel.query.filter_by(session_id=session.idUser).delete()
+            #ProductModel.query.filter_by(session_id=session.idUser).delete()
+            ProductModel.query.filter_by(session_id=session.idUser).delete(synchronize_session=False)
+
             #db.session.delete(session)
             db.session.commit()
             actualizar_interaccion(number)
