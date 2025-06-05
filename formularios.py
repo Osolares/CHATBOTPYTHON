@@ -120,6 +120,7 @@ def manejar_paso_actual(number, user_message):
         'awaiting_combustible': manejar_paso_combustible,
         'awaiting_año': manejar_paso_anio,
         'awaiting_tipo_repuesto': manejar_paso_tipo_repuesto,
+        'awaiting_serie': manejar_paso_serie,
         'awaiting_comentario': manejar_paso_comentario,
         'completed': manejar_paso_finish
     }
@@ -381,6 +382,43 @@ def manejar_paso_tipo_repuesto(number, user_message, producto):
     db_session = db.session
 
     producto.tipo_repuesto = user_message
+    producto.current_step = 'awaiting_serie'
+    db_session.commit()
+
+    actualizar_interaccion(number)
+
+    return [
+
+        {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": number,
+            "type": "interactive",
+            "interactive":{
+                "type":"button",
+                "body": {
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {producto.linea}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n\n📝Escribe la *SERIE O CILINDRAJE DEL MOTOR*:\n_(Ej: 1.5, 2.5, 2000, 4D56, 5L, 2KD)_ "
+                },
+                "footer": {
+                    "text": ""
+                },
+                "action": {
+                    "buttons": [
+                        {"type": "reply", "reply": {"id":"exit", "title":"❌ Cancelar/Salir"}}
+                    ]
+                }
+            }
+        }
+    ]
+
+
+def manejar_paso_serie(number, user_message, producto):
+    
+    from app import db
+    
+    db_session = db.session
+
+    producto.serie_motor = user_message
     producto.current_step = 'awaiting_comentario'
     db_session.commit()
 
@@ -396,7 +434,7 @@ def manejar_paso_tipo_repuesto(number, user_message, producto):
             "interactive":{
                 "type":"button",
                 "body": {
-                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {producto.linea}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n\n📝Escribe una *DESCRIPCIÓN O COMENTARIO FINAL*:\n_Si no tienes comentarios escribe *No* o presiona el botón_ "
+                    "text": f"✅ Marca: {producto.marca}\n✅ Línea: {producto.linea}\n✅ Combustible: {producto.combustible}\n✅ Año/Modelo: {producto.modelo_anio}\n✅ Tipo de repuesto: {producto.tipo_repuesto}\n✅ Motor: {producto.serie_motor}\n\n📝Escribe una *DESCRIPCIÓN O COMENTARIO FINAL*:\n_Si no tienes comentarios escribe *No* o presiona el botón_ "
                 },
                 "footer": {
                     "text": ""
@@ -416,7 +454,7 @@ def manejar_paso_comentario(number, user_message, producto):
     
     db_session = db.session
 
-    producto.estado = user_message
+    producto.comentario = user_message
     producto.current_step = 'completed'
     db_session.commit()
 
@@ -430,7 +468,7 @@ def manejar_paso_comentario(number, user_message, producto):
             "interactive": {
                 "type": "button",
                 "body": {
-                    "text": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n• *Tipo de repuesto:* {producto.tipo_repuesto}\n• *Descripción:* {producto.estado}\n\n"
+                    "text": f"✅ *Datos registrados:*\n\n• *Marca:* {producto.marca}\n• *Modelo:* {producto.linea}\n• *Combustible:* {producto.combustible}\n• *Año:* {producto.modelo_anio}\n• *Tipo de repuesto:* {producto.tipo_repuesto}\n• *Motor:* {producto.serie_motor}\n• *Descripción:* {producto.comentario}\n\n"
                 },
                 "action": {
                     "buttons": [
@@ -500,9 +538,10 @@ def manejar_paso_finish(number, user_message, producto):
             "marca": producto.marca,
             "linea": producto.linea,
             "año": producto.modelo_anio,
-            "serie_motor": None,
+            "serie_motor": producto.serie_motor,
             "cc": None,
             "combustible": producto.combustible,
+            "anotacion": producto.comentario
         }
 
         if session:
@@ -522,7 +561,7 @@ def manejar_paso_finish(number, user_message, producto):
             "phone_number": number,
             "source": "whatsapp",
             #"user_msg": "Cotizar",
-            "user_msg": f"Cotizar\n: {json.dumps(slots, ensure_ascii=False)}",
+            "user_msg": f"Cotizar:\n {json.dumps(slots, ensure_ascii=False)}",
 
             #"slots": slots,
             "response_data": [],
