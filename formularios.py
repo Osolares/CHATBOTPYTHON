@@ -8,22 +8,27 @@ lista_cancelar = ["exit", "cancel", "salir", "cancelar"]
 
 def formulario_motor(number):
     """Inicia el flujo de cotización creando o actualizando sesión"""
-    session = get_session()
-    if not session:
-        session = load_or_create_session(number)
+    from app import db
+    
+    db_session = db.session
+    user_session = db_session.query(UserSession).filter_by(phone_number=number).first()
+    
+    if not user_session:
+        user_session = UserSession(phone_number=number)
+        db_session.add(user_session)
+        db_session.commit()
 
     # Crear o reiniciar producto asociado
-    producto = ProductModel.query.filter_by(session_id=session.idUser).first()
+    producto = db_session.query(ProductModel).filter_by(session_id=user_session.idUser).first()
     if not producto:
-        producto = ProductModel(session_id=session.idUser)
-        db.session.add(producto)
+        producto = ProductModel(session_id=user_session.idUser)
+        db_session.add(producto)
     
     producto.current_step = 'awaiting_marca'
-    session.last_interaction = datetime.utcnow()
-    db.session.commit()
+    user_session.last_interaction = datetime.utcnow()
+    db_session.commit()
 
     return [
-
         {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
@@ -54,28 +59,24 @@ def formulario_motor(number):
 
 def manejar_paso_actual(number, user_message):
     """Maneja todos los pasos del formulario"""
-    from app import db  # Importar db aquí para asegurar el contexto
-
-    #session = get_session()
-    # Usar una nueva sesión para esta operación
-    session = db.session
-    user_session = session.query(UserSession).filter_by(phone_number=number).first()
+    from app import db
+    
+    # Obtener sesión de base de datos
+    db_session = db.session
+    
+    # Obtener sesión del usuario
+    user_session = db_session.query(UserSession).filter_by(phone_number=number).first()
 
     if not user_session:
-        #session = load_or_create_session(number)
-
         user_session = UserSession(phone_number=number)
-        session.add(user_session)
-        session.commit()
+        db_session.add(user_session)
+        db_session.commit()
         return formulario_motor(number)
 
-
-    #producto = ProductModel.query.filter_by(session_id=session.idUser).first()
-    producto = session.query(ProductModel).filter_by(session_id=user_session.idUser).first()
+    producto = db_session.query(ProductModel).filter_by(session_id=user_session.idUser).first()
 
     if not producto:
         return [
-
             {
                 "messaging_product": "whatsapp",
                 "recipient_type": "individual",
@@ -104,13 +105,12 @@ def manejar_paso_actual(number, user_message):
             }
         ]
     
-    elif user_session and (
-        user_message in lista_cancelar or 
-        (
-            user_session.last_interaction and 
-            datetime.utcnow() - user_session.last_interaction > timedelta(hours=1)
-        )
-    ):
+    # Actualizar last_interaction antes de cualquier verificación
+    user_session.last_interaction = datetime.utcnow()
+    db_session.commit()
+
+    # Solo cancelar si el usuario explícitamente lo solicita
+    if user_message.lower() in lista_cancelar:
         return cancelar_flujo(number)
 
     handlers = {
@@ -121,7 +121,6 @@ def manejar_paso_actual(number, user_message):
         'awaiting_tipo_repuesto': manejar_paso_tipo_repuesto,
         'awaiting_comentario': manejar_paso_comentario,
         'completed': manejar_paso_finish
-
     }
 
     handler = handlers.get(producto.current_step)
@@ -153,8 +152,15 @@ def manejar_paso_actual(number, user_message):
     }]
 
 def manejar_paso_marca(number, user_message, producto):
+
+    from app import db
+    
+    db_session = db.session
+
     producto.marca = user_message
     producto.current_step = 'awaiting_modelo'
+    db_session.commit()
+
     actualizar_interaccion(number)
     
     return [
@@ -188,10 +194,16 @@ def manejar_paso_marca(number, user_message, producto):
 
 
 def manejar_paso_modelo(number, user_message, producto):
+
+    from app import db
+    
+    db_session = db.session
+
     producto.linea = user_message
     producto.current_step = 'awaiting_combustible'
     actualizar_interaccion(number)
-    
+    db_session.commit()
+
     return [
         {
             "messaging_product": "whatsapp",
@@ -248,10 +260,15 @@ def manejar_paso_combustible(number, user_message, producto):
                 }
             }
         ]
+    from app import db
+    
+    db_session = db.session
 
     producto.combustible = user_message
     #producto.combustible = "Gasolina" if "gasolina" in user_message.lower() else "Diesel"
     producto.current_step = 'awaiting_año'
+    db_session.commit()
+
     actualizar_interaccion(number)
 
     return [
@@ -315,9 +332,16 @@ def manejar_paso_anio(number, user_message, producto):
                 }
             }
         ]
+    
+    from app import db
+    
+    db_session = db.session
 
+    db_session.commit()
     producto.modelo_anio = user_message
     producto.current_step = 'awaiting_tipo_repuesto'
+    db_session.commit()
+
     actualizar_interaccion(number)
 
     return [
@@ -350,8 +374,15 @@ def manejar_paso_anio(number, user_message, producto):
     ]
 
 def manejar_paso_tipo_repuesto(number, user_message, producto):
+    
+    from app import db
+    
+    db_session = db.session
+
     producto.tipo_repuesto = user_message
     producto.current_step = 'awaiting_comentario'
+    db_session.commit()
+
     actualizar_interaccion(number)
 
     return [
@@ -380,8 +411,14 @@ def manejar_paso_tipo_repuesto(number, user_message, producto):
     ]
 
 def manejar_paso_comentario(number, user_message, producto):
+    from app import db
+    
+    db_session = db.session
+
     producto.estado = user_message
     producto.current_step = 'completed'
+    db_session.commit()
+
     actualizar_interaccion(number)
 
     return [
@@ -405,7 +442,13 @@ def manejar_paso_comentario(number, user_message, producto):
     ]
 
 def manejar_paso_finish(number, user_message, producto):
+    from app import db
+    
+    db_session = db.session
+
     producto.current_step = 'finished'
+    db_session.commit()
+
     actualizar_interaccion(number)
 
     if user_message in lista_cancelar:
@@ -459,7 +502,11 @@ def cancelar_flujo(number):
 
 def actualizar_interaccion(number):
     """Actualiza la marca de tiempo de la sesión"""
-    session = UserSession.query.filter_by(phone_number=number).first()
-    if session:
-        session.last_interaction = datetime.utcnow()
-        db.session.commit()
+    from app import db
+    
+    db_session = db.session
+    user_session = db_session.query(UserSession).filter_by(phone_number=number).first()
+    
+    if user_session:
+        user_session.last_interaction = datetime.utcnow()
+        db_session.commit()
