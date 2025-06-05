@@ -476,6 +476,57 @@ def manejar_paso_finish(number, user_message, producto):
 
         ]
 
+def manejar_paso_finish(number, user_message, producto):
+
+    from app import db, handle_cotizacion_slots, guardar_memoria
+    
+    db_session = db.session
+
+    producto.current_step = 'finished'
+    db_session.commit()
+
+    actualizar_interaccion(number)
+
+    if user_message in lista_cancelar:
+        return cancelar_flujo(number)
+
+    if user_message == "cotizar_si":
+        #session = UserSession.query.filter_by(phone_number=number).first()
+        session = get_session()
+
+        slots = {
+            "tipo_repuesto": producto.tipo_repuesto,
+            "marca": producto.marca,
+            "linea": producto.linea,
+            "año": producto.modelo_anio,
+            "serie_motor": None,
+            "cc": None,
+            "combustible": producto.combustible,
+        }
+
+        if session:
+            # Eliminar productos asociados
+            ProductModel.query.filter_by(session_id=session.idUser).delete()
+            #db.session.delete(session)
+            db.session.commit()
+            actualizar_interaccion(number)
+
+        # Guarda slots como memoria, para que el slot handler lo use
+        guardar_memoria(session.idUser, 'slots_cotizacion', slots)
+
+        state = {
+            "session": session,
+            "phone_number": number,
+            "source": "whatsapp",
+            "user_msg": "Cotizar",
+            "slots": slots,
+            "response_data": [],
+            "message_data": {},
+        }
+        resultado = handle_cotizacion_slots(state)
+        return resultado["response_data"]
+
+
 def cancelar_flujo(number):
     """Limpia la sesión y productos asociados"""
     session = UserSession.query.filter_by(phone_number=number).first()
