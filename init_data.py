@@ -75,7 +75,7 @@ INTENCIONES_BOT_DEFECTO = {
         "horario", "atienden ", "abierto", "cierran", "abren", "a que hora", "a qué hora", "cuando abren", "horario de atencion"
     ],
     "contacto": [
-        "contacto", "telefono", "celular", "comunicarme", "llamar", "numero de telefono", "donde puedo llamar"
+        "contacto", "telefono ", "celular", "comunicarme", "llamar", "numero de telefono", "donde puedo llamar"
     ],
     "mensaje_despedida": [
         "gracias por la informacion","gracias mister","te confirmo" ,"ok gracias", "muy amable", "le agradezco", "feliz tarde", "adios", "saludos", "los visito", "feliz dia" , "feliz noche"
