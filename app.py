@@ -1665,6 +1665,8 @@ def handle_cotizacion_slots(state: dict) -> dict:
     if isinstance(user_msg, str) and user_msg.startswith("Cotizar este formulario:"):
         try:
             slots_from_formulario = json.loads(user_msg.split("Cotizar este formulario:", 1)[1].strip())
+            agregar_mensajes_log(f"🔁slots {json.dumps(slots_from_formulario)}")
+
         except Exception as e:
             slots_from_formulario = None
 
@@ -1705,7 +1707,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
 
             return state
         
-    #if not es_no_se(user_msg):
+    if not es_no_se(user_msg):
 
         #agregar_mensajes_log(f"🔁no es nose ")
 
@@ -1713,14 +1715,16 @@ def handle_cotizacion_slots(state: dict) -> dict:
         #agregar_mensajes_log(f"🔁nuevos slots {json.dumps(nuevos_slots)}")
         #nuevos_slots = slot_filling_llm(user_msg)
 
-    # --- Obtención de nuevos slots según origen ---
-    if slots_from_formulario:
-        nuevos_slots = slots_from_formulario
-    else:
-        if not es_no_se(user_msg):
-            nuevos_slots = slot_filling_llm(user_msg)
+        # --- Obtención de nuevos slots según origen ---
+        if slots_from_formulario:
+            nuevos_slots = slots_from_formulario
         else:
-            nuevos_slots = {}
+            if not es_no_se(user_msg):
+                nuevos_slots = slot_filling_llm(user_msg)
+            else:
+                nuevos_slots = {}
+
+        agregar_mensajes_log(f"🔁NUEVOS SLOTS{json.dumps(nuevos_slots)}")
 
 
         # Si no hay tipo_repuesto, intenta extraerlo por palabra clave
