@@ -1028,7 +1028,7 @@ def handle_special_commands(state: BotState) -> BotState:
                 "type": "text",
                 "text": {
                     "preview_url": False,
-                    "body": "🤝 Gracias por esperar, indique *¿cómo podemos apoyarle?* \n\nTu consulta es muy importante para nosotros. ¡Te responderemos pronto!"
+                    "body": "🤝 Gracias por esperar, \n\nTu consulta es muy importante para nosotros. ¡Te responderemos pronto!"
                 }
             }
         ]
@@ -2268,7 +2268,7 @@ def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
             #        }
             #    }
             #})
-            respuesta.append({generar_menu_complementario(number)})
+            respuesta.append(generar_menu_complementario(number))
 
         else:
             respuesta.append({
