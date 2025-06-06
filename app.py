@@ -1936,7 +1936,12 @@ def quitar_codigo_pais(numero, codigo="502"):
 
 
 def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
-    resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items() if v and v != "no_sabe"])
+    # Si memoria_slots es un diccionario, lo formatea como antes
+    if isinstance(memoria_slots, dict):
+        resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items() if v and v != "no_sabe"])
+    else:
+        # Si es string, lo usa directamente
+        resumen = str(memoria_slots)
     numero_local = quitar_codigo_pais(session.phone_number, "502")
 
     mensaje = (
