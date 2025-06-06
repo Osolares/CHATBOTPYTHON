@@ -707,7 +707,7 @@ def detectar_intencion(mensaje, session_id=None):
             variante_norm = quitar_acentos(variante.lower())
             # Coincidencia exacta
             if variante_norm == mensaje_norm:
-                log_text = f"[INTENCIÓN] Coincidencia EXACTA {mensaje} con '{variante}' para intención '{intencion}'"
+                log_text = f"[INTENCIÓN] Coincidencia EXACTA '{mensaje}' con '{variante}' para intención '{intencion}'"
                 if session_id:
                     agregar_mensajes_log(log_text, session_id)
                 else:
@@ -715,7 +715,7 @@ def detectar_intencion(mensaje, session_id=None):
                 return intencion
             # Coincidencia parcial (el mensaje contiene la variante, para frases medianas/largas)
             if len(variante_norm) > 3 and variante_norm in mensaje_norm:
-                log_text = f"[INTENCIÓN] Coincidencia IN ('{variante}') para intención '{intencion}'"
+                log_text = f"[INTENCIÓN] Coincidencia '{mensaje}' CONTIENE ('{variante}') para intención '{intencion}'"
                 if session_id:
                     agregar_mensajes_log(log_text, session_id)
                 else:
@@ -731,7 +731,7 @@ def detectar_intencion(mensaje, session_id=None):
                     mejor_match = variante
                     mejor_intencion = intencion
                 if score >= threshold:
-                    log_text = f"[INTENCIÓN] Coincidencia FUZZY con '{variante}' (score: {score}) para intención '{intencion}'"
+                    log_text = f"[INTENCIÓN] Coincidencia FUZZY '{mensaje}' con '{variante}' (score: {score}) para intención '{intencion}'"
                     if session_id:
                         agregar_mensajes_log(log_text, session_id)
                     else:
@@ -1813,9 +1813,9 @@ def handle_cotizacion_slots(state: dict) -> dict:
                     resumen.append(f"{campo.capitalize()}: {val}")
 
             notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
-            session.modo_control = 'paused'
-            session.pausa_hasta = datetime.now() + timedelta(hours=2)
-            db.session.commit()
+            #session.modo_control = 'paused'
+            #session.pausa_hasta = datetime.now() + timedelta(hours=2)
+            #db.session.commit()
             #guardar_memoria(session.idUser, 'assistant', memoria_slots)
 
             # 📝 Guardar memorias
@@ -1906,10 +1906,10 @@ def handle_cotizacion_slots(state: dict) -> dict:
             resumen.append(f"{campo.capitalize()}: {val}")
 
     notificar_lead_via_whatsapp('50255105350', session, memoria_slots, state)
-    session.modo_control = 'paused'
-    session.pausa_hasta = datetime.now() + timedelta(hours=2)
-    from config import db
-    db.session.commit()
+    #session.modo_control = 'paused'
+    #session.pausa_hasta = datetime.now() + timedelta(hours=2)
+    #from config import db
+    #db.session.commit()
 
     # 📝 Guardar memorias
     if session:
@@ -1938,6 +1938,7 @@ def quitar_codigo_pais(numero, codigo="502"):
 
 
 def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
+
     # Si memoria_slots es un diccionario, lo formatea como antes
     if isinstance(memoria_slots, dict):
         resumen = "\n".join([f"{k}: {v}" for k, v in memoria_slots.items() if v and v != "no_sabe"])
@@ -1958,6 +1959,17 @@ def notificar_lead_via_whatsapp(numero_admin, session, memoria_slots, state):
         "type": "text",
         "text": {"body": mensaje}
     }, state)
+
+    # Sino, intenta obtenerlo desde state, y si no, lo consultas.
+    if not session:
+        session = state.get("session")
+    if not session:
+        phone = state.get("phone_number")
+        session = UserSession.query.filter_by(phone_number=phone).first()
+    if session:
+        session.modo_control = 'paused'
+        session.pausa_hasta = datetime.now() + timedelta(hours=2)
+        db.session.commit()
 
 def get_whatsapp_delay():
     from models import Configuration
