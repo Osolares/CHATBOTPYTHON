@@ -14,7 +14,7 @@ import os
 from flask import Flask, request, jsonify, render_template, redirect
 from flask_sqlalchemy import SQLAlchemy
 from formularios import formulario_motor, manejar_paso_actual
-from menus import generar_list_menu, generar_menu_principal
+from menus import generar_list_menu, generar_menu_principal, generar_menu_complementario
 from datetime import datetime, timedelta
 #from pytz import timezone
 from config import now,GUATEMALA_TZ
@@ -968,19 +968,23 @@ def handle_special_commands(state: BotState) -> BotState:
                 }
             }]
         else:
-            state["response_data"] = [{
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": "😕 No pudimos encontrar el producto que buscas. Por favor verifica:\n\n"
-                            "1. Que el enlace sea correcto\n"
-                            "2. Que el nombre del producto esté bien escrito\n\n"
-                            "Puedes intentar nuevamente o escribir '0' para ver nuestro menú principal."
-                }
-            }]
+            state["response_data"] = [
+                {
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": number,
+                    "type": "text",
+                    "text": {
+                        "preview_url": False,
+                        "body": "😕 No pudimos encontrar el producto que buscas. Por favor verifica:\n\n"
+                                "1. Que el enlace sea correcto\n"
+                                "2. Que el nombre del producto esté bien escrito\n\n"
+                    }
+                },
+                generar_menu_complementario(number)
+            ]
+
+
         return state
 
     # Dependiendo del source, podrías en el futuro mandar menús diferentes.
@@ -2244,21 +2248,23 @@ def manejar_comando_ofertas(number: str) -> List[Dict[str, Any]]:
                 })
 
         if len(respuesta) > 1:
-            respuesta.append({
-                "messaging_product": "whatsapp",
-                "to": number,
-                "type": "interactive",
-                "interactive": {
-                    "type": "button",
-                    "body": {"text": "¿Qué deseas hacer ahora?"},
-                    "action": {
-                        "buttons": [
-                            {"type": "reply", "reply": {"id": "1", "title": "🔧 Cotizar"}},
-                            {"type": "reply", "reply": {"id": "0", "title": "🏠 Menú principal"}}
-                        ]
-                    }
-                }
-            })
+            #respuesta.append({
+            #    "messaging_product": "whatsapp",
+            #    "to": number,
+            #    "type": "interactive",
+            #    "interactive": {
+            #        "type": "button",
+            #        "body": {"text": "¿Qué deseas hacer ahora?"},
+            #        "action": {
+            #            "buttons": [
+            #                {"type": "reply", "reply": {"id": "1", "title": "🔧 Cotizar"}},
+            #                {"type": "reply", "reply": {"id": "0", "title": "🏠 Menú principal"}}
+            #            ]
+            #        }
+            #    }
+            #})
+            respuesta.append({generar_menu_complementario(number)})
+
         else:
             respuesta.append({
                 "messaging_product": "whatsapp",
