@@ -67,3 +67,21 @@ def generar_menu_principal(number):
             }
         }
     }
+
+def generar_menu_complementario(number):
+    """Retorna la estructura del botón 'Ver Menú' para reutilizar"""
+    return {
+        "messaging_product": "whatsapp",
+        "to": number,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {"text": "¿Qué deseas hacer ahora?"},
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": "1", "title": "🔧 Cotizar"}},
+                    {"type": "reply", "reply": {"id": "0", "title": "🏠 Menú principal"}}
+                ]
+            }
+        }
+    }
