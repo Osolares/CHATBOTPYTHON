@@ -707,7 +707,7 @@ def detectar_intencion(mensaje, session_id=None):
             variante_norm = quitar_acentos(variante.lower())
             # Coincidencia exacta
             if variante_norm == mensaje_norm:
-                log_text = f"[INTENCIÓN] Coincidencia EXACTA con '{variante}' para intención '{intencion}'"
+                log_text = f"[INTENCIÓN] Coincidencia EXACTA {mensaje} con '{variante}' para intención '{intencion}'"
                 if session_id:
                     agregar_mensajes_log(log_text, session_id)
                 else:
@@ -723,7 +723,9 @@ def detectar_intencion(mensaje, session_id=None):
                 return intencion
             # Fuzzy matching SOLO si ambos textos son suficientemente largos
             if len(mensaje_norm) >= 4 and len(variante_norm) >= 4:
-                score = fuzz.partial_ratio(variante_norm, mensaje_norm)
+                #score = fuzz.partial_ratio(variante_norm, mensaje_norm)
+                score = fuzz.ratio(variante_norm, mensaje_norm)  # ratio en vez de partial_ratio
+
                 if score > mejor_score:
                     mejor_score = score
                     mejor_match = variante
