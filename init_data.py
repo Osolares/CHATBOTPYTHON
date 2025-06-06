@@ -78,7 +78,7 @@ INTENCIONES_BOT_DEFECTO = {
         "contacto", "telefono ", "celular", "comunicarme", "llamar", "numero de telefono", "donde puedo llamar"
     ],
     "mensaje_despedida": [
-        "gracias por la informacion","gracias mister","te confirmo" ,"ok gracias", "muy amable", "le agradezco", "feliz tarde", "adios", "saludos", "los visito", "feliz dia" , "feliz noche"
+        "gracias por la informacion","pasare por","pasare el","gracias mister","te confirmo" ,"ok gracias", "muy amable", "le agradezco", "feliz tarde", "adios", "saludos", "los visito", "feliz dia" , "feliz noche"
     ],
     "no_responder": [
         "que aceite usa"

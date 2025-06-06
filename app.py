@@ -902,19 +902,23 @@ def handle_special_commands(state: BotState) -> BotState:
         return state 
     
     elif intencion == "no_responder":
-        state["response_data"] = [
-            {
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": number,
-                "type": "text",
-                "text": {
-                    "preview_url": False,
-                    "body": ""
-                }
-            }
-        ]
-        return state 
+
+        agregar_mensajes_log(f"No responder activado: {state['message_data']}")
+        return jsonify({'status': 'no_responder', 'message': state['message_data']}), 200
+
+        #state["response_data"] = [
+        #    {
+        #        "messaging_product": "whatsapp",
+        #        "recipient_type": "individual",
+        #        "to": number,
+        #        "type": "text",
+        #        "text": {
+        #            "preview_url": False,
+        #            "body": ""
+        #        }
+        #    }
+        #]
+        #return state 
 
     elif intencion == "saltar_mensaje":
         state["response_data"] = [
@@ -947,6 +951,8 @@ def handle_special_commands(state: BotState) -> BotState:
             nombre_match = re.search(r"producto:\s*(.*?)\s*que se encuentra", texto, re.IGNORECASE)
             if nombre_match:
                 nombre_producto = nombre_match.group(1)
+                log_state(state, f"⏺️nombre producto: {nombre_producto} at {now().isoformat()}")
+
                 producto = woo_service.buscar_producto_por_nombre(nombre_producto)
 
         if producto:
@@ -1665,8 +1671,7 @@ def handle_cotizacion_slots(state: dict) -> dict:
     if isinstance(user_msg, str) and user_msg.startswith("Cotizar este formulario:"):
         try:
             slots_from_formulario = json.loads(user_msg.split("Cotizar este formulario:", 1)[1].strip())
-            agregar_mensajes_log(f"🔁slots {json.dumps(slots_from_formulario)}")
-
+            
         except Exception as e:
             slots_from_formulario = None
 
@@ -1723,9 +1728,6 @@ def handle_cotizacion_slots(state: dict) -> dict:
                 nuevos_slots = slot_filling_llm(user_msg)
             else:
                 nuevos_slots = {}
-
-        agregar_mensajes_log(f"🔁NUEVOS SLOTS{json.dumps(nuevos_slots)}")
-
 
         # Si no hay tipo_repuesto, intenta extraerlo por palabra clave
         if not nuevos_slots.get("tipo_repuesto"):
